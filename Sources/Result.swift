@@ -19,8 +19,13 @@ import Socket
 
 public class Result: Frame {
     
+    let type: Int
     
-    init(){
+    init(body: Data){
+        var body = body
+
+        type = body.decodeInt
+        
         super.init(opcode: Opcode.result)
     }
     

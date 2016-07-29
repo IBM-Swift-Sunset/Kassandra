@@ -18,9 +18,16 @@ import Foundation
 import Socket
 
 public class ErrorPacket: Frame {
+    ///[int]) followed by a [string] error message
+    let code: Int
+    let message: String
     
-    
-    init(){
+    init(body: Data){
+        var body = body
+
+        code = body.decodeInt
+        message = body.decodeString
+
         super.init(opcode: Opcode.error)
     }
     

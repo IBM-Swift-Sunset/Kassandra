@@ -43,8 +43,8 @@ public struct Query {
         return (flags & 0x40)
     }
     
-    init() {
-        query = "CREATE KEYSPACE demodb"
+    init(query: String) {
+        self.query = query
         consistency = .all
         flags = 0x00
     }

@@ -62,7 +62,8 @@ class KassandraTests: XCTestCase {
                 
                 print(error)
             }
-            try client.query() {
+            // "CREATE KEYSPACE test WITH replication = {'class':'SimpleStrategy', 'replication_factor' : 3}; "
+            try client.query(query: "USE test") {
                 error in
                 
                 print(error)

@@ -66,7 +66,14 @@ extension String {
 }
 
 extension Int {
-    
+    init(data: Data) {
+        let u = Int(data[0]) << 24
+        let um = Int(data[1]) << 16
+        let ul = Int(data[2]) << 8
+        let l = Int(data[3])
+        
+        self = u | um | ul | l
+    }
     var toUInt8s: [UInt8] {
         var encLength = [UInt8]()
         var length = self

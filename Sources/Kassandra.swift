@@ -68,14 +68,14 @@ public class Kassandra {
         
         oncompletion(nil)
     }
-    public func query(oncompletion: (Error?) -> Void) throws {
+    public func query(query: String, oncompletion: (Error?) -> Void) throws {
         guard let sock = socket else {
             throw RCErrorType.GenericError("Could not create a socket")
             
         }
         do {
             
-            try QueryRequest(query: Query()).write(writer: sock)
+            try QueryRequest(query: Query(query: query)).write(writer: sock)
             
         } catch {
             oncompletion(RCErrorType.ConnectionError)
@@ -116,36 +116,58 @@ extension Kassandra {
             }
         }
     }
-    
-    public func unpack() {
-        // Header
-        print(buffer.count)
-        let version = buffer.decodeUInt8    // 0x83131
-        let flags = buffer.decodeUInt8      // 0
-        let streamID = buffer.decodeUInt16  // a number
-        let opcode = buffer.decodeUInt8     // 2
-        let length = buffer.decodeInt
-        print("header:",version, flags, streamID, opcode, length)
-        let body = buffer.subdata(in: Range(0..<Int(length)))
-        
-        buffer = buffer.subdata(in: Range(Int(length)..<buffer.count))
 
-        let response = createResponseMessage(opcode: opcode, data: body)
-        print(response?.opcode, buffer.count)
+    public func unpack() -> [Frame]? {
+        
+        var messages = [Frame]()
+        while buffer.count >= 9 {
+            
+            let version = UInt8(buffer[0])
+            let flags = UInt8(buffer[1])
+            let streamID = UInt16(msb: buffer[2], lsb: buffer[3])
+            let opcode = UInt8(buffer[4])
+            let bodyLength = Int(data: buffer.subdata(in: Range(5...8)))
+            
+            // Do we have all the bytes we need for the full packet?
+            let bytesNeeded = buffer.count - bodyLength - 9
+            
+            if bytesNeeded < 0 {
+                return nil
+            }
+
+            print("header:",version, flags, streamID, opcode, bodyLength)
+
+            let body = buffer.subdata(in: Range(9..<9 + bodyLength))
+            
+            buffer = buffer.subdata(in: Range(9 + bodyLength..<buffer.count))
+            
+            let response = createResponseMessage(opcode: opcode, data: body)
+            
+            switch response {
+            case let r as ErrorPacket: print(r.code, r.message)
+            case let r as Result: print(r.type)
+            default: print(response?.opcode)
+            }
+
+            messages.append(response!)
+        
+        }
+        return messages
     }
 }
+
 extension Kassandra {
     public func createResponseMessage(opcode: UInt8, data: Data) -> Frame? {
         let opcode = Opcode(rawValue: opcode)!
         switch opcode {
-        case .error: break
+        case .error: return ErrorPacket(body: data)
         case .startup: break
         case .ready: return Ready(body: data)
         case .authenticate: break
         case .options: break
         case .supported: break
         case .query: break
-        case .result: break
+        case .result: return Result(body: data)
         case .prepare: break
         case .auth_success: break
         case .execute: break
