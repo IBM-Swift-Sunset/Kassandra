@@ -1,36 +1,83 @@
-//
-//  def.swift
-//  Kassandra
-//
-//  Created by Chia Huang on 7/26/16.
-//
-//
+/**
+ Copyright IBM Corporation 2016
+ 
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+ 
+ http://www.apache.org/licenses/LICENSE-2.0
+ 
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License.
+ */
 
 import Foundation
-import Socket
 
-
-enum OpcodeRequest: Byte {
-    case startup = 0x01
-    case options = 0x05
-    case query = 0x07
-    case prepare = 0x09
-    case execute = 0x0A
-    case register = 0x0B
-    case batch = 0x0D
-    case auth_response = 0x0F
+public struct Query {
+    var query: String //Long string - Int -> utf8
+    var consistency: Consistency
+    var flags: UInt8
+    
+    var values: UInt8 { // 0x01 [short] <n> followed by <n> [bytes]
+        return (flags & 0x01)
+    }
+    var skip_metadata: UInt8 { // 0x02
+        return (flags & 0x02)
+    }
+    var pageSize: UInt8 { // 0x04
+        return (flags & 0x04)
+    }
+    var withPagingState: UInt8 { //0x08
+        return (flags & 0x08)
+    }
+    var withSerialConsistency: UInt8 { // 0x10
+        return (flags & 0x10)
+    }
+    var withDefaultTimestamp: UInt8 { // 0x20
+        return (flags & 0x20)
+    }
+    var withValueNames: UInt8 { // 0x40
+        return (flags & 0x40)
+    }
+    
+    init() {
+        query = "CREATE KEYSPACE demodb"
+        consistency = .all
+        flags = 0x00
+    }
+    
+    func pack() -> Data {
+        var data = Data()
+        
+        data.append(query.sData)
+        data.append(consistency.rawValue.data)
+        data.append(flags.data)
+        
+        return data
+    }
 }
 
-enum OpcodeResponse: Byte {
-    case error = 0x00
-    case read = 0x02
-    case authenicate = 0x03
-    case supported = 0x06
-    case result = 0x08
-    case event = 0x0C
+public enum Opcode: UInt8 {
+    case error          = 0x00
+    case startup        = 0x01
+    case ready          = 0x02
+    case authenticate   = 0x03
+    case options        = 0x05
+    case supported      = 0x06
+    case query          = 0x07
+    case result         = 0x08
+    case prepare        = 0x09
+    case auth_success   = 0x10
+    case execute        = 0x0A
+    case register       = 0x0B
+    case event          = 0x0C
+    case batch          = 0x0D
     case auth_challenge = 0x0E
-    case auth_success = 0x10
-    case unknown
+    case auth_response  = 0x0F
+    case unknown        = 0xFF
 }
 
 public struct CqlFrameHeader {
@@ -42,53 +89,30 @@ public struct CqlFrameHeader {
 
 /// The first element of the body of a RESULT message is an [int] representing the
 ///`kind` of result.
-enum KindResult : Byte {
-    case KindVoid = 0x0001
-    case KindRows = 0x0002
-    case KindSetKeyspace = 0x0003
-    case KindPrepared = 0x0004
-    case KindSchema = 0x0005
+public enum KindResult : UInt8 {
+    case KindVoid = 0x01
+    case KindRows = 0x02
+    case KindSetKeyspace = 0x03
+    case KindPrepared = 0x04
+    case KindSchema = 0x05
 }
 
-func opcode_response(val: Byte) -> OpcodeResponse {
-    switch val {
-    case 0x00:
-        return OpcodeResponse.error
-    case 0x02:
-        return OpcodeResponse.read
-    case 0x03:
-        return OpcodeResponse.authenicate
-    case 0x06:
-        return OpcodeResponse.supported
-    case 0x08:
-        return OpcodeResponse.result
-    case 0x0C:
-        return OpcodeResponse.event
-    case 0x0E:
-        return OpcodeResponse.auth_challenge
-    case 0x10:
-        return OpcodeResponse.auth_success
-    default:
-        return OpcodeResponse.unknown
-    }
-}
-
-enum Consistency: Byte {
-    case any = 0x0000
-    case one = 0x0001
-    case two = 0x0002
-    case three = 0x0003
-    case quorum = 0x0004
-    case all = 0x0005
-    case local_quorum = 0x0006
-    case each_quorum = 0x0007
+public enum Consistency: UInt16 {
+    case any = 0x00
+    case one = 0x01
+    case two = 0x02
+    case three = 0x03
+    case quorum = 0x04
+    case all = 0x05
+    case local_quorum = 0x06
+    case each_quorum = 0x07
+    case serial = 0x0008
+    case local_serial = 0x0009
+    case local_one = 0x000A
     case unknown
-//    case serial = 0x0008
-//    case local_serial = 0x0009
-//    case local_one = 0x000A
 }
 
-enum BatchType: Byte {
+enum BatchType: UInt8 {
     case Logged = 0x00
     case Unlogged = 0x01
     case Counter = 0x02
@@ -167,7 +191,7 @@ func cql_column_type(val: UInt16) -> CqlValueType {
     }
 }
 
-/// Return Code Error
+/// Return Code Errore
 public enum RCErrorType: Error {
     case ReadError
     case WriteError
