@@ -147,11 +147,11 @@ extension Kassandra {
                 case let r as ErrorPacket: print("ERROR |", r.code, r.message)
                 case let r as Result:
                     switch r.payload {
-                        case let kind as Rows: print(r.type, kind.metadata, kind.rows)
+                        case let kind as Rows: kind.prettyPrint()
                         case let kind as KeySpace: print(r.type, kind.name)
                         case let kind as Prepared: print(r.type, kind.metadata)
                         case let kind as SchemaChange: print(r.type, kind.change_type, kind.options, kind.target)
-                        default: break
+                        default: print(r.type)
                     }
                 default: print(response?.opcode)
             }
@@ -170,7 +170,7 @@ extension Kassandra {
         case .error: return ErrorPacket(body: data)
         case .startup: break
         case .ready: return Ready(body: data)
-        case .authenticate: break
+        case .authenticate: return Authenticate(body: data)
         case .options: break
         case .supported: break
         case .query: break

@@ -174,6 +174,11 @@ extension Data {
             return u | um | ul | l
         }
     }
+    var decodeVarInt: Int {
+        mutating get {
+            return 1
+        }
+    }
     var decodeString: String {
         mutating get {
             let length = UInt16(msb: self[0], lsb: self[1])

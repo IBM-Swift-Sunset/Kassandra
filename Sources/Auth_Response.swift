@@ -18,15 +18,30 @@ import Foundation
 
 public class Authenticate: Frame {
     
-    var IAuthenticator: String
+    var token: Int
     
-    init(body: Data){
-        var body = body
-        
-        IAuthenticator = body.decodeString
-        super.init(opcode: Opcode.authenticate)
+    init(token: Int){
+        self.token = token
+        super.init(opcode: Opcode.auth_response)
     }
     
     func pack() {
+        var data = Data(capacity: 32)
+        
+        header.append(version)
+        header.append(flags)
+        header.append(streamID.bigEndian.data)
+        header.append(opcode.rawValue)
+        body.append(token.data)
+        header.append(body.count.data)
+        header.append(body)
+        
+        do {
+            try writer.write(from: header)
+            
+        } catch {
+            throw error
+            
+        }
     }
 }

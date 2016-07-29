@@ -112,13 +112,13 @@ public enum Consistency: UInt16 {
     case unknown
 }
 
-enum BatchType: UInt8 {
+public enum BatchType: UInt8 {
     case Logged = 0x00
     case Unlogged = 0x01
     case Counter = 0x02
 }
 
-enum Options: Int {
+public enum Options: Int {
     case custom     = 0x0000
     case ASCII      = 0x0001
     case bitInt     = 0x0002

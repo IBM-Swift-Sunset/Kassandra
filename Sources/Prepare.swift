@@ -35,7 +35,8 @@ public class Prepare: Frame {
         header.append(streamID.bigEndian.data)
         header.append(opcode.rawValue)
         
-        // set up body
+        body.append(query.pack())
+
         header.append(body.count.data)
         header.append(body)
         

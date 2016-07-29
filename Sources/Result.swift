@@ -27,7 +27,7 @@ public class Result: Frame {
         var body = body
 
         type = ResultKind(rawValue: body.decodeInt)!
-
+        
         switch type {
         case .void:         payload = nil
         case .rows:         payload = Rows(data: body)

@@ -26,10 +26,12 @@ public class Execute: Frame {
      where <id> is the prepared query ID. It's the [short bytes] returned as a
      response to a PREPARE message. As for <query_parameters>, it has the exact
      same definition than in QUERY*/
-    let query: Query
-    
-    init(query: Query){
-        self.query = query
+    let id: UInt16
+    let parameters: String
+
+    init(id: UInt16, parameters: String){
+        self.id = id
+        self.parameters = parameters
         super.init(opcode: .execute)
         
     }
