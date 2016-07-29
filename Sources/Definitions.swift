@@ -45,7 +45,7 @@ public struct Query {
     
     init(query: String) {
         self.query = query
-        consistency = .all
+        consistency = .one
         flags = 0x00
     }
     
@@ -89,12 +89,12 @@ public struct CqlFrameHeader {
 
 /// The first element of the body of a RESULT message is an [int] representing the
 ///`kind` of result.
-public enum KindResult : UInt8 {
-    case KindVoid = 0x01
-    case KindRows = 0x02
-    case KindSetKeyspace = 0x03
-    case KindPrepared = 0x04
-    case KindSchema = 0x05
+public enum ResultKind : Int {
+    case void = 0x01
+    case rows = 0x02
+    case setKeyspace = 0x03
+    case prepared = 0x04
+    case schema = 0x05
 }
 
 public enum Consistency: UInt16 {
@@ -118,77 +118,30 @@ enum BatchType: UInt8 {
     case Counter = 0x02
 }
 
-enum CqlValueType: UInt16 {
-    case ColumnCustom = 0x0000
-    case ColumnASCII = 0x0001
-    case ColumnBitInt = 0x0002
-    case ColumnBlob = 0x0003
-    case ColumnBoolean = 0x0004
-    case ColumnCounter = 0x0005
-    case ColumnDecimal = 0x0006
-    case ColumnDouble = 0x0007
-    case ColumnFloat = 0x0008
-    case ColumnInt = 0x0009
-    case ColumnText = 0x000A
-    case ColumnTimestamp = 0x000B
-    case ColumnUuid = 0x000C
-    case ColumnVarChar = 0x000D
-    case ColumnVarInt = 0x000E
-    case ColumnTimeUuid = 0x000F
-    case ColumnInet = 0x0010
-    case ColumnList = 0x0020
-    case ColumnMap = 0x0021
-    case ColumnSet = 0x0022
-    case ColumnUnknown
-//    case ColumnUDT = 0x0030
-//    case ColumnTuple = 0x0031
-}
-    
-func cql_column_type(val: UInt16) -> CqlValueType {
-    switch val {
-    case 0x0000:
-        return CqlValueType.ColumnCustom
-    case 0x0001:
-        return CqlValueType.ColumnASCII
-    case 0x0002:
-        return CqlValueType.ColumnBitInt
-    case 0x0003:
-        return CqlValueType.ColumnBlob
-    case 0x0004:
-        return CqlValueType.ColumnBoolean
-    case 0x0005:
-        return CqlValueType.ColumnCounter
-    case 0x0006:
-        return CqlValueType.ColumnDecimal
-    case 0x0007:
-        return CqlValueType.ColumnDouble
-    case 0x0008:
-        return CqlValueType.ColumnFloat
-    case 0x0009:
-        return CqlValueType.ColumnInt
-    case 0x000A:
-        return CqlValueType.ColumnText
-    case 0x000B:
-        return CqlValueType.ColumnTimestamp
-    case 0x000C:
-        return CqlValueType.ColumnUuid
-    case 0x000D:
-        return CqlValueType.ColumnVarChar
-    case 0x000E:
-        return CqlValueType.ColumnVarInt
-    case 0x000F:
-        return CqlValueType.ColumnTimeUuid
-    case 0x0010:
-        return CqlValueType.ColumnInet
-    case 0x0020:
-        return CqlValueType.ColumnList
-    case 0x0021:
-        return CqlValueType.ColumnMap
-    case 0x0022:
-        return CqlValueType.ColumnSet
-    default:
-        return CqlValueType.ColumnUnknown
-    }
+enum Options: Int {
+    case custom     = 0x0000
+    case ASCII      = 0x0001
+    case bitInt     = 0x0002
+    case blob       = 0x0003
+    case boolean    = 0x0004
+    case counter    = 0x0005
+    case decimal    = 0x0006
+    case double     = 0x0007
+    case float      = 0x0008
+    case int        = 0x0009
+    case text       = 0x000A
+    case timestamp  = 0x000B
+    case uuid       = 0x000C
+    case varChar    = 0x000D
+    case varInt     = 0x000E
+    case timeUuid   = 0x000F
+    case inet       = 0x0010
+    case list       = 0x0020
+    case map        = 0x0021
+    case set        = 0x0022
+    case UDT        = 0x0030
+    case tuple      = 0x0031
+    case unknown
 }
 
 /// Return Code Errore
@@ -252,13 +205,7 @@ public struct CqlColMetadata {
     public var col_type_aux2: String
 }
 
-public struct CqlMetadata {
-    public var flags: UInt32
-    public var column_count: UInt32
-    public var keyspace: String
-    public var table: String
-    public var row_metadata: [CqlColMetadata]
-}
+
     
 public struct Pair<T,V> {
     public var key: T
@@ -291,14 +238,10 @@ public enum CqlValue {
     case CqlUnknown
 }
 
-public struct CqlRow {
-    public var cols: [CqlValue]
-}
-
-public struct CqlRows {
+/*public struct CqlRows {
     public var metadata: CqlMetadata
     public var  rows: [CqlRow]
-}
+}*/
 
 //public struct CqlRequest {
 //    public var version: UInt8

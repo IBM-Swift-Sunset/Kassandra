@@ -17,7 +17,7 @@
 import Socket
 import Foundation
 
-public class Options: Frame {
+public class OptionsRequest: Frame {
 
     
     init(query: Query){

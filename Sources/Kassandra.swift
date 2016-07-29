@@ -144,9 +144,16 @@ extension Kassandra {
             let response = createResponseMessage(opcode: opcode, data: body)
             
             switch response {
-            case let r as ErrorPacket: print(r.code, r.message)
-            case let r as Result: print(r.type)
-            default: print(response?.opcode)
+                case let r as ErrorPacket: print("ERROR |", r.code, r.message)
+                case let r as Result:
+                    switch r.payload {
+                        case let kind as Rows: print(r.type, kind.metadata, kind.rows)
+                        case let kind as KeySpace: print(r.type, kind.name)
+                        case let kind as Prepared: print(r.type, kind.metadata)
+                        case let kind as SchemaChange: print(r.type, kind.change_type, kind.options, kind.target)
+                        default: break
+                    }
+                default: print(response?.opcode)
             }
 
             messages.append(response!)

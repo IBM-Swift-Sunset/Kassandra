@@ -19,13 +19,22 @@ import Socket
 
 public class Result: Frame {
     
-    let type: Int
-    
+    let type: ResultKind
+
+    let payload: Kind?
+
     init(body: Data){
         var body = body
 
-        type = body.decodeInt
-        
+        type = ResultKind(rawValue: body.decodeInt)!
+
+        switch type {
+        case .void:         payload = nil
+        case .rows:         payload = Rows(data: body)
+        case .setKeyspace:  payload = KeySpace(name: body.decodeString)
+        case .prepared:     payload = Prepared(data: body)
+        case .schema:       payload = SchemaChange(change_type: body.decodeString, target: body.decodeString, options: body.decodeString)
+        }
         super.init(opcode: Opcode.result)
     }
     
