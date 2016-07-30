@@ -18,12 +18,7 @@ import Foundation
 import Socket
 
 public class Ready: Frame {
-    
-    
-    init () {
-        super.init(opcode: Opcode.ready)
-    }
-    
+
     init(body: Data) {
         super.init(opcode: Opcode.ready)
     }

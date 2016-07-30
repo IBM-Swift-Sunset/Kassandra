@@ -16,32 +16,14 @@
 
 import Foundation
 
-public class Authenticate: Frame {
+public class AuthSuccess: Frame {
     
-    var token: Int
-    
-    init(token: Int){
-        self.token = token
-        super.init(opcode: Opcode.auth_response)
-    }
-    
-    func pack() {
-        var data = Data(capacity: 32)
+    init(body: Data){
+        var body = body
         
-        header.append(version)
-        header.append(flags)
-        header.append(streamID.bigEndian.data)
-        header.append(opcode.rawValue)
-        body.append(token.data)
-        header.append(body.count.data)
-        header.append(body)
+        let length = body.decodeInt
         
-        do {
-            try writer.write(from: header)
-            
-        } catch {
-            throw error
-            
-        }
+        // [bytes] dependent on the type of authentication used
+        super.init(opcode: Opcode.authSuccess)
     }
 }

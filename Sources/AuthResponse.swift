@@ -13,24 +13,28 @@
  See the License for the specific language governing permissions and
  limitations under the License.
  */
-
-import Foundation
 import Socket
+import Foundation
 
-/*public class Void: Frame {
+public class AuthResponse: Frame {
     
+    var token: Int
     
-    init(){
-        super.init(opcode: Opcode.void)
+    init(token: Int){
+        self.token = token
+        super.init(opcode: Opcode.authResponse)
     }
     
     func write(writer: SocketWriter) throws {
+        var data = Data(capacity: 32)
         
         header.append(version)
         header.append(flags)
         header.append(streamID.bigEndian.data)
         header.append(opcode.rawValue)
-        header.append(length.data)
+        body.append(token.data)
+        header.append(body.count.data)
+        header.append(body)
         
         do {
             try writer.write(from: header)
@@ -40,4 +44,4 @@ import Socket
             
         }
     }
-}*/
+}

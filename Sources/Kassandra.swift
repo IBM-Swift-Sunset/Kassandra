@@ -33,7 +33,10 @@ public class Kassandra {
     
     private var buffer: Data
 
-    public init() {
+    public init(host: String = "localhost", port: Int32 = 9042) {
+        self.host = host
+        self.port = port
+
         socket = nil
         version = 0x03
         
@@ -43,6 +46,7 @@ public class Kassandra {
     }
     
     public func connect(oncompletion: (Error?) -> Void) throws {
+
         version = CQL_MAX_SUPPORTED_VERSION
         
         if socket == nil {
@@ -68,18 +72,137 @@ public class Kassandra {
         
         oncompletion(nil)
     }
-    public func query(query: String, oncompletion: (Error?) -> Void) throws {
+
+    public func authResponse(oncompletion: (Error?) -> Void) throws {
+
         guard let sock = socket else {
             throw RCErrorType.GenericError("Could not create a socket")
             
         }
-        do {
+
+        let token = 1
+
+        writeQueue.async {
+            do {
+                try AuthResponse(token: token).write(writer: sock)
+                
+            } catch {
+                oncompletion(RCErrorType.ConnectionError)
+                
+            }
+        }
+    }
+
+    public func options(oncompletion: (Error?) -> Void) throws {
+
+        guard let sock = socket else {
+            throw RCErrorType.GenericError("Could not create a socket")
             
-            try QueryRequest(query: Query(query: query)).write(writer: sock)
+        }
+
+        writeQueue.async {
+            do {
+                try OptionsRequest().write(writer: sock)
+                
+            } catch {
+                oncompletion(RCErrorType.ConnectionError)
+
+            }
+        }
+    }
+
+    public func query(query: String, oncompletion: (Error?) -> Void) throws {
+
+        guard let sock = socket else {
+            throw RCErrorType.GenericError("Could not create a socket")
             
-        } catch {
-            oncompletion(RCErrorType.ConnectionError)
-            return
+        }
+        writeQueue.async {
+            do {
+                try QueryRequest(query: Query(query)).write(writer: sock)
+                
+            } catch {
+                oncompletion(RCErrorType.ConnectionError)
+                return
+            }
+        }
+    }
+
+    public func prepare(query: String, oncompletion: (Error?) -> Void) throws {
+        guard let sock = socket else {
+            throw RCErrorType.GenericError("Could not create a socket")
+            
+        }
+        writeQueue.async {
+            do {
+                try Prepare(query: Query(query)).write(writer: sock)
+                
+            } catch {
+                oncompletion(RCErrorType.ConnectionError)
+                
+            }
+        }
+    }
+
+    public func execute(id: UInt16, parameters: String, oncompletion: (Error?) -> Void) throws {
+        
+        guard let sock = socket else {
+            throw RCErrorType.GenericError("Could not create a socket")
+            
+        }
+        
+        writeQueue.async {
+            do {
+                try Execute(id: id, parameters: parameters).write(writer: sock)
+                
+            } catch {
+                oncompletion(RCErrorType.ConnectionError)
+                return
+            }
+            
+        }
+    }
+    
+    public func batch(query: [String], oncompletion: (Error?) -> Void) throws {
+        
+        guard let sock = socket else {
+            throw RCErrorType.GenericError("Could not create a socket")
+            
+        }
+        
+        let queries = query.map {
+            str in
+            
+            return Query(str)
+        }
+        
+        writeQueue.async {
+            do {
+                try Batch(queries: queries).write(writer: sock)
+                
+            } catch {
+                oncompletion(RCErrorType.ConnectionError)
+                return
+            }
+            
+        }
+    }
+
+    public func register(events: [String], oncompletion: (Error?) -> Void) throws {
+        guard let sock = socket else {
+            throw RCErrorType.GenericError("Could not create a socket")
+            
+        }
+        
+        writeQueue.async {
+            do {
+                try Register(events: events).write(writer: sock)
+                
+            } catch {
+                oncompletion(RCErrorType.ConnectionError)
+                return
+            }
+            
         }
     }
 }
@@ -167,25 +290,30 @@ extension Kassandra {
     public func createResponseMessage(opcode: UInt8, data: Data) -> Frame? {
         let opcode = Opcode(rawValue: opcode)!
         switch opcode {
-        case .error: return ErrorPacket(body: data)
-        case .startup: break
-        case .ready: return Ready(body: data)
+        case .error:        return ErrorPacket(body: data)
+        case .ready:        return Ready(body: data)
         case .authenticate: return Authenticate(body: data)
-        case .options: break
-        case .supported: break
-        case .query: break
-        case .result: return Result(body: data)
-        case .prepare: break
-        case .auth_success: break
-        case .execute: break
-        case .register: break
-        case .event: break
-        case .batch: break
-        case .auth_challenge: break
-        case .auth_response: break
-        case .unknown: break
+        case .supported:    return Supported(body: data)
+        case .result:       return Result(body: data)
+        case .authSuccess:  return AuthSuccess(body: data)
+        case .event:        return Event(body: data)
+        case .authChallenge:return AuthChallenge(body: data)
+        default: return nil
         }
-        return nil
-        
     }
+}
+
+// Custom operators for database
+extension Kassandra {
+    subscript(_ database: String) -> Bool {
+        do {
+            try query(query: "USE \(database);") { _ in
+                
+            }
+        } catch {
+            return false
+        }
+        return true
+    }
+    
 }

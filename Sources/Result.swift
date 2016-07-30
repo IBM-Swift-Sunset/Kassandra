@@ -37,21 +37,4 @@ public class Result: Frame {
         }
         super.init(opcode: Opcode.result)
     }
-    
-    func write(writer: SocketWriter) throws {
-        
-        header.append(version)
-        header.append(flags)
-        header.append(streamID.bigEndian.data)
-        header.append(opcode.rawValue)
-        header.append(length.data)
-        
-        do {
-            try writer.write(from: header)
-            
-        } catch {
-            throw error
-            
-        }
-    }
 }

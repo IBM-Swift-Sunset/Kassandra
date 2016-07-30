@@ -18,13 +18,7 @@ import Socket
 import Foundation
 
 public class QueryRequest: Frame {
-    /*
-     Performs a CQL query. The body of the message must be:
-     <query><query_parameters>
-     where <query> is a [long string] representing the query and
-     <query_parameters> must be
-     <consistency><flags>[<n>[name_1]<value_1>...[name_n]<value_n>][<result_page_size>][<paging_state>][<serial_consistency>][<timestamp>]
-    */
+
     let query: Query
 
     init(query: Query){

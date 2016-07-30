@@ -1,0 +1,11 @@
+
+matrix:
+  include:
+    - os: osx
+      osx_image: xcode8
+      sudo: required
+before_install:
+  - brew update
+  - brew install openssl
+ script:
+  - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then swift build -Xcc -I/usr/local/opt/openssl/include -Xlinker -L/usr/local/opt/openssl/lib; fi

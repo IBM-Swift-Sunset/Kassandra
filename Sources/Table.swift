@@ -14,37 +14,24 @@
  limitations under the License.
  */
 
-import Socket
 import Foundation
 
-public class Prepare: Frame {
+public protocol Table: RawRepresentable, Hashable {
+    static var tableName: String { get }
+}
 
-    let query: Query
-
-    init(query: Query){
-        self.query = query
-        super.init(opcode: .prepare)
+public extension Table {
+    
+    public static func select() {
         
     }
-    
-    func write(writer: SocketWriter) throws {
+    public static func insert() {
         
-        header.append(version)
-        header.append(flags)
-        header.append(streamID.bigEndian.data)
-        header.append(opcode.rawValue)
+    }
+    public static func update() {
         
-        body.append(query.pack())
-
-        header.append(body.count.data)
-        header.append(body)
+    }
+    public static func delete() {
         
-        do {
-            try writer.write(from: header)
-            
-        } catch {
-            throw error
-            
-        }
     }
 }

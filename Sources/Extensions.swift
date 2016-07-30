@@ -13,6 +13,7 @@
  See the License for the specific language governing permissions and
  limitations under the License.
  */
+
 import Foundation
 import Socket
 
@@ -178,6 +179,15 @@ extension Data {
         mutating get {
             return 1
         }
+    }
+    var decodeInet: (String, Int) {
+        mutating get {
+            let size = Int(self.decodeUInt8)
+            var host = self.subdata(in: Range(0..<size))
+            var port = self.subdata(in: Range(size..<self.count))
+            return (host.decodeString, port.decodeInt)
+        }
+        
     }
     var decodeString: String {
         mutating get {

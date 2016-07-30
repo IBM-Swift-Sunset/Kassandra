@@ -15,24 +15,16 @@
  */
 
 import Foundation
-import Socket
 
-public class Supported: Frame {
+public class AuthChallenge: Frame {
     
-    init(body: Data) {
+    var token: Int
+    
+    init(body: Data){
         var body = body
-        var map = [String: [String]]()
         
-        for _ in 0..<Int(body.decodeUInt16) {
-            let key = body.decodeString
-            var strList = [String]()
-            let strListLen = Int(body.decodeUInt16)
-            for _ in 0..<strListLen {
-                strList.append(body.decodeString)
-            }
-            map[key] = strList
-        }
-        super.init(opcode: Opcode.supported)
+        token = body.decodeInt
+        //Rest of the data depends on the chosen Authentication
+        super.init(opcode: Opcode.authChallenge)
     }
-
 }

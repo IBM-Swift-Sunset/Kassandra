@@ -43,7 +43,7 @@ public struct Query {
         return (flags & 0x40)
     }
     
-    init(query: String) {
+    init(_ query: String) {
         self.query = query
         consistency = .one
         flags = 0x00
@@ -70,13 +70,13 @@ public enum Opcode: UInt8 {
     case query          = 0x07
     case result         = 0x08
     case prepare        = 0x09
-    case auth_success   = 0x10
+    case authSuccess    = 0x10
     case execute        = 0x0A
     case register       = 0x0B
     case event          = 0x0C
     case batch          = 0x0D
-    case auth_challenge = 0x0E
-    case auth_response  = 0x0F
+    case authChallenge  = 0x0E
+    case authResponse   = 0x0F
     case unknown        = 0xFF
 }
 

@@ -18,10 +18,33 @@
 import XCTest
 @testable import Kassandra
 
+/*class Employee {
+    let id: Int
+    let name: String
+    let city: String
+    
+    init(id: Int, name: String, city: String){
+        self.id = id
+        self.name = name
+        self.city = city
+    }
+}
+extension Employee: Table {
+    enum Fields: String {
+        case id = "id"
+        case name = "name"
+        case city = "city"
+    }
+    
+    var hashValue: Int {
+        return Fields.id.hashValue
+    }
+}*/
+
 class KassandraTests: XCTestCase {
 
     private var client: Kassandra!
-       
+    
     weak var expectation: XCTestExpectation!
     
     var tokens = [String]()
@@ -55,25 +78,22 @@ class KassandraTests: XCTestCase {
     }
     
     func testQuery() throws {
-        
+    
         do {
             try client.connect {
                 error in
                 
                 print(error)
             }
+            
             //let query0 = "DROP TABLE emp;"
-            let query1 = "USE test"
             //let query2 = "CREATE KEYSPACE test WITH replication = {'class':'SimpleStrategy', 'replication_factor' : 3}; "
             //let query3 = "CREATE TABLE emp(emp_id int PRIMARY KEY, emp_name text, emp_city text, emp_sal varint, emp_phone varint);"
             //let query3 = "INSERT INTO emp (emp_id, emp_name, emp_city, emp_phone, emp_sal) VALUES(1,'ram', 'Hyderabad', 9848022338, 50000);"
             let query4 = "select * from emp;"
 
-            try client.query(query: query1) {
-                error in
-                
-                print(error)
-            }
+            let _ = client["test"]
+
             try client.query(query: query4) {
                 error in
                 

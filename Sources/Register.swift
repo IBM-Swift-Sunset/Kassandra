@@ -18,7 +18,10 @@ import Socket
 
 public class Register: Frame {
     
-    init(query: Query){
+    let events: [String]
+    
+    init(events: [String]){
+        self.events = events
         super.init(opcode: .register)
         
     }
@@ -29,7 +32,12 @@ public class Register: Frame {
         header.append(flags)
         header.append(streamID.bigEndian.data)
         header.append(opcode.rawValue)
-        header.append(0.data)
+        
+        body.append(events.count.data)
+        for event in events {
+            body.append(event.data)
+        }
+        header.append(body.count.data)
         header.append(body)
         
         do {

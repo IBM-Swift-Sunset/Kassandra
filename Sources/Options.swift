@@ -19,8 +19,7 @@ import Foundation
 
 public class OptionsRequest: Frame {
 
-    
-    init(query: Query){
+    init () {
         super.init(opcode: .options)
         
     }

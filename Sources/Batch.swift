@@ -23,10 +23,21 @@ public class Batch: Frame {
      where <id> is the prepared query ID. It's the [short bytes] returned as a
      response to a PREPARE message. As for <query_parameters>, it has the exact
      same definition than in QUERY*/
+    let type: BatchType
+    let consistency: Consistency
+    let Batchflags: UInt8
+    
+    var withNames: Bool {
+        return Batchflags & 0x04 == 0x04 ? true : false
+    }
+
     let queries: [Query]
     
     init(queries: [Query]){
         self.queries = queries
+        self.type = .Unlogged
+        self.consistency = .any
+        self.Batchflags = 0x00
         super.init(opcode: .batch)
         
     }
@@ -39,6 +50,25 @@ public class Batch: Frame {
         header.append(opcode.rawValue)
         
         // set up body
+        body.append(type.rawValue.data)
+        body.append(queries.count.data)
+        
+        for query in queries {
+            if withNames {
+                
+            }
+            body.append(query.pack())
+        }
+        
+        body.append(consistency.rawValue.data)
+        
+        if Batchflags & 0x10 == 0x10 {
+            body.append(Consistency.serial.rawValue.data)
+        }
+        if Batchflags & 0x20 == 0x20 {
+            //body.append() // optional timestamp
+        }
+
         header.append(body.count.data)
         header.append(body)
         
