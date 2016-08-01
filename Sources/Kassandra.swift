@@ -28,6 +28,8 @@ public class Kassandra {
     private var writeQueue: DispatchQueue
     
     private var buffer: Data
+    
+    var map = [UInt16: (TableObj?, Error?) -> Void]()
 
     public init(host: String = "localhost", port: Int32 = 9042) {
         self.host = host
@@ -101,7 +103,7 @@ public class Kassandra {
         }
     }
 
-    public func query(query: String, oncompletion: (Error?) -> Void) throws {
+    public func query(query: String, oncompletion: (TableObj?, Error?) -> Void) throws {
 
         guard let sock = socket else {
             throw RCErrorType.GenericError("Could not create a socket")
@@ -109,10 +111,15 @@ public class Kassandra {
         }
         writeQueue.async {
             do {
-                try QueryRequest(query: Query(query)).write(writer: sock)
+                let val = UInt16(random: true)
+
+                self.map[val] = oncompletion
+
+                try RequestPacket.query(id: val, query: Query(query)).write(writer: sock)
+                //try QueryRequest(query: Query(query)).write(writer: sock)
                 
             } catch {
-                oncompletion(RCErrorType.ConnectionError)
+                oncompletion(nil,RCErrorType.ConnectionError)
             }
         }
     }
@@ -227,14 +234,14 @@ extension Kassandra {
     public func unpack() -> [Response]? {
         
         var messages = [Response]()
+
         while buffer.count >= 9 {
             
             //Unpack header
-            let version = UInt8(buffer[0])
-            let flags = UInt8(buffer[1])
-            let streamID = UInt16(msb: buffer[2], lsb: buffer[3])
-            let opcode = UInt8(buffer[4])
-            let bodyLength = Int(data: buffer.subdata(in: Range(5...8)))
+            let _           = UInt8(buffer[1])    // flags
+            let streamID    = UInt16(msb: buffer[3], lsb: buffer[2])
+            let opcode      = UInt8(buffer[4])
+            let bodyLength  = Int(data: buffer.subdata(in: Range(5...8)))
             
             // Do we have all the bytes we need for the full packet?
             let bytesNeeded = buffer.count - bodyLength - 9
@@ -259,12 +266,12 @@ extension Kassandra {
             handle(response)
             messages.append(response)*/
 
-            handle(ResponsePacket(opcode: opcode, body: body))
+            handle(id: streamID, ResponsePacket(opcode: opcode, body: body))
         
         }
         return messages
     }
-    public func handle(_ response: ResponsePacket) {
+    public func handle(id: UInt16, _ response: ResponsePacket) {
         switch response {
         case .ready                     : break
         case .authSuccess               : break
@@ -276,10 +283,10 @@ extension Kassandra {
         case .result(let resultKind)    :
             switch resultKind {
             case .void                  : break
-            case .rows                  : print(response)
             case .schema                : print(response)
             case .keyspace              : print(response)
             case .prepared              : print(response)
+            case .rows(_, let c, let r) : map[id]?(TableObj(rows: r, headers: c),nil)
             }
         }
     }
@@ -309,11 +316,11 @@ extension Kassandra {
         case let r as AuthChallenge : self.authResponse(token: r.token)
         case let r as Result        :
             switch r.message {
-            case .void                                      : break
-            case .rows(let m, let c, let r)                 : prettyPrint(metadata: m, columnTypes: c, rows: r)
-            case .schema(let type, let target, let options) : print(type, target, options)
-            case .keyspace(let name)                        : print(name)
-            case .prepared(let id, _, _)                    : print(id)
+            case .void              : break
+            case .rows(_, _, _)     : print("rows")
+            case .schema            : print(r.message)
+            case .keyspace          : print(r.message)
+            case .prepared          : print(r.message)
             }
         default                     : print(response.description)
         }
@@ -347,43 +354,21 @@ extension Kassandra {
     
 }
 
+public struct TableObj {
+    
+    var rows = [[String: Data]]()
 
-
-public func prettyPrint(metadata: Metadata, columnTypes: [(name: String, type: DataType)], rows: [[Data]]) -> String {
-    
-    var str = ""
-    
-    if !metadata.isRowHeaderPresent {
-        str += "Keyspace: \(metadata.keyspace!) ---- Table: \(metadata.table!)\n"
-    }
-    
-    for i in 0..<columnTypes.count {
-        if i == columnTypes.count - 1 {
-            str += "\(columnTypes[i].name)  |\t\n"
-        } else {
-            str += "\(columnTypes[i].name)  |\t"
-        }
-        
-    }
-    for i in 0..<columnTypes.count {
-        if i == columnTypes.count - 1 {
-            str += String(repeating: "=".characters.first!, count: 12)
-            str += "\n"
-        } else {
-           str += String(repeating: "=".characters.first!, count: 12)
-        }
-    }
-    for row in rows {
-        for i in 0..<columnTypes.count {
-            var val = row[i]
-            switch columnTypes[i].type {
-            case .int: str += "\(val.decodeInt)  | \t"
-            case .text: str += "\(val.decodeSDataString)  |\t"
-            case .varChar: str += "\(val.decodeSDataString)  |\t"
-            default: str += "unknown  |\t"
+    init(rows: [[Data]], headers: [(name: String, type: DataType)]){
+        for row in rows {
+            var map = [String: Data]()
+            for i in 0..<headers.count {
+                map[headers[i].name] = row[i]
             }
+            self.rows.append(map)
         }
-        str += "\n"
     }
-    return str
+    
+    subscript(_ index: String) -> String {
+        return ""
+    }
 }

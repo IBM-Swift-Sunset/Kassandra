@@ -74,7 +74,7 @@ class KassandraTests: XCTestCase {
         } catch {
             throw error
         }
-        sleep(10)
+        sleep(2)
     }
     
     func testQuery() throws {
@@ -95,9 +95,21 @@ class KassandraTests: XCTestCase {
             let _ = client["test"]
 
             try client.query(query: query4) {
-                error in
+                res, error in
                 
-                print(error)
+                if error != nil {
+                    print(error)
+                } else {
+                    for var row in (res?.rows)! {
+                        print("------+------ Row ------+------")
+                        print(row["emp_id"]!.decodeInt)
+                        print(row["emp_name"]!.decodeSDataString)
+                        print(row["emp_city"]!.decodeSDataString)
+                        print(row["emp_sal"]!)
+                        print(row["emp_phone"]!)
+                        print("------+------ +++ ------+------")
+                    }
+                }
             }
             /*try client.query(query: query4) {
                 error in

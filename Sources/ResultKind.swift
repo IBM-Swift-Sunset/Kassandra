@@ -9,11 +9,11 @@
 import Foundation
 
 public struct Metadata {
-    public let flags: Int
-    public let columnCount: Int
-    public let keyspace: String?
-    public let table: String?
-    public let rowMetadata: [CqlColMetadata]?
+    let flags: Int
+    let columnCount: Int
+    let keyspace: String?
+    let table: String?
+    let rowMetadata: [CqlColMetadata]?
     
     var isRowHeaderPresent: Bool {
         return flags & 0x0001 == 0x0001 ? false : true
@@ -58,7 +58,8 @@ public func parseMetadata(data: Data) -> (data: Data, meta: Metadata) {
     if flags & 0x0004 == 0x0004 {
         return (data: data, meta: Metadata(flags: flags))
     }
-    return (data: data, meta: Metadata(flags: flags, count: columnCount, keyspace: globalKeySpace, table: globalTableName, rowMetadata: nil))
+    return (data: data,
+            meta: Metadata(flags: flags, count: columnCount, keyspace: globalKeySpace, table: globalTableName, rowMetadata: nil))
     
     
 }
@@ -78,7 +79,7 @@ func parsePrepared(body: Data) -> ResultKind {
 
 func parseRows(body: Data) -> ResultKind {
     var (data, metadata) = parseMetadata(data: body)
-    var columnTypes = [(name: String, type: DataType)]()
+    var columnHeaders = [(name: String, type: DataType)]()
     var rows = [[Data]]()
     
     for _ in 0..<metadata.columnCount {
@@ -88,7 +89,7 @@ func parseRows(body: Data) -> ResultKind {
         }
         let name = data.decodeString
         let id = data.decodeUInt16
-        columnTypes.append((name, DataType(rawValue: Int(id))!))
+        columnHeaders.append((name, DataType(rawValue: Int(id))!))
         
     }
 
@@ -107,5 +108,5 @@ func parseRows(body: Data) -> ResultKind {
         }
         rows.append(cols)
     }
-    return ResultKind.rows(metadata: metadata, columnTypes: columnTypes, rows: rows)
+    return ResultKind.rows(metadata: metadata, columnTypes: columnHeaders, rows: rows)
 }
