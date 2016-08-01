@@ -60,3 +60,41 @@ public enum ResultKind {
         }
     }
 }
+public func prettyPrint(metadata: Metadata, columnTypes: [(name: String, type: DataType)], rows: [[Data]]) -> String {
+    
+    var str = ""
+    
+    if !metadata.isRowHeaderPresent {
+        str += "Keyspace: \(metadata.keyspace!) ---- Table: \(metadata.table!)\n"
+    }
+    
+    for i in 0..<columnTypes.count {
+        if i == columnTypes.count - 1 {
+            str += "\(columnTypes[i].name)  |\t\n"
+        } else {
+            str += "\(columnTypes[i].name)  |\t"
+        }
+        
+    }
+    for i in 0..<columnTypes.count {
+        if i == columnTypes.count - 1 {
+            str += String(repeating: "=".characters.first!, count: 12)
+            str += "\n"
+        } else {
+            str += String(repeating: "=".characters.first!, count: 12)
+        }
+    }
+    for row in rows {
+        for i in 0..<columnTypes.count {
+            var val = row[i]
+            switch columnTypes[i].type {
+            case .int: str += "\(val.decodeInt)  | \t"
+            case .text: str += "\(val.decodeSDataString)  |\t"
+            case .varChar: str += "\(val.decodeSDataString)  |\t"
+            default: str += "unknown  |\t"
+            }
+        }
+        str += "\n"
+    }
+    return str
+}

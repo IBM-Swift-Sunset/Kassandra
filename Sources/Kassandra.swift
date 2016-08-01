@@ -29,7 +29,8 @@ public class Kassandra {
     
     private var buffer: Data
     
-    var map = [UInt16: (TableObj?, Error?) -> Void]()
+    var map            = [UInt16: (TableObj?, Error?) -> Void]()
+    var awaitingResult = [UInt16: (Error?) -> Void]()
 
     public init(host: String = "localhost", port: Int32 = 9042) {
         self.host = host
@@ -57,8 +58,10 @@ public class Kassandra {
         do {
             try sock.connect(to: host, port: port)
 
-            //try RequestPacket.startup(identifier: 10, options: [:]).write(writer: sock)
-            try Startup().write(writer: sock)
+            try RequestPacket.startup(options: [:]).write(id: 10, writer: sock)
+            
+            config.connection = self
+
         } catch {
             oncompletion(RCErrorType.ConnectionError)
             return
@@ -69,13 +72,145 @@ public class Kassandra {
         oncompletion(nil)
     }
 
-    private func authResponse(token: Int) {
+    public func execute(_ request: RequestPacket, oncompletion: (Error?) -> Void) throws {
+        guard let sock = socket else {
+            throw RCErrorType.GenericError("Could not create a socket")
+            
+        }
+        writeQueue.async {
+            do {
+                let id = UInt16(random: true)
+                
+                self.awaitingResult[id] = oncompletion
 
+                try request.write(id: id, writer: sock)
+                
+            } catch {
+                oncompletion(RCErrorType.ConnectionError)
+            }
+        }
+    }
+
+    public func execute(_ request: RequestPacket, oncompletion: (TableObj?, Error?) -> Void) throws {
+        guard let sock = socket else {
+            throw RCErrorType.GenericError("Could not create a socket")
+            
+        }
+        writeQueue.async {
+            do {
+                
+                let id = UInt16(random: true)
+
+                self.map[id] = oncompletion
+
+                try request.write(id: id, writer: sock)
+
+            } catch {
+                oncompletion(nil, RCErrorType.ConnectionError)
+            }
+        }
+    }
+}
+
+extension Kassandra {
+    
+    public func read() {
+        
+        guard let sock = socket else {
+            return
+        }
+        
+        let iochannel = DispatchIO(type: DispatchIO.StreamType.stream, fileDescriptor: sock.socketfd, queue: readQueue, cleanupHandler: {
+            error in
+        })
+        
+        iochannel.read(offset: off_t(0), length: 1, queue: readQueue) {
+            done, data, error in
+            
+            let bytes: [Byte]? = data?.map {
+                byte in
+                return byte
+            }
+            
+            if let d = bytes {
+                
+                self.buffer.append(d, count: d.count)
+
+                if self.buffer.count >= 9 {
+                    self.unpack()
+                }
+                
+                self.read()
+            }
+        }
+    }
+
+    public func unpack() {
+        while buffer.count >= 9 {
+            
+            //Unpack header
+            let flags       = UInt8(buffer[1])    // flags
+            let streamID    = UInt16(msb: buffer[3], lsb: buffer[2])
+            let opcode      = UInt8(buffer[4])
+            let bodyLength  = Int(data: buffer.subdata(in: Range(5...8)))
+            
+            // Do we have all the bytes we need for the full packet?
+            let bytesNeeded = buffer.count - bodyLength - 9
+            
+            if bytesNeeded < 0 {
+                return
+            }
+
+            let body = buffer.subdata(in: Range(9..<9 + bodyLength))
+            
+            buffer = buffer.subdata(in: Range(9 + bodyLength..<buffer.count))
+
+            handle(id: streamID, flags: flags, ResponsePacket(opcode: opcode, body: body))
+        
+        }
+    }
+    public func handle(id: UInt16, flags: Byte, _ response: ResponsePacket) {
+        switch response {
+        case .ready                     : awaitingResult[id]?(nil)
+        case .authSuccess               : awaitingResult[id]?(nil)
+        case .event                     : print(response)
+        case .error                     : print(response)
+        case .authChallenge(let token)  : authResponse(token: token)
+        case .authenticate(_)           : authResponse(token: 1)
+        case .supported                 : print(response)
+        case .result(let resultKind)    :
+            switch resultKind {
+            case .void                  : break
+            case .schema                : print(response)
+            case .keyspace              : print(response)
+            case .prepared              : print(response)
+            case .rows(_, let c, let r) : map[id]?(TableObj(rows: r, headers: c),nil)
+            }
+        }
+    }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+//// Struct Implementation
+extension Kassandra {
+    private func authResponse(token: Int) {
+        
         guard let sock = socket else {
             print(RCErrorType.GenericError("Could not create a socket"))
             return
         }
-
+        
         writeQueue.async {
             do {
                 try AuthResponse(token: token).write(writer: sock)
@@ -85,14 +220,14 @@ public class Kassandra {
             }
         }
     }
-
+    
     public func options(oncompletion: (Error?) -> Void) throws {
-
+        
         guard let sock = socket else {
             throw RCErrorType.GenericError("Could not create a socket")
             
         }
-
+        
         writeQueue.async {
             do {
                 try OptionsRequest().write(writer: sock)
@@ -102,9 +237,9 @@ public class Kassandra {
             }
         }
     }
-
+    
     public func query(query: String, oncompletion: (TableObj?, Error?) -> Void) throws {
-
+        
         guard let sock = socket else {
             throw RCErrorType.GenericError("Could not create a socket")
             
@@ -112,18 +247,18 @@ public class Kassandra {
         writeQueue.async {
             do {
                 let val = UInt16(random: true)
-
+                
                 self.map[val] = oncompletion
-
-                try RequestPacket.query(id: val, query: Query(query)).write(writer: sock)
-                //try QueryRequest(query: Query(query)).write(writer: sock)
+                
+                //try RequestPacket.query(id: val, query: Query(query)).write(writer: sock)
+                try QueryRequest(query: Query(query)).write(writer: sock)
                 
             } catch {
                 oncompletion(nil,RCErrorType.ConnectionError)
             }
         }
     }
-
+    
     public func prepare(query: String, oncompletion: (Error?) -> Void) throws {
         guard let sock = socket else {
             throw RCErrorType.GenericError("Could not create a socket")
@@ -139,7 +274,7 @@ public class Kassandra {
             }
         }
     }
-
+    
     public func execute(id: UInt16, parameters: String, oncompletion: (Error?) -> Void) throws {
         
         guard let sock = socket else {
@@ -179,9 +314,9 @@ public class Kassandra {
             }
         }
     }
-
+    
     public func register(events: [String], oncompletion: (Error?) -> Void) throws {
-
+        
         guard let sock = socket else {
             throw RCErrorType.GenericError("Could not create a socket")
             
@@ -198,99 +333,6 @@ public class Kassandra {
     }
 }
 
-extension Kassandra {
-    
-    public func read() {
-        
-        guard let sock = socket else {
-            return
-        }
-        
-        let iochannel = DispatchIO(type: DispatchIO.StreamType.stream, fileDescriptor: sock.socketfd, queue: readQueue, cleanupHandler: {
-            error in
-        })
-        
-        iochannel.read(offset: off_t(0), length: 1, queue: readQueue) {
-            done, data, error in
-            
-            let bytes: [Byte]? = data?.map {
-                byte in
-                return byte
-            }
-            
-            if let d = bytes {
-                
-                self.buffer.append(d, count: d.count)
-
-                if self.buffer.count >= 9 {
-                    let _ = self.unpack()
-                }
-                
-                self.read()
-            }
-        }
-    }
-
-    public func unpack() -> [Response]? {
-        
-        var messages = [Response]()
-
-        while buffer.count >= 9 {
-            
-            //Unpack header
-            let _           = UInt8(buffer[1])    // flags
-            let streamID    = UInt16(msb: buffer[3], lsb: buffer[2])
-            let opcode      = UInt8(buffer[4])
-            let bodyLength  = Int(data: buffer.subdata(in: Range(5...8)))
-            
-            // Do we have all the bytes we need for the full packet?
-            let bytesNeeded = buffer.count - bodyLength - 9
-            
-            if bytesNeeded < 0 {
-                return nil
-            }
-
-            let body = buffer.subdata(in: Range(9..<9 + bodyLength))
-            
-            buffer = buffer.subdata(in: Range(9 + bodyLength..<buffer.count))
-            
-            /*
-             Struct packet version
-             guard let response: Response = createResponseMessage(opcode: opcode, data: body) else {
-                continue
-            }
-            
-            response.version = version
-            response.flags = flags
-            response.streamID = streamID
-            handle(response)
-            messages.append(response)*/
-
-            handle(id: streamID, ResponsePacket(opcode: opcode, body: body))
-        
-        }
-        return messages
-    }
-    public func handle(id: UInt16, _ response: ResponsePacket) {
-        switch response {
-        case .ready                     : break
-        case .authSuccess               : break
-        case .event                     : print(response)
-        case .error                     : print(response)
-        case .authChallenge(let token)  : authResponse(token: token)
-        case .authenticate(_)           : authResponse(token: 1)
-        case .supported                 : print(response)
-        case .result(let resultKind)    :
-            switch resultKind {
-            case .void                  : break
-            case .schema                : print(response)
-            case .keyspace              : print(response)
-            case .prepared              : print(response)
-            case .rows(_, let c, let r) : map[id]?(TableObj(rows: r, headers: c),nil)
-            }
-        }
-    }
-}
 // Struct version
 extension Kassandra {
     public func createResponseMessage(opcode: UInt8, data: Data) -> Response? {
@@ -326,18 +368,6 @@ extension Kassandra {
         }
     }
 }
-
-
-
-
-
-
-
-
-
-
-
-
 
 // Custom operators for database
 extension Kassandra {

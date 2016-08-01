@@ -9,21 +9,22 @@
 import Foundation
 import Socket
 
-public let config = Config.sharedInstance
+public typealias Byte = UInt8
+
+public var config = Config.sharedInstance
 
 public struct Config {
     
     let CQL_MAX_SUPPORTED_VERSION: UInt8 = 0x03
     let version: Byte = 0x03
-    
-    static let sharedInstance = Config()
-    
-    private init(){
-        
-    }
-}
+    var connection: Kassandra? = nil
 
-public typealias Byte = UInt8
+    var map = [UInt16: (TableObj?, Error?) -> Void]()
+
+    static var sharedInstance = Config()
+    
+    private init(){}
+}
 
 public protocol Packet {
     var description: String { get }
@@ -38,8 +39,8 @@ public protocol Response {
     init(body: Data)
 }
 
-enum RequestPacket {
-    
+public enum RequestPacket {
+
     var opcode: Byte {
         switch self {
         case .startup        : return 0x01
@@ -53,18 +54,17 @@ enum RequestPacket {
         }
     }
     
-    func write(writer: SocketWriter) throws {
+    func write(id: UInt16, writer: SocketWriter) throws {
         var body = Data()
-        let streamId: UInt16
         var flags: Byte = 0x00
-
+        
         switch self {
-        case .options(let identifier)                : streamId = identifier
-        case .execute(let identifier, _)             : streamId = identifier
-        case .query(let identifier, let query)       : streamId = identifier ; body.append(query.pack())
-        case .prepare(let identifier, let query)     : streamId = identifier ; body.append(query.pack())
-        case .authResponse(let identifier, let token): streamId = identifier ; body.append(token.data)
-        case .startup(let identifier, var options)   :
+        case .options                        : break
+        case .execute                        : break
+        case .query(let query)               : body.append(query.pack())
+        case .prepare(let query)             : body.append(query.pack())
+        case .authResponse(let token)        : body.append(token.data)
+        case .startup(var options)           :
             options["CQL_VERSION"] = "3.0.0"
             
             body.append(UInt16(options.count).data)
@@ -73,20 +73,16 @@ enum RequestPacket {
                 body.append(key.data)
                 body.append(value.data)
             }
-            
-            streamId = identifier
 
-        case .register(let identifier, let events)  :
+        case .register(let events)  :
 
             body.append(events.count.data)
 
             for event in events {
                 body.append(event.data)
             }
-            
-            streamId = identifier
 
-        case .batch(let identifier, let queries, let Sflags, let consistency):
+        case .batch(let queries, let Sflags, let consistency):
             
             for query in queries {
                 //if withNames {}
@@ -102,7 +98,6 @@ enum RequestPacket {
                 //body.append() // optional timestamp
             }
             
-            streamId = identifier
             flags = Sflags
         }
         
@@ -111,7 +106,7 @@ enum RequestPacket {
         var header = Data()
         header.append(config.version)
         header.append(flags)
-        header.append(streamId.bigEndian.data)
+        header.append(id.bigEndian.data)
         header.append(opcode)
         
         header.append(body.count.data)
@@ -121,21 +116,21 @@ enum RequestPacket {
 
     }
     
-    case startup(id: UInt16, options: [String: String])
+    case startup(options: [String: String])
 
-    case options(id: UInt16)
+    case options
 
-    case query(id: UInt16, query: Query)
+    case query(query: Query)
 
-    case prepare(id: UInt16, query: Query)
+    case prepare(query: Query)
     
-    case execute(id: UInt16, parameters: String)
+    case execute(parameters: String)
     
-    case register(id: UInt16, events: [String])
+    case register(events: [String])
     
-    case batch(id: UInt16, queries: [Query], flags: Byte, consistency: Consistency)
+    case batch(queries: [Query], flags: Byte, consistency: Consistency)
     
-    case authResponse(id: UInt16, token: Int)
+    case authResponse(token: Int)
 }
 
 public enum ResponsePacket: CustomStringConvertible {

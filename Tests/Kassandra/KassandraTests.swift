@@ -18,28 +18,28 @@
 import XCTest
 @testable import Kassandra
 
-/*class Employee {
-    let id: Int
-    let name: String
-    let city: String
+public final class Employee {
+    let emp_id: String
+    let emp_name: String
+    let emp_city: String
     
-    init(id: Int, name: String, city: String){
-        self.id = id
-        self.name = name
-        self.city = city
+    init(id: String, name: String, city: String) {
+        self.emp_id = id
+        self.emp_name = name
+        self.emp_city = city
     }
 }
-extension Employee: Table {
-    enum Fields: String {
-        case id = "id"
-        case name = "name"
-        case city = "city"
+extension Employee: Model {
+    public enum Field: String {
+        case emp_id = "emp_id"
+        case emp_name = "emp_name"
+        case emp_city = "emp_city"
     }
+
+    public static var tableName: String = "emp"
     
-    var hashValue: Int {
-        return Fields.id.hashValue
-    }
-}*/
+    public static var primaryKey = Field.emp_id
+}
 
 class KassandraTests: XCTestCase {
 
@@ -48,7 +48,7 @@ class KassandraTests: XCTestCase {
     weak var expectation: XCTestExpectation!
     
     var tokens = [String]()
-    
+
     static var allTests: [(String, (KassandraTests) -> () throws -> Void)] {
         return [
             ("testConnect", testConnect),
@@ -64,17 +64,11 @@ class KassandraTests: XCTestCase {
 	
     func testConnect() throws {
         
-        do {
-            try client.connect {
+        try client.connect {
                 error in
                 
                 print(error)
             }
-
-        } catch {
-            throw error
-        }
-        sleep(2)
     }
     
     func testQuery() throws {
@@ -86,39 +80,27 @@ class KassandraTests: XCTestCase {
                 print(error)
             }
             
-            //let query0 = "DROP TABLE emp;"
-            //let query2 = "CREATE KEYSPACE test WITH replication = {'class':'SimpleStrategy', 'replication_factor' : 3}; "
-            //let query3 = "CREATE TABLE emp(emp_id int PRIMARY KEY, emp_name text, emp_city text, emp_sal varint, emp_phone varint);"
-            //let query3 = "INSERT INTO emp (emp_id, emp_name, emp_city, emp_phone, emp_sal) VALUES(1,'ram', 'Hyderabad', 9848022338, 50000);"
-            let query4 = "select * from emp;"
-
             let _ = client["test"]
-
-            try client.query(query: query4) {
-                res, error in
+            
+            /*try Employee.insert([Employee.Field.emp_name.rawValue: "Aaron"]) {
+                result, error in
                 
-                if error != nil {
-                    print(error)
-                } else {
-                    for var row in (res?.rows)! {
-                        print("------+------ Row ------+------")
-                        print(row["emp_id"]!.decodeInt)
-                        print(row["emp_name"]!.decodeSDataString)
-                        print(row["emp_city"]!.decodeSDataString)
-                        print(row["emp_sal"]!)
-                        print(row["emp_phone"]!)
-                        print("------+------ +++ ------+------")
-                    }
-                }
-            }
-            /*try client.query(query: query4) {
-                error in
-                
-                print(error)
+                print(result, error )
             }*/
+            try Employee.delete(where: [:]) {
+                result, error in
+                
+                print(result, error)
+            }
+            try Employee.select() {
+                result, error in
+                
+                print(result)
+            }
+            
         } catch {
             throw error
         }
-        sleep(10)
+        sleep(5)
     }
 }
