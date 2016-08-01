@@ -17,28 +17,29 @@
 import Socket
 import Foundation
 
-public class OptionsRequest: Frame {
+public struct OptionsRequest: Request {
+    
+    public let identifier: UInt16
+    public let flags: Byte
+    
+    public var description: String {
+        return "Options"
+    }
 
-    init () {
-        super.init(opcode: .options)
-        
+    init(flags: Byte = 0x00) {
+        self.flags = flags
+        identifier = UInt16(random: true)
     }
     
-    func write(writer: SocketWriter) throws {
-        
-        header.append(version)
+    public func write(writer: SocketWriter) throws {
+        var header = Data()
+
+        header.append(config.version)
         header.append(flags)
-        header.append(streamID.bigEndian.data)
-        header.append(opcode.rawValue)
+        header.append(identifier.bigEndian.data)
+        header.append(Opcode.options.rawValue.data)
         header.append(0.data)
-        header.append(body)
         
-        do {
-            try writer.write(from: header)
-            
-        } catch {
-            throw error
-            
-        }
+        try writer.write(from: header)
     }
 }

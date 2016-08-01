@@ -17,22 +17,30 @@
 import Socket
 import Foundation
 
-public class QueryRequest: Frame {
+public struct QueryRequest: Request {
 
-    let query: Query
+    public let flags: Byte
+    public let query: Query
+    public let identifier: UInt16
+    
+    public var description: String {
+        return "Query"
+    }
 
-    init(query: Query){
+    init(query: Query, flags: Byte = 0x00){
         self.query = query
-        super.init(opcode: .query)
-        
+        self.flags = flags
+        self.identifier = UInt16(random: true)
     }
     
-    func write(writer: SocketWriter) throws {
-        
-        header.append(version)
+    public func write(writer: SocketWriter) throws {
+        var header = Data()
+        var body = Data()
+
+        header.append(config.version)
         header.append(flags)
-        header.append(streamID.bigEndian.data)
-        header.append(opcode.rawValue)
+        header.append(identifier.bigEndian.data)
+        header.append(Opcode.query.rawValue.data)
         
         body.append(query.pack())
 
@@ -40,14 +48,8 @@ public class QueryRequest: Frame {
         
         header.append(body)
         
-        do {
-            try writer.write(from: header)
-            
-        } catch {
-            throw error
-            
-        }
+        try writer.write(from: header)
+
     }
-    
 }
 

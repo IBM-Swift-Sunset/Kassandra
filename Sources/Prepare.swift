@@ -17,34 +17,37 @@
 import Socket
 import Foundation
 
-public class Prepare: Frame {
+public struct Prepare: Request {
 
     let query: Query
 
-    init(query: Query){
+    public let identifier: UInt16
+    public let flags: Byte
+    
+    public var description: String {
+        return "Prepare"
+    }
+
+    init(query: Query, flags: Byte = 0x00) {
         self.query = query
-        super.init(opcode: .prepare)
-        
+        self.flags = flags
+        identifier = UInt16(random: true)
     }
     
-    func write(writer: SocketWriter) throws {
-        
-        header.append(version)
+    public func write(writer: SocketWriter) throws {
+        var body = Data()
+        var header = Data()
+    
+        header.append(config.version)
         header.append(flags)
-        header.append(streamID.bigEndian.data)
-        header.append(opcode.rawValue)
+        header.append(identifier.bigEndian.data)
+        header.append(Opcode.prepare.rawValue.data)
         
         body.append(query.pack())
 
         header.append(body.count.data)
         header.append(body)
-        
-        do {
-            try writer.write(from: header)
-            
-        } catch {
-            throw error
-            
-        }
+
+        try writer.write(from: header)
     }
 }

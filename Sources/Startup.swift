@@ -17,22 +17,31 @@
 import Foundation
 import Socket
 
-public class Startup: Frame {
+public struct Startup: Request {
 
-    var options: [String: String]
-    
-    init(options: [String: String] = ["CQL_VERSION":"3.0.0"]){
+    public let flags: Byte
+    public let identifier: UInt16
+    public let options: [String: String]
+
+    public var description: String {
+        return "Startup"
+    }
+
+    init(id: UInt16 = UInt16(random: true), flags: Byte = 0x00,options: [String: String] = ["CQL_VERSION":"3.0.0"]){
+        identifier = id
+        self.flags = flags
         self.options = options
-        super.init(opcode: .startup)
         
     }
 
-    func write(writer: SocketWriter) throws {
+    public func write(writer: SocketWriter) throws {
+        var header = Data()
+        var body = Data()
 
-        header.append(version)
+        header.append(config.version)
         header.append(flags)
-        header.append(streamID.bigEndian.data)
-        header.append(opcode.rawValue)
+        header.append(identifier.bigEndian.data)
+        header.append(Opcode.startup.rawValue.data)
 
         body.append(UInt16(options.count).data)
         
@@ -45,13 +54,8 @@ public class Startup: Frame {
 
         header.append(body)
 
-        do {
-            try writer.write(from: header)
-            
-        } catch {
-            throw error
-            
-        }
+        try writer.write(from: header)
+
     }
 
 }

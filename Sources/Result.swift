@@ -17,24 +17,46 @@
 import Foundation
 import Socket
 
-public class Result: Frame {
+public struct Result: Response {
     
-    let type: ResultKind
+    let message: ResultKind
+    
+    public var description: String {
+        return ""//"Result Type: \(type)"
+    }
 
-    let payload: Kind?
+    public init(body: Data){
+        message = ResultKind(body: body)
+    }
+}
 
-    init(body: Data){
+public enum ResultKind {
+    case void
+    case rows(metadata: Metadata, columnTypes: [(name: String, type: DataType)], rows: [[Data]])
+    case schema(type: String, target: String, options: String)
+    case keyspace(name: String)
+    case prepared(id: UInt16, metadata: Metadata?, resMetadata: Metadata?)
+    
+    public var description: String {
+        switch self {
+        case .void                           : return "Void"
+        case .rows(let m, let c, let r)      : return prettyPrint(metadata: m, columnTypes: c, rows: r)
+        case .schema(let t, let ta, let o)   : return "Scheme type: \(t), target: \(ta), options: \(o)"
+        case .keyspace(let name)             : return "KeySpace: \(name)"
+        case .prepared                       : return "Prepared"
+        }
+    }
+    public init(body: Data) {
         var body = body
-
-        type = ResultKind(rawValue: body.decodeInt)!
+        
+        let type = body.decodeInt
         
         switch type {
-        case .void:         payload = nil
-        case .rows:         payload = Rows(data: body)
-        case .setKeyspace:  payload = KeySpace(name: body.decodeString)
-        case .prepared:     payload = Prepared(data: body)
-        case .schema:       payload = SchemaChange(change_type: body.decodeString, target: body.decodeString, options: body.decodeString)
+        case 2 : self = parseRows(body: body)
+        case 3 : self = ResultKind.keyspace(name: body.decodeString)
+        case 4 : self = parsePrepared(body: body)
+        case 5 : self = ResultKind.schema(type: body.decodeString, target: body.decodeString, options: body.decodeString)
+        default: self = ResultKind.void
         }
-        super.init(opcode: Opcode.result)
     }
 }

@@ -16,15 +16,18 @@
 
 import Foundation
 
-public class AuthChallenge: Frame {
+public struct AuthChallenge: Response {
     
     var token: Int
     
-    init(body: Data){
+    public var description: String {
+        return "Auth Challenge with token: \(token)"
+    }
+
+    public init(body: Data){
         var body = body
         
         token = body.decodeInt
         //Rest of the data depends on the chosen Authentication
-        super.init(opcode: Opcode.authChallenge)
     }
 }

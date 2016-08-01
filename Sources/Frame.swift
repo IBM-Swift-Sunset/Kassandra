@@ -17,37 +17,4 @@
 import Foundation
 import Socket
 
-public typealias Byte = UInt8
 
-public protocol Request {
-    var description: String { get }
-    mutating func write(writer: Socket) throws
-}
-
-public class Frame {
-
-    let version: Byte
-    
-    let flags: Byte
-    
-    let streamID: UInt16
-    
-    let opcode: Opcode
-    
-    var length: Int
-    
-    var header: Data
-
-    var body: Data
-    
-    init(flags: Byte = 0x00, opcode: Opcode) {
-        self.version = 0x03
-        self.flags = flags
-        self.streamID = UInt16(random: true)
-        self.opcode = opcode
-        self.length = 0
-
-        header = Data()
-        body = Data()
-    }
-}

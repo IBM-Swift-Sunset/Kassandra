@@ -16,32 +16,37 @@
 import Socket
 import Foundation
 
-public class AuthResponse: Frame {
+public struct AuthResponse: Request {
     
-    var token: Int
-    
-    init(token: Int){
+    let token: Int
+    public let flags: Byte
+    public let identifier: UInt16
+
+    public var description: String {
+        return "Auth Response with token \(token)"
+    }
+
+    init(token: Int, flags: Byte = 0x00){
+        self.flags = flags
         self.token = token
-        super.init(opcode: Opcode.authResponse)
+        
+        identifier = UInt16(random: true)
     }
     
-    func write(writer: SocketWriter) throws {
-        var data = Data(capacity: 32)
-        
-        header.append(version)
+    public func write(writer: SocketWriter) throws {
+        var body = Data(capacity: 32)
+        var header = Data(capacity: 32)
+
+        header.append(config.version)
         header.append(flags)
-        header.append(streamID.bigEndian.data)
-        header.append(opcode.rawValue)
+        header.append(identifier.bigEndian.data)
+        header.append(Opcode.authResponse.rawValue.data)
+
         body.append(token.data)
+
         header.append(body.count.data)
         header.append(body)
         
-        do {
-            try writer.write(from: header)
-            
-        } catch {
-            throw error
-            
-        }
+        try writer.write(from: header)
     }
 }

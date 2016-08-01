@@ -15,37 +15,43 @@
  */
 
 import Socket
+import Foundation
 
-public class Register: Frame {
+public struct Register: Request {
     
-    let events: [String]
+    public let events: [String]
+    public let identifier: UInt16
+    public let flags: Byte
     
-    init(events: [String]){
-        self.events = events
-        super.init(opcode: .register)
-        
+    public var description: String {
+        return "Prepare"
     }
     
-    func write(writer: SocketWriter) throws {
+    init(events: [String], flags: Byte = 0x00) {
+        self.events = events
+        self.flags = flags
+        identifier = UInt16(random: true)
+    }
+    
+    public func write(writer: SocketWriter) throws {
+        var body = Data()
+        var header = Data()
         
-        header.append(version)
+        header.append(config.version)
         header.append(flags)
-        header.append(streamID.bigEndian.data)
-        header.append(opcode.rawValue)
+        header.append(identifier.bigEndian.data)
+        header.append(Opcode.register.rawValue.data)
         
         body.append(events.count.data)
+
         for event in events {
             body.append(event.data)
         }
+
         header.append(body.count.data)
         header.append(body)
         
-        do {
-            try writer.write(from: header)
-            
-        } catch {
-            throw error
-            
-        }
+        try writer.write(from: header)
+
     }
 }

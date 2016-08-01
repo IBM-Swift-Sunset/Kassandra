@@ -16,17 +16,16 @@
 
 import Foundation
 
-public class Authenticate: Frame {
+public struct Authenticate: Response {
     
     var IAuthenticator: String
     
-    init(body: Data){
+    public var description: String {
+        return "Authenticate Response using auth: \(IAuthenticator)"
+    }
+    public init(body: Data){
         var body = body
         
         IAuthenticator = body.decodeString
-        super.init(opcode: Opcode.authenticate)
-    }
-    
-    func pack() {
     }
 }

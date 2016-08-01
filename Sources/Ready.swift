@@ -15,28 +15,13 @@
  */
 
 import Foundation
-import Socket
 
-public class Ready: Frame {
-
-    init(body: Data) {
-        super.init(opcode: Opcode.ready)
-    }
+public struct Ready: Response {
     
-    func write(writer: SocketWriter) throws {
-        
-        header.append(version)
-        header.append(flags)
-        header.append(streamID.bigEndian.data)
-        header.append(opcode.rawValue)
-        header.append(length.data)
-        
-        do {
-            try writer.write(from: header)
-            
-        } catch {
-            throw error
-            
-        }
+    public var description: String {
+        return "Ready"
+    }
+
+    public init(body: Data) {
     }
 }

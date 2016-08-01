@@ -17,7 +17,7 @@
 import Socket
 import Foundation
 
-public class Event: Frame {
+public struct Event: Response {
     let type: String
     let changeType: String?
     
@@ -28,7 +28,10 @@ public class Event: Frame {
     var keyspace: String? = nil
     var objName: String? = nil
 
-    init(body: Data){
+    public var description: String {
+        return "Received Event \(type)"
+    }
+    public init(body: Data){
         var body = body
         
         type = body.decodeString
@@ -52,7 +55,35 @@ public class Event: Frame {
                 }
             default: changeType = nil
         }
-        super.init(opcode: .event)
-        
+    }
+}
+public enum EventType: CustomStringConvertible {
+    case topologyChange(type: String, inet: (String, Int))
+    case statusChange(type: String, inet: (String, Int))
+    case schemaChange(type: String, target: String, changes: schemaChangeType)
+    case error
+    
+    public var description: String {
+        switch self {
+        case .topologyChange(let type, let inet) :
+            return "Topology Change with Type: \(type) and Inet \(inet)"
+        case .statusChange(let type, let inet)   :
+            return "Status Change with Type: \(type) and Inet \(inet)"
+        case .schemaChange(let type, let target, let changes):
+            return "Schema Change: Type - \(type), Target - \(target): Changes: \(changes)"
+        case .error: return ""
+        }
+    }
+}
+public enum schemaChangeType: CustomStringConvertible {
+    case options(with: String)
+    case keyspace(to: String, withObjName: String)
+    
+    public var description: String {
+        switch self{
+            case .options(let options): return "\(options)"
+            case .keyspace(let name, let objName): return "\(name) \(objName)"
+            
+        }
     }
 }

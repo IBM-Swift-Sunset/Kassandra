@@ -151,6 +151,11 @@ extension UInt16 {
 
 extension Data {
     
+    var decodeBool: Bool {
+        mutating get {
+            return self.decodeUInt8 == 0x0001 ? true : false
+        }
+    }
     var decodeUInt8: UInt8 {
         mutating get {
             let uint = UInt8(self[0])
@@ -167,12 +172,30 @@ extension Data {
     }
     var decodeInt: Int {
         mutating get {
-            let u = Int(self.decodeUInt8) << 24
-            let um = Int(self.decodeUInt8) << 16
-            let ul = Int(self.decodeUInt8) << 8
-            let l = Int(self.decodeUInt8)
+            let u = Int(self.decodeUInt16) << 16
+            let l = Int(self.decodeUInt16)
             
-            return u | um | ul | l
+            return u | l
+        }
+    }
+    var decodeBigInt: Int64 {
+        mutating get {
+            let byte1 = Int64(self.decodeInt) << 32
+            let byte2 = Int64(self.decodeInt)
+            return byte1 | byte2
+        }
+    }
+    var decodeDouble: Double {
+        mutating get {
+            let byte1 = Int64(self.decodeInt) << 32
+            let byte2 = Int64(self.decodeInt)
+            return Double(byte1 | byte2)
+        }
+    }
+    var decodeFloat: Float {
+        mutating get {
+            let byte1 = self.decodeInt
+            return Float(byte1)
         }
     }
     var decodeVarInt: Int {

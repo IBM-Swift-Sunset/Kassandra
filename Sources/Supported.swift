@@ -17,22 +17,27 @@
 import Foundation
 import Socket
 
-public class Supported: Frame {
+public struct Supported: Response {
     
-    init(body: Data) {
+    var map = [String: [String]]()
+    
+    public var description: String {
+        return "Supports: \(map)"
+    }
+
+    public init(body: Data) {
         var body = body
-        var map = [String: [String]]()
-        
+
         for _ in 0..<Int(body.decodeUInt16) {
             let key = body.decodeString
             var strList = [String]()
             let strListLen = Int(body.decodeUInt16)
+
             for _ in 0..<strListLen {
                 strList.append(body.decodeString)
             }
+
             map[key] = strList
         }
-        super.init(opcode: Opcode.supported)
     }
-
 }

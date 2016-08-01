@@ -20,39 +20,40 @@
 import Socket
 import Foundation
 
-public class Execute: Frame {
+public struct Execute: Request {
     /*The body of the message must be:
      <id><query_parameters>
      where <id> is the prepared query ID. It's the [short bytes] returned as a
      response to a PREPARE message. As for <query_parameters>, it has the exact
      same definition than in QUERY*/
-    let id: UInt16
-    let parameters: String
+    public let flags: Byte
+    public let identifier: UInt16
+    public let parameters: String
+    
+    public var description: String {
+        return "Execute"
+    }
 
-    init(id: UInt16, parameters: String){
-        self.id = id
+    init(id: UInt16, parameters: String, flags: Byte = 0x00){
+        self.flags = flags
+        self.identifier = id
         self.parameters = parameters
-        super.init(opcode: .execute)
-        
     }
     
-    func write(writer: SocketWriter) throws {
-        
-        header.append(version)
+    public func write(writer: SocketWriter) throws {
+        var body = Data()
+        var header = Data()
+
+        header.append(config.version)
         header.append(flags)
-        header.append(streamID.bigEndian.data)
-        header.append(opcode.rawValue)
+        header.append(identifier.bigEndian.data)
+        header.append(Opcode.execute.rawValue.data)
         
         // set up body
         header.append(body.count.data)
         header.append(body)
         
-        do {
-            try writer.write(from: header)
-            
-        } catch {
-            throw error
-            
-        }
+        try writer.write(from: header)
+
     }
 }

@@ -15,36 +15,19 @@
  */
 
 import Foundation
-import Socket
 
-public class ErrorPacket: Frame {
-    ///[int]) followed by a [string] error message
+public struct ErrorPacket: Response {
+
     let code: Int
     let message: String
     
-    init(body: Data){
+    public var description: String {
+        return "Error: \(code) || \(message)"
+    }
+    public init(body: Data){
         var body = body
 
         code = body.decodeInt
         message = body.decodeString
-
-        super.init(opcode: Opcode.error)
-    }
-    
-    func write(writer: SocketWriter) throws {
-        
-        header.append(version)
-        header.append(flags)
-        header.append(streamID.bigEndian.data)
-        header.append(opcode.rawValue)
-        header.append(length.data)
-        
-        do {
-            try writer.write(from: header)
-            
-        } catch {
-            throw error
-            
-        }
     }
 }

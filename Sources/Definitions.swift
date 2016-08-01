@@ -59,7 +59,16 @@ public struct Query {
         return data
     }
 }
-
+public enum ResponseOpcodes: UInt8 {
+    case error          = 0x00
+    case ready          = 0x02
+    case authenticate   = 0x03
+    case supported      = 0x06
+    case result         = 0x08
+    case authSuccess    = 0x10
+    case event          = 0x0C
+    case authChallenge  = 0x0E
+}
 public enum Opcode: UInt8 {
     case error          = 0x00
     case startup        = 0x01
@@ -87,16 +96,6 @@ public struct CqlFrameHeader {
     public let opcode: UInt8
 }
 
-/// The first element of the body of a RESULT message is an [int] representing the
-///`kind` of result.
-public enum ResultKind : Int {
-    case void = 0x01
-    case rows = 0x02
-    case setKeyspace = 0x03
-    case prepared = 0x04
-    case schema = 0x05
-}
-
 public enum Consistency: UInt16 {
     case any = 0x00
     case one = 0x01
@@ -118,7 +117,7 @@ public enum BatchType: UInt8 {
     case Counter = 0x02
 }
 
-public enum Options: Int {
+public enum DataType: Int {
     case custom     = 0x0000
     case ASCII      = 0x0001
     case bitInt     = 0x0002
@@ -141,7 +140,6 @@ public enum Options: Int {
     case set        = 0x0022
     case UDT        = 0x0030
     case tuple      = 0x0031
-    case unknown
 }
 
 /// Return Code Errore
@@ -212,32 +210,6 @@ public struct Pair<T,V> {
     public var value: V
 }
 
-public typealias CQLList = [CqlValue]
-public typealias CQLMap = [Pair<CqlValue,CqlValue>]
-public typealias CQLSet = [CqlValue]
-
-public enum CqlValue {
-    case CqlASCII(String)
-    case CqlBigInt(Int64)
-    case CqlBlob([UInt8])
-    case CqlBoolean(Bool)
-    case CqlCounter(Int64)
-    case CqlDecimal(Int)
-    case CqlDouble(Float64)
-    case CqlFloat(Float32)
-//    case CqlInet(IpAddr)
-    case CqlInt(Int32)
-    case CqlList(CQLList)
-    case CqlMap(CQLMap)
-    case CqlSet(CQLSet)
-    case CqlText(String)
-    case CqlTimestamp(UInt64)
-    case CqlTimeUuid(UUID)
-    case CqlVarchar(String)
-    case CqlVarint(Int)
-    case CqlUnknown
-}
-
 /*public struct CqlRows {
     public var metadata: CqlMetadata
     public var  rows: [CqlRow]
@@ -260,16 +232,3 @@ public enum CqlValue {
 //    case RequestOptions
 //    case RequestAuthResponse([UInt8])
 //}
-
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    

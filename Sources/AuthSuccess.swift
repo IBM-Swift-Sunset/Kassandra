@@ -16,14 +16,17 @@
 
 import Foundation
 
-public class AuthSuccess: Frame {
+public struct AuthSuccess: Response {
     
-    init(body: Data){
+    public var description: String {
+        return "Auth Success"
+    }
+
+    public init(body: Data){
         var body = body
         
         let length = body.decodeInt
         
         // [bytes] dependent on the type of authentication used
-        super.init(opcode: Opcode.authSuccess)
     }
 }

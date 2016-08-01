@@ -16,10 +16,9 @@
 import Socket
 import Foundation
 
-/*public class Server {
+public class Server {
 
     private var socket: Socket?
-    private var version: UInt8
     
     public var host: String = "localhost"
     public var port: Int32 = 9042
@@ -30,10 +29,13 @@ import Foundation
     init(host: String, port: Int32) {
         self.host = host
         self.port = port
+        socket = nil
+        readQueue = DispatchQueue(label: "read queue", attributes: .concurrent)
+        writeQueue = DispatchQueue(label: "write queue", attributes: .concurrent)
+        
     }
     
     public func connect() throws {
-        version = CQL_MAX_SUPPORTED_VERSION
         
         if socket == nil {
             socket = try! Socket.create(family: .inet6, type: .stream, proto: .tcp)
@@ -50,12 +52,10 @@ import Foundation
             try Startup().write(writer: sock)
             
         } catch {
-            oncompletion(RCErrorType.ConnectionError)
             return
         }
         
-        read()
+        //read()
         
-        oncompletion(nil)
     }
-}*/
+}

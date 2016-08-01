@@ -17,37 +17,47 @@
 import Socket
 import Foundation
 
-public class Batch: Frame {
-    /*The body of the message must be:
-     <id><query_parameters>
-     where <id> is the prepared query ID. It's the [short bytes] returned as a
-     response to a PREPARE message. As for <query_parameters>, it has the exact
-     same definition than in QUERY*/
+/*The body of the message must be:
+ <id><query_parameters>
+ where <id> is the prepared query ID. It's the [short bytes] returned as a
+ response to a PREPARE message. As for <query_parameters>, it has the exact
+ same definition than in QUERY*/
+
+public struct Batch: Request {
+
     let type: BatchType
     let consistency: Consistency
-    let Batchflags: UInt8
+    public let flags: UInt8
+    public let Batchflags: UInt8
+    public let identifier: UInt16
     
+    public var description: String {
+        return "Batch"
+    }
+
     var withNames: Bool {
         return Batchflags & 0x04 == 0x04 ? true : false
     }
 
     let queries: [Query]
     
-    init(queries: [Query]){
+    init(queries: [Query], flags: Byte = 0x00){
         self.queries = queries
         self.type = .Unlogged
         self.consistency = .any
         self.Batchflags = 0x00
-        super.init(opcode: .batch)
-        
+        self.flags = flags
+        self.identifier = UInt16(random: true)
     }
     
-    func write(writer: SocketWriter) throws {
-        
-        header.append(version)
+    public func write(writer: SocketWriter) throws {
+        var body = Data()
+        var header = Data()
+
+        header.append(config.version)
         header.append(flags)
-        header.append(streamID.bigEndian.data)
-        header.append(opcode.rawValue)
+        header.append(identifier.bigEndian.data)
+        header.append(Opcode.batch.rawValue.data)
         
         // set up body
         body.append(type.rawValue.data)
@@ -72,12 +82,7 @@ public class Batch: Frame {
         header.append(body.count.data)
         header.append(body)
         
-        do {
-            try writer.write(from: header)
-            
-        } catch {
-            throw error
-            
-        }
+        try writer.write(from: header)
+
     }
 }
