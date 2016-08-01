@@ -58,7 +58,7 @@ public class Kassandra {
         do {
             try sock.connect(to: host, port: port)
 
-            try RequestPacket.startup(options: [:]).write(id: 10, writer: sock)
+            try Request.startup(options: [:]).write(id: 10, writer: sock)
             
             config.connection = self
 
@@ -72,7 +72,7 @@ public class Kassandra {
         oncompletion(nil)
     }
 
-    public func execute(_ request: RequestPacket, oncompletion: (Error?) -> Void) throws {
+    public func execute(_ request: Request, oncompletion: (Error?) -> Void) throws {
         guard let sock = socket else {
             throw RCErrorType.GenericError("Could not create a socket")
             
@@ -91,7 +91,7 @@ public class Kassandra {
         }
     }
 
-    public func execute(_ request: RequestPacket, oncompletion: (TableObj?, Error?) -> Void) throws {
+    public func execute(_ request: Request, oncompletion: (TableObj?, Error?) -> Void) throws {
         guard let sock = socket else {
             throw RCErrorType.GenericError("Could not create a socket")
             
@@ -166,19 +166,19 @@ extension Kassandra {
             buffer = buffer.subdata(in: Range(9 + bodyLength..<buffer.count))
 
             do {
-                try handle(id: streamID, flags: flags, ResponsePacket(opcode: opcode, body: body))
+                try handle(id: streamID, flags: flags, Response(opcode: opcode, body: body))
             } catch {}
         
         }
     }
-    public func handle(id: UInt16, flags: Byte, _ response: ResponsePacket) throws {
+    public func handle(id: UInt16, flags: Byte, _ response: Response) throws {
         switch response {
         case .ready                     : awaitingResult[id]?(nil)
         case .authSuccess               : awaitingResult[id]?(nil)
         case .event                     : print(response)
         case .error                     : print(response)
-        case .authChallenge(let token)  : try RequestPacket.authResponse(token: token).write(id: 1, writer: socket!)
-        case .authenticate(_)           : try RequestPacket.authResponse(token: 1).write(id: 1, writer: socket!)
+        case .authChallenge(let token)  : try Request.authResponse(token: token).write(id: 1, writer: socket!)
+        case .authenticate(_)           : try Request.authResponse(token: 1).write(id: 1, writer: socket!)
         case .supported                 : print(response)
         case .result(let resultKind)    :
             switch resultKind {
@@ -196,7 +196,7 @@ extension Kassandra {
 extension Kassandra {
     subscript(_ database: String) -> Bool {
         do {
-            try RequestPacket.query(query: Query("USE \(database);")).write(id: 0, writer: socket!)
+            try Request.query(query: Query("USE \(database);")).write(id: 0, writer: socket!)
 
         } catch {
             return false
@@ -204,23 +204,4 @@ extension Kassandra {
         return true
     }
     
-}
-
-public struct TableObj {
-    
-    var rows = [[String: Data]]()
-
-    init(rows: [[Data]], headers: [(name: String, type: DataType)]){
-        for row in rows {
-            var map = [String: Data]()
-            for i in 0..<headers.count {
-                map[headers[i].name] = row[i]
-            }
-            self.rows.append(map)
-        }
-    }
-    
-    subscript(_ index: String) -> String {
-        return ""
-    }
 }

@@ -17,7 +17,7 @@
 import Foundation
 import Socket
 
-public enum ResultKind {
+public enum Kind {
     case void
     case rows(metadata: Metadata, columnTypes: [(name: String, type: DataType)], rows: [[Data]])
     case schema(type: String, target: String, options: String)
@@ -27,7 +27,7 @@ public enum ResultKind {
     public var description: String {
         switch self {
         case .void                           : return "Void"
-        case .rows(let m, let c, let r)      : return prettyPrint(metadata: m, columnTypes: c, rows: r)
+        case .rows(let m, let c, let r)      : return "Rows"
         case .schema(let t, let ta, let o)   : return "Scheme type: \(t), target: \(ta), options: \(o)"
         case .keyspace(let name)             : return "KeySpace: \(name)"
         case .prepared                       : return "Prepared"
@@ -40,48 +40,89 @@ public enum ResultKind {
         
         switch type {
         case 2 : self = parseRows(body: body)
-        case 3 : self = ResultKind.keyspace(name: body.decodeString)
+        case 3 : self = Kind.keyspace(name: body.decodeString)
         case 4 : self = parsePrepared(body: body)
-        case 5 : self = ResultKind.schema(type: body.decodeString, target: body.decodeString, options: body.decodeString)
-        default: self = ResultKind.void
+        case 5 : self = Kind.schema(type: body.decodeString, target: body.decodeString, options: body.decodeString)
+        default: self = Kind.void
         }
     }
 }
-public func prettyPrint(metadata: Metadata, columnTypes: [(name: String, type: DataType)], rows: [[Data]]) -> String {
+// Result Kind Parsing Functions
+public func parseMetadata(data: Data) -> (data: Data, meta: Metadata) {
+    var data = data
     
-    var str = ""
+    let flags = data.decodeInt
+    let columnCount = data.decodeInt
+    var globalKeySpace: String? = nil
+    var globalTableName: String? = nil
+    var pagingState = Data()
     
-    if !metadata.isRowHeaderPresent {
-        str += "Keyspace: \(metadata.keyspace!) ---- Table: \(metadata.table!)\n"
+    if flags & 0x0001 == 0x0001 {
+        globalKeySpace = data.decodeString
+        globalTableName = data.decodeString
+    } else {
+        globalKeySpace = nil
+        globalTableName = nil
     }
     
-    for i in 0..<columnTypes.count {
-        if i == columnTypes.count - 1 {
-            str += "\(columnTypes[i].name)  |\t\n"
-        } else {
-            str += "\(columnTypes[i].name)  |\t"
+    if flags & 0x0002 == 0x0002 {
+        // paging state [bytes] type
+        let length = data.decodeInt
+        pagingState = data.subdata(in: Range(0..<length))
+        data = data.subdata(in: Range(length..<data.count))
+    }
+    if flags & 0x0004 == 0x0004 {
+        return (data: data, meta: Metadata(flags: flags))
+    }
+    return (data: data,
+            meta: Metadata(flags: flags, count: columnCount, keyspace: globalKeySpace, table: globalTableName, rowMetadata: nil))
+    
+    
+}
+
+func parsePrepared(body: Data) -> Kind {
+    var body = body
+    
+    let id = body.decodeUInt16
+    
+    let (data, meta) = parseMetadata(data: body)
+    let metadata = meta
+    
+    let (_, resMeta) = parseMetadata(data: data)
+    
+    return Kind.prepared(id: id, metadata: metadata, resMetadata: resMeta)
+}
+
+func parseRows(body: Data) -> Kind {
+    var (data, metadata) = parseMetadata(data: body)
+    var columnHeaders = [(name: String, type: DataType)]()
+    var rows = [[Data]]()
+    
+    for _ in 0..<metadata.columnCount {
+        if metadata.isRowHeaderPresent {
+            let _ = data.decodeString //ksname
+            let _ = data.decodeString //tablename
         }
+        let name = data.decodeString
+        let id = data.decodeUInt16
+        columnHeaders.append((name, DataType(rawValue: Int(id))!))
         
     }
-    for i in 0..<columnTypes.count {
-        if i == columnTypes.count - 1 {
-            str += String(repeating: "=".characters.first!, count: 12)
-            str += "\n"
-        } else {
-            str += String(repeating: "=".characters.first!, count: 12)
+    
+    // Parse Row Content
+    for _ in 0..<data.decodeInt {
+        var cols = [Data]()
+        for _ in 0..<metadata.columnCount {
+            
+            let length = data.decodeInt
+            let value = data.subdata(in: Range(0..<length))
+            
+            //NOTE: Convert value to appropriate type here or leave as data?
+            
+            data = data.subdata(in: Range(length..<data.count))
+            cols.append(value)
         }
+        rows.append(cols)
     }
-    for row in rows {
-        for i in 0..<columnTypes.count {
-            var val = row[i]
-            switch columnTypes[i].type {
-            case .int: str += "\(val.decodeInt)  | \t"
-            case .text: str += "\(val.decodeSDataString)  |\t"
-            case .varChar: str += "\(val.decodeSDataString)  |\t"
-            default: str += "unknown  |\t"
-            }
-        }
-        str += "\n"
-    }
-    return str
+    return Kind.rows(metadata: metadata, columnTypes: columnHeaders, rows: rows)
 }

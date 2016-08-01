@@ -49,21 +49,6 @@ extension String {
 
         return array
     }
-    
-    func matches(pattern: String!) -> Bool {
-        
-        do {
-            let regex = try NSRegularExpression(pattern: pattern, options: [])
-            let nsString = self as NSString
-            let results = regex.matches(in: self, range: NSMakeRange(0, nsString.length))
-            if nsString.substring(with: results[0].range) == self {
-                return true
-            }
-        } catch {
-            NSLog("Malformed Expression")
-        }
-        return false
-    }
 }
 
 extension Int {
@@ -113,10 +98,6 @@ extension UInt8 {
     
     var int: Int {
         return Int(self)
-    }
-    
-    subscript(index: Int) -> UInt8 { //Returns a UInt8 with only the index bit set if applicable
-        return 0
     }
 }
 

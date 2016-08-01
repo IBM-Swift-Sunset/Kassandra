@@ -13,6 +13,7 @@
  See the License for the specific language governing permissions and
  limitations under the License.
  */
+
 import Socket
 import Foundation
 
@@ -49,7 +50,7 @@ public class Server {
         do {
             try sock.connect(to: host, port: port)
             
-            try RequestPacket.startup(options: [:]).write(id: 0, writer: sock)
+            try Request.startup(options: [:]).write(id: 0, writer: sock)
             
         } catch {
             return

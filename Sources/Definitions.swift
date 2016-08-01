@@ -69,32 +69,6 @@ public enum ResponseOpcodes: UInt8 {
     case event          = 0x0C
     case authChallenge  = 0x0E
 }
-public enum Opcode: UInt8 {
-    case error          = 0x00
-    case startup        = 0x01
-    case ready          = 0x02
-    case authenticate   = 0x03
-    case options        = 0x05
-    case supported      = 0x06
-    case query          = 0x07
-    case result         = 0x08
-    case prepare        = 0x09
-    case authSuccess    = 0x10
-    case execute        = 0x0A
-    case register       = 0x0B
-    case event          = 0x0C
-    case batch          = 0x0D
-    case authChallenge  = 0x0E
-    case authResponse   = 0x0F
-    case unknown        = 0xFF
-}
-
-public struct CqlFrameHeader {
-    public let version: UInt8
-    public let flags: UInt8
-    public let stream: Int16
-    public let opcode: UInt8
-}
 
 public enum Consistency: UInt16 {
     case any = 0x00
@@ -109,12 +83,6 @@ public enum Consistency: UInt16 {
     case local_serial = 0x0009
     case local_one = 0x000A
     case unknown
-}
-
-public enum BatchType: UInt8 {
-    case Logged = 0x00
-    case Unlogged = 0x01
-    case Counter = 0x02
 }
 
 public enum DataType: Int {
@@ -153,47 +121,6 @@ public enum RCErrorType: Error {
     case IOError
 }
 
-public struct RCError {
-    public let kind: RCErrorType
-    public let desc: String
-    
-    init(msg: String, kind: RCErrorType) {
-        self.desc = msg
-        self.kind = kind
-    }
-}
-
-public enum IPProtocolVersion {
-    case Ipv4
-    case Ipv6
-}
-
-public struct IPAddress {
-    let protocolType: IPProtocolVersion
-    let ipAddress: String
-    let port: UInt16
-}
-
-
-public struct CqlStringMap {
-    public var pairs: [CqlPair]
-}
-
-public struct CqlPair {
-    public var key: String
-    public var value: String
-}
-
-enum CqlBytesSize {
-    case Cqli32
-    case Cqli16
-}
-
-public struct CqlTableDesc {
-    public let keyspace: String
-    public let tablename: String
-}
-
 public struct CqlColMetadata {
     public var keyspace: String
     public var table: String
@@ -203,41 +130,45 @@ public struct CqlColMetadata {
     public var col_type_aux2: String
 }
 
-
+public struct Metadata {
+    let flags: Int
+    let columnCount: Int
+    let keyspace: String?
+    let table: String?
+    let rowMetadata: [CqlColMetadata]?
     
-public struct Pair<T,V> {
-    public var key: T
-    public var value: V
-}
-
-//Event stuff
-public enum EventType: CustomStringConvertible {
-    case topologyChange(type: String, inet: (String, Int))
-    case statusChange(type: String, inet: (String, Int))
-    case schemaChange(type: String, target: String, changes: schemaChangeType)
-    case error
+    var isRowHeaderPresent: Bool {
+        return flags & 0x0001 == 0x0001 ? false : true
+    }
     
-    public var description: String {
-        switch self {
-        case .topologyChange(let type, let inet) :
-            return "Topology Change with Type: \(type) and Inet \(inet)"
-        case .statusChange(let type, let inet)   :
-            return "Status Change with Type: \(type) and Inet \(inet)"
-        case .schemaChange(let type, let target, let changes):
-            return "Schema Change: Type - \(type), Target - \(target): Changes: \(changes)"
-        case .error: return ""
-        }
+    var hasPagination: Bool {
+        return flags & 0x0002 == 0x0002 ? false : true
+    }
+    
+    init(flags: Int, count: Int = 0, keyspace: String? = nil, table: String? = nil, rowMetadata: [CqlColMetadata]? = nil){
+        self.flags = flags
+        self.columnCount = count
+        self.keyspace = keyspace
+        self.table = table
+        self.rowMetadata = rowMetadata
     }
 }
-public enum schemaChangeType: CustomStringConvertible {
-    case options(with: String)
-    case keyspace(to: String, withObjName: String)
+
+public struct TableObj {
     
-    public var description: String {
-        switch self{
-        case .options(let options): return "\(options)"
-        case .keyspace(let name, let objName): return "\(name) \(objName)"
-            
+    var rows = [[String: Data]]()
+    
+    init(rows: [[Data]], headers: [(name: String, type: DataType)]){
+        for row in rows {
+            var map = [String: Data]()
+            for i in 0..<headers.count {
+                map[headers[i].name] = row[i]
+            }
+            self.rows.append(map)
         }
+    }
+    
+    subscript(_ index: String) -> String {
+        return ""
     }
 }

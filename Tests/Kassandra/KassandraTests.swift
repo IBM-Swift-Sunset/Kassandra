@@ -29,7 +29,7 @@ public final class Employee {
         self.city = city
     }
 }
-extension Employee: Model {
+extension Employee: Table {
     public enum Field: String {
         case id = "id"
         case name = "name"
@@ -38,7 +38,6 @@ extension Employee: Model {
 
     public static var tableName: String = "employee"
     
-    public static var primaryKey = Field.id
 }
 
 class KassandraTests: XCTestCase {
