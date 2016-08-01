@@ -19,26 +19,26 @@ import XCTest
 @testable import Kassandra
 
 public final class Employee {
-    let emp_id: String
-    let emp_name: String
-    let emp_city: String
+    let id: String
+    let name: String
+    let city: String
     
     init(id: String, name: String, city: String) {
-        self.emp_id = id
-        self.emp_name = name
-        self.emp_city = city
+        self.id = id
+        self.name = name
+        self.city = city
     }
 }
 extension Employee: Model {
     public enum Field: String {
-        case emp_id = "emp_id"
-        case emp_name = "emp_name"
-        case emp_city = "emp_city"
+        case id = "id"
+        case name = "name"
+        case city = "city"
     }
 
-    public static var tableName: String = "emp"
+    public static var tableName: String = "employee"
     
-    public static var primaryKey = Field.emp_id
+    public static var primaryKey = Field.id
 }
 
 class KassandraTests: XCTestCase {
@@ -82,16 +82,37 @@ class KassandraTests: XCTestCase {
             
             let _ = client["test"]
             
-            /*try Employee.insert([Employee.Field.emp_name.rawValue: "Aaron"]) {
+            try Employee.insert(
+                [Employee.Field.id.rawValue: "7",Employee.Field.name.rawValue: "Aaron",Employee.Field.city.rawValue: "Austin"]) {
                 result, error in
                 
                 print(result, error )
-            }*/
-            try Employee.delete(where: [:]) {
+            }
+            sleep(1)
+            try Employee.select() {
+                result, error in
+                
+                print(result!.rows[0].map{ "\($0) = \($1.decodeSDataString)"})
+            }
+            sleep(1)
+            try Employee.update([Employee.Field.city.rawValue: "Durham"], conditions: [Employee.Field.id.rawValue: "7"]){
+                result, error in
+                
+                print(result!.rows[0].map{ "\($0) = \($1.decodeSDataString)"})
+            }
+            sleep(1)
+            try Employee.select() {
+                result, error in
+                
+                print(result!.rows[0].map{ "\($0) = \($1.decodeSDataString)"})
+            }
+            sleep(1)
+            try Employee.delete(where: [Employee.Field.id.rawValue: "7"]) {
                 result, error in
                 
                 print(result, error)
             }
+            sleep(1)
             try Employee.select() {
                 result, error in
                 

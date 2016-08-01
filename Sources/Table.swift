@@ -16,20 +16,13 @@
 
 import Foundation
 
-public protocol Funcs {
+public protocol Table {
     associatedtype Field: Hashable
-
-    static func select(_ fields: Field ..., oncompletion: (TableObj?, Error?) -> Void) throws
-    static func insert(_ values: [String: String], oncompletion: (TableObj?, Error?) -> Void) throws
-    static func update(_ id: Field, oncompletion: (TableObj?, Error?) -> Void) throws
-    static func delete(where condition: [String: String], oncompletion: (TableObj?, Error?) -> Void) throws
-}
-
-public protocol Table: Funcs {
     static var tableName: String { get }
 }
 
-public protocol Model: Funcs {
+public protocol Model {
+    associatedtype Field: Hashable
     static var tableName: String { get }
     static var primaryKey: Field { get }
 }
@@ -46,8 +39,8 @@ public extension Model {
         try execute(queryPacket, oncompletion: oncompletion)
     }
 
-    public static func update(_ values: [String: String], oncompletion: (TableObj?, Error?) -> Void) throws {
-        let queryPacket = RequestPacket.query(query: Insert(values, into: tableName).pack())
+    public static func update(_ values: [String: String], conditions: [String: String], oncompletion: (TableObj?, Error?) -> Void) throws {
+        let queryPacket = RequestPacket.query(query: Update(to: values, in: tableName, where: conditions).pack())
         try execute(queryPacket, oncompletion: oncompletion)
     }
 
@@ -74,33 +67,34 @@ public struct Update: QueryType {
     let tableName: String
     
     let newValues: [String: String]
-    let condition: [String: String]
+    let conditions: [String: String]
     
     init(to newValues: [String: String], in tableName: String, where condition: [String: String]) {
         self.newValues = newValues
-        self.condition = condition
+        self.conditions = condition
         self.tableName = tableName
     }
     
     public func pack() -> Query {
-        //UPDATE emp SET emp_city='Delhi',emp_sal=50000 WHERE emp_id=2;
-        return Query("DELETE from \(tableName) where emp_id=100;")
+        let conds = conditions.map { "\($0)='\($1)'"}.joined(separator: ", ")
+        let vals = newValues.map { "\($0)='\($1)'"}.joined(separator: ", ")
+        return Query("UPDATE \(tableName) SET " + vals + " WHERE " + conds + ";")
     }
 }
 public struct Delete: QueryType {
     //
     let tableName: String
     
-    let condition: [String: String]
+    let conditions: [String: String]
     
     init(from tableName: String, where condition: [String: String]) {
-        self.condition = condition
+        self.conditions = condition
         self.tableName = tableName
     }
     
     public func pack() -> Query {
-        //DELETE emp_sal FROM emp WHERE emp_id=3;
-        return Query("DELETE from \(tableName) where emp_id=100;")
+        let conds = conditions.map { "\($0)='\($1)'"}.joined(separator: ", ")
+        return Query("DELETE FROM \(tableName) WHERE " + conds + ";")
     }
 }
 public struct Insert: QueryType {
@@ -115,8 +109,9 @@ public struct Insert: QueryType {
     }
     
     public func pack() -> Query {
-        //Insert INTO emp (emp_id, emp_name) VALUES(100,'Aaron');
-        return Query("Insert INTO emp (emp_id, emp_name) VALUES(100,'Aaron');")
+        let keys = fields.keys.map { "\($0)"}.joined(separator: ", ")
+        let vals = fields.values.map { "'\($0)'"}.joined(separator: ", ")
+        return Query("INSERT INTO \(tableName) ("+keys+") VALUES("+vals+");")
     }
 }
 public struct Select: QueryType {
@@ -137,4 +132,46 @@ public struct Select: QueryType {
     func filter() {
     
     }
+}
+
+public enum QueryTypes {
+    
+    var type: String {
+        switch self {
+        case .select: return "SELECT"
+        case .insert: return "Insert"
+        case .update: return "Update"
+        case .delete: return "Delete"
+            
+        }
+    }
+    public func pack() -> Query {
+        switch self {
+        case .select(let table, let fields):
+            return fields.count == 0 ? Query("SELECT * FROM \(table);") :
+                                       Query("SELECT \(fields.joined(separator: " ")) FROM \(table);")
+
+        case .insert(let table, let newValues):
+            let keys = newValues.keys.map { "\($0)"}.joined(separator: ", ")
+            let vals = newValues.values.map { "\($0)"}.joined(separator: ", ")
+            return Query("INSERT INTO \(table) ("+keys+") VALUES("+vals+");")
+
+        case .update(let table, let newValues, let conditions):
+            let conds = conditions.map { "\($0)='\($1)'"}.joined(separator: ", ")
+            let vals = newValues.map { "\($0)='\($1)'"}.joined(separator: ", ")
+            return Query("UPDATE \(table) SET " + vals + " WHERE " + conds + ";")
+
+        case .delete(let table, let conditions):
+            let conds = conditions.map { "\($0)='\($1)'"}.joined(separator: ", ")
+            return Query("DELETE FROM \(table) WHERE " + conds + ";")
+        }
+    }
+    private func packConditions(conds: [String]) -> String {
+        
+        return ""
+    }
+    case select(from: String, fields: [String])
+    case insert(into: String, fields: [String: String])
+    case update(from: String, to: [String: String], with: [String: String])
+    case delete(from: String, conditions: [String: String])
 }

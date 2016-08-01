@@ -17,19 +17,6 @@
 import Foundation
 import Socket
 
-public struct Result: Response {
-    
-    let message: ResultKind
-    
-    public var description: String {
-        return ""//"Result Type: \(type)"
-    }
-
-    public init(body: Data){
-        message = ResultKind(body: body)
-    }
-}
-
 public enum ResultKind {
     case void
     case rows(metadata: Metadata, columnTypes: [(name: String, type: DataType)], rows: [[Data]])

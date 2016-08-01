@@ -210,25 +210,34 @@ public struct Pair<T,V> {
     public var value: V
 }
 
-/*public struct CqlRows {
-    public var metadata: CqlMetadata
-    public var  rows: [CqlRow]
-}*/
-
-//public struct CqlRequest {
-//    public var version: UInt8
-//    public var flags: UInt8
-//    public var stream: Int16
-//    public var opcode: OpcodeRequest
-//    public var body: CqlRequestBody
-//}
-//
-//enum CqlRequestBody {
-//    case RequestStartup(CqlStringMap)
-//    case RequestQuery(String, Consistency, UInt8)
-//    case RequestPrepare(String)
-//    case RequestExec([UInt8], [CqlValue], Consistency, UInt8)
-////    case RequestBatch([Query], BatchType, Consistency, UInt8)
-//    case RequestOptions
-//    case RequestAuthResponse([UInt8])
-//}
+//Event stuff
+public enum EventType: CustomStringConvertible {
+    case topologyChange(type: String, inet: (String, Int))
+    case statusChange(type: String, inet: (String, Int))
+    case schemaChange(type: String, target: String, changes: schemaChangeType)
+    case error
+    
+    public var description: String {
+        switch self {
+        case .topologyChange(let type, let inet) :
+            return "Topology Change with Type: \(type) and Inet \(inet)"
+        case .statusChange(let type, let inet)   :
+            return "Status Change with Type: \(type) and Inet \(inet)"
+        case .schemaChange(let type, let target, let changes):
+            return "Schema Change: Type - \(type), Target - \(target): Changes: \(changes)"
+        case .error: return ""
+        }
+    }
+}
+public enum schemaChangeType: CustomStringConvertible {
+    case options(with: String)
+    case keyspace(to: String, withObjName: String)
+    
+    public var description: String {
+        switch self{
+        case .options(let options): return "\(options)"
+        case .keyspace(let name, let objName): return "\(name) \(objName)"
+            
+        }
+    }
+}

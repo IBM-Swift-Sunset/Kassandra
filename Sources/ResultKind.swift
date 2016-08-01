@@ -96,7 +96,7 @@ func parseRows(body: Data) -> ResultKind {
     // Parse Row Content
     for _ in 0..<data.decodeInt {
         var cols = [Data]()
-        for col in 0..<metadata.columnCount {
+        for _ in 0..<metadata.columnCount {
             
             let length = data.decodeInt
             let value = data.subdata(in: Range(0..<length))

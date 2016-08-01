@@ -49,7 +49,7 @@ public class Server {
         do {
             try sock.connect(to: host, port: port)
             
-            try Startup().write(writer: sock)
+            try RequestPacket.startup(options: [:]).write(id: 0, writer: sock)
             
         } catch {
             return
