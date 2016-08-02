@@ -7,13 +7,23 @@ before_install:
   - sudo update-java-alternatives -s java-8-oracle
   - export JAVA_HOME=/usr/lib/jvm/java-8-oracle
   - java -version
+  
+  - wget https://swift.org/builds/development/ubuntu1404/swift-DEVELOPMENT-SNAPSHOT-2016-07-25-a/swift-DEVELOPMENT-SNAPSHOT-2016-07-25-a-ubuntu14.04.tar.gz
+  - tar xzvf swift-DEVELOPMENT-SNAPSHOT-2016-07-25-a-ubuntu14.04.tar.gz
+  - export PATH=swift-DEVELOPMENT-SNAPSHOT-2016-07-25-a-ubuntu14.04/usr/bin:$PATH
+  - sudo apt-get -y install libpq-dev
+  - sudo apt-get -y install clang libicu-dev libkqueue-dev libtool libcurl4-openssl-dev libbsd-dev libblocksruntime-dev
+  - git clone -b experimental/foundation https://github.com/apple/swift-corelibs-libdispatch.git && cd swift-corelibs-libdispatch && git submodule init && git submodule update && sh autogen.sh && ./configure --with-swift-toolchain=${PWD}/../swift-DEVELOPMENT-SNAPSHOT-2016-07-25-a-ubuntu14.04/usr --prefix=${PWD}/../swift-DEVELOPMENT-SNAPSHOT-2016-07-25-a-ubuntu14.04/usr && make && make install && cd ..
+
   - sudo rm -rf /var/lib/cassandra/*
   - wget http://www.us.apache.org/dist/cassandra/3.7/apache-cassandra-3.7-bin.tar.gz && tar -xvzf apache-cassandra-3.7-bin.tar.gz
   - sudo sh ./apache-cassandra-3.7/bin/cassandra -R
   - sleep 20
 
+
+
 script:
-  - swift build -Xcc fblocks -Xcc -I/usr/opt/openssl/include -Xlinker -L/usr/opt/openssl/lib; fi
+  - swift build -Xcc fblocks -Xcc -I/usr/opt/openssl/include -Xlinker -L/usr/opt/openssl/lib
 
 
 #matrix:
