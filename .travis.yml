@@ -1,14 +1,31 @@
+addons:
+  apt:
+    packages:
+      - oracle-java8-installer
 
-matrix:
-    include:
-        - os: linux
-       	  dist: trusty
-          sudo: required
-        - os: osx
-          osx_image: xcode8
 before_install:
-    - brew update
-    - brew install openssl
+  - sudo update-java-alternatives -s java-8-oracle
+  - export JAVA_HOME=/usr/lib/jvm/java-8-oracle
+  - java -version
+  - sudo rm -rf /var/lib/cassandra/*
+  - wget http://www.us.apache.org/dist/cassandra/3.3/apache-cassandra-3.3-bin.tar.gz && tar -xvzf apache-cassandra-3.3-bin.tar.gz
+  - sudo sh ./apache-cassandra-3.3/bin/cassandra -R
+  - sleep 20
 
 script:
+  - swift build -Xcc fblocks -Xcc -I/usr/opt/openssl/include -Xlinker -L/usr/opt/openssl/lib; fi
+
+
+#matrix:
+#    include:
+#        - os: linux
+#       	  dist: trusty
+#          sudo: required
+#        //- os: osx
+#        //  osx_image: xcode8
+#before_install:
+#    - brew update
+#    - brew install openssl
+#
+#script:
   #- if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then swift build -Xcc -I/usr/local/opt/openssl/include -Xlinker -L/usr/local/opt/openssl/lib; fi
