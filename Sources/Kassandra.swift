@@ -186,7 +186,7 @@ extension Kassandra {
             case .schema                : print(response)
             case .keyspace              : print(response)
             case .prepared              : print(response)
-            case .rows(_, let c, let r) : map[id]?(TableObj(rows: r, headers: c),nil)
+            case .rows(_, let r) : map[id]?(TableObj(rows: r),nil)
             }
         }
     }
@@ -196,7 +196,7 @@ extension Kassandra {
 extension Kassandra {
     subscript(_ database: String) -> Bool {
         do {
-            try Request.query(query: .raw("USE \(database);")).write(id: 0, writer: socket!)
+            try Request.query(using: .raw("USE \(database);")).write(id: 0, writer: socket!)
 
         } catch {
             return false

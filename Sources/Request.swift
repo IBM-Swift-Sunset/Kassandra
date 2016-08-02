@@ -98,7 +98,7 @@ public enum Request {
     
     case options
     
-    case query(query: QueryTypes)
+    case query(using: QueryTypes)
     
     case prepare(query: QueryTypes)
     

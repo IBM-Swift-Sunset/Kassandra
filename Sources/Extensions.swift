@@ -159,6 +159,14 @@ extension Data {
             return u | l
         }
     }
+    var decodeInt32: Int32 {
+        mutating get {
+            let u = Int32(self.decodeUInt16) << 16
+            let l = Int32(self.decodeUInt16)
+            
+            return u | l
+        }
+    }
     var decodeBigInt: Int64 {
         mutating get {
             let byte1 = Int64(self.decodeInt) << 32
@@ -202,6 +210,18 @@ extension Data {
         }
     }
     var decodeSDataString: String {
-        return String(data: self, encoding: String.Encoding.utf8)!
+        return String(data: self, encoding: String.Encoding.utf8) ?? "NULL"
+    }
+}
+extension Dictionary {
+
+    public init(keys: [Key], values: [Value]) {
+        precondition(keys.count == values.count)
+        
+        self.init()
+        
+        for (index, key) in keys.enumerated() {
+            self[key] = values[index]
+        }
     }
 }

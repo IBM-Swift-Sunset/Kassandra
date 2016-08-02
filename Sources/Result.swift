@@ -19,7 +19,7 @@ import Socket
 
 public enum Kind {
     case void
-    case rows(metadata: Metadata, columnTypes: [(name: String, type: DataType)], rows: [[Data]])
+    case rows(metadata: Metadata, rows: [Row])
     case schema(type: String, target: String, options: String)
     case keyspace(name: String)
     case prepared(id: UInt16, metadata: Metadata?, resMetadata: Metadata?)
@@ -27,7 +27,7 @@ public enum Kind {
     public var description: String {
         switch self {
         case .void                           : return "Void"
-        case .rows(let m, let c, let r)      : return "Rows"
+        case .rows(let m, let r)             : return "Rows"
         case .schema(let t, let ta, let o)   : return "Scheme type: \(t), target: \(ta), options: \(o)"
         case .keyspace(let name)             : return "KeySpace: \(name)"
         case .prepared                       : return "Prepared"
@@ -40,10 +40,10 @@ public enum Kind {
         
         switch type {
         case 2 : self = parseRows(body: body)
-        case 3 : self = Kind.keyspace(name: body.decodeString)
+        case 3 : self = .keyspace(name: body.decodeString)
         case 4 : self = parsePrepared(body: body)
-        case 5 : self = Kind.schema(type: body.decodeString, target: body.decodeString, options: body.decodeString)
-        default: self = Kind.void
+        case 5 : self = .schema(type: body.decodeString, target: body.decodeString, options: body.decodeString)
+        default: self = .void
         }
     }
 }
@@ -60,9 +60,6 @@ public func parseMetadata(data: Data) -> (data: Data, meta: Metadata) {
     if flags & 0x0001 == 0x0001 {
         globalKeySpace = data.decodeString
         globalTableName = data.decodeString
-    } else {
-        globalKeySpace = nil
-        globalTableName = nil
     }
     
     if flags & 0x0002 == 0x0002 {
@@ -71,10 +68,10 @@ public func parseMetadata(data: Data) -> (data: Data, meta: Metadata) {
         pagingState = data.subdata(in: Range(0..<length))
         data = data.subdata(in: Range(length..<data.count))
     }
-    if flags & 0x0004 == 0x0004 {
-        return (data: data, meta: Metadata(flags: flags))
-    }
-    return (data: data,
+
+    return flags & 0x0004 == 0x0004 ?
+        (data: data, meta: Metadata(flags: flags)) :
+        (data: data,
             meta: Metadata(flags: flags, count: columnCount, keyspace: globalKeySpace, table: globalTableName, rowMetadata: nil))
     
     
@@ -95,34 +92,89 @@ func parsePrepared(body: Data) -> Kind {
 
 func parseRows(body: Data) -> Kind {
     var (data, metadata) = parseMetadata(data: body)
-    var columnHeaders = [(name: String, type: DataType)]()
-    var rows = [[Data]]()
-    
+
+    var headers = [HeaderKey]()
+    var rowVals = [[Any]]()
+
     for _ in 0..<metadata.columnCount {
         if metadata.isRowHeaderPresent {
             let _ = data.decodeString //ksname
             let _ = data.decodeString //tablename
         }
-        let name = data.decodeString
-        let id = data.decodeUInt16
-        columnHeaders.append((name, DataType(rawValue: Int(id))!))
-        
+        headers.append(HeaderKey(field: data.decodeString, type: DataType(rawValue: Int(data.decodeUInt16))!))
     }
     
     // Parse Row Content
     for _ in 0..<data.decodeInt {
-        var cols = [Data]()
-        for _ in 0..<metadata.columnCount {
+
+        var values = [Any]()
+
+        for i in 0..<metadata.columnCount {
             
-            let length = data.decodeInt
-            let value = data.subdata(in: Range(0..<length))
-            
+            let length = Int(data.decodeInt32)
+
+            if length < 0 {
+                values.append("NULL") // null
+                continue
+            }
+
+            var value = data.subdata(in: Range(0..<length))
+
             //NOTE: Convert value to appropriate type here or leave as data?
-            
+            switch headers[i].type! {
+            case .custom     : values.append(value.decodeInt)
+            case .ASCII      : values.append(value.decodeInt)
+            case .bitInt     : values.append(value.decodeInt)
+            case .blob       : values.append(value.decodeInt)
+            case .boolean    : values.append(value.decodeBool)
+            case .counter    : values.append(value.decodeInt)
+            case .decimal    : values.append(value.decodeInt)
+            case .double     : values.append(value.decodeDouble)
+            case .float      : values.append(value.decodeFloat)
+            case .int        : values.append(value.decodeInt)
+            case .text       : values.append(value.decodeSDataString)
+            case .timestamp  : values.append(value.decodeInt)
+            case .uuid       : values.append(value.decodeInt)
+            case .varChar    : values.append(value.decodeSDataString)
+            case .varInt     : values.append(value.decodeInt)
+            case .timeUuid   : values.append(value.decodeInt)
+            case .inet       : values.append(value.decodeInt)
+            case .list       : values.append(value.decodeInt)
+            case .map        : values.append(value.decodeInt)
+            case .set        : values.append(value.decodeInt)
+            case .UDT        : values.append(value.decodeInt)
+            case .tuple      : values.append(value.decodeInt)
+            }
+
             data = data.subdata(in: Range(length..<data.count))
-            cols.append(value)
         }
-        rows.append(cols)
+        rowVals.append(values)
     }
-    return Kind.rows(metadata: metadata, columnTypes: columnHeaders, rows: rows)
+    
+    return .rows(metadata: metadata, rows: rowVals.map { Row(header: headers, fields: $0) })
+}
+
+public struct HeaderKey: Hashable {
+    let field: String
+    let type: DataType?
+
+    public var hashValue: Int {
+        return field.hashValue
+    }
+}
+public func ==(lhs: HeaderKey, rhs: HeaderKey) -> Bool {
+    return lhs.hashValue == rhs.hashValue
+}
+
+public struct Row {
+    
+    let dict: [HeaderKey : Any]
+    
+    init(header: [HeaderKey], fields: [Any]){
+        dict = Dictionary(keys: header, values: fields)
+    }
+    
+    subscript(_ field: String) -> Any {
+        return dict[HeaderKey(field: field, type: nil)] ?? "NULL"
+    }
 }

@@ -18,18 +18,52 @@
 import XCTest
 @testable import Kassandra
 
-public final class Employee {
-    let id: String
-    let name: String
-    let city: String
+public final class Student {
+    var id: Int?
+    var name: String
+    var school: String
     
-    init(id: String, name: String, city: String) {
+    init(id: Int?, name: String, school: String) {
         self.id = id
         self.name = name
-        self.city = city
+        self.school = school
     }
 }
-extension Employee: Table {
+extension Student: Model {
+
+    public enum Field: String {
+        case id = "id"
+        case name = "name"
+        case school = "school"
+    }
+    
+    public static var tableName: String = "student"
+    
+    public static var primaryKey: Field = .id
+    
+    public var setPrimaryKey: Int? {
+        get {
+            return id
+        }
+        set {
+            id = newValue
+        }
+    }
+    
+    public var serialize: [Field: AnyObject] {
+        return [.name: name, .school: school]
+    }
+
+    public convenience init(row: Row) {
+        let id = row["id"] as? Int
+        let name = row["name"] as! String
+        let school = row["school"] as! String
+        
+        self.init(id: id, name: name, school: school)
+    }
+    
+}
+public class Employee: Table {
     public enum Field: String {
         case id = "id"
         case name = "name"
@@ -51,7 +85,8 @@ class KassandraTests: XCTestCase {
     static var allTests: [(String, (KassandraTests) -> () throws -> Void)] {
         return [
             ("testConnect", testConnect),
-            ("testQuery", testQuery),
+            ("testTable", testTable),
+            ("testModel", testModel),
         ]
     }
     
@@ -63,15 +98,69 @@ class KassandraTests: XCTestCase {
 	
     func testConnect() throws {
         
-        try client.connect {
-                error in
-                
-                print(error)
-            }
+        // try client.connect { error in }
     }
     
-    func testQuery() throws {
+    func testTable() throws {
     
+        do {
+            try client.connect { error in print(error) }
+            
+            let _ = client["test"]
+            
+            sleep(1)
+    
+            try Employee.insert([.id: "7",.name: "Aaron",.city: "Austin"]) {
+                result, error in
+                
+                print(result, error )
+            }
+            sleep(1)
+            try Employee.select {
+                result, error in
+                
+                for row in result!.rows {
+                    print(row["id"], row["name"], row["city"])
+                }
+                
+            }
+            sleep(1)
+            try Employee.update([.city: "Durham"], conditions: [.id: "7"]){
+                result, error in
+                
+                print(result, error)
+            }
+            sleep(1)
+            try Employee.select {
+                result, error in
+                
+                for row in result!.rows {
+                    print(row["id"], row["name"], row["city"])
+                }
+            }
+            sleep(1)
+            try Employee.delete(where: [.id: "7"]) {
+                result, error in
+                
+                print(result, error)
+            }
+            sleep(1)
+            try Employee.select {
+                result, error in
+                
+                for row in result!.rows {
+                    print(row["id"], row["name"], row["city"])
+                }
+            }
+            
+        } catch {
+            throw error
+        }
+        sleep(5)
+    }
+    func testModel() throws {
+        
+        print("--------+---------+----------+---------")
         do {
             try client.connect {
                 error in
@@ -81,41 +170,10 @@ class KassandraTests: XCTestCase {
             
             let _ = client["test"]
             
-            try Employee.insert(
-                [Employee.Field.id.rawValue: "7",Employee.Field.name.rawValue: "Aaron",Employee.Field.city.rawValue: "Austin"]) {
-                result, error in
-                
-                print(result, error )
-            }
-            sleep(1)
-            try Employee.select() {
-                result, error in
-                
-                print(result!.rows[0].map{ "\($0) = \($1.decodeSDataString)"})
-            }
-            sleep(1)
-            try Employee.update([Employee.Field.city.rawValue: "Durham"], conditions: [Employee.Field.id.rawValue: "7"]){
-                result, error in
-                
-                print(result!.rows[0].map{ "\($0) = \($1.decodeSDataString)"})
-            }
-            sleep(1)
-            try Employee.select() {
-                result, error in
-                
-                print(result!.rows[0].map{ "\($0) = \($1.decodeSDataString)"})
-            }
-            sleep(1)
-            try Employee.delete(where: [Employee.Field.id.rawValue: "7"]) {
-                result, error in
-                
-                print(result, error)
-            }
-            sleep(1)
-            try Employee.select() {
-                result, error in
-                
-                print(result)
+            let studentTable = Student(id: 15, name: "Aaron", school: "Duke")
+            
+            try studentTable.create(){
+                _,_ in
             }
             
         } catch {

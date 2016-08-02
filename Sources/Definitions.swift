@@ -156,16 +156,10 @@ public struct Metadata {
 
 public struct TableObj {
     
-    var rows = [[String: Data]]()
+    var rows: [Row]
     
-    init(rows: [[Data]], headers: [(name: String, type: DataType)]){
-        for row in rows {
-            var map = [String: Data]()
-            for i in 0..<headers.count {
-                map[headers[i].name] = row[i]
-            }
-            self.rows.append(map)
-        }
+    init(rows: [Row]){
+        self.rows = rows
     }
     
     subscript(_ index: String) -> String {

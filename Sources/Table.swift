@@ -24,23 +24,46 @@ public protocol Table {
 public extension Table {
     
     public static func select(_ fields: Field ..., oncompletion: (TableObj?, Error?) -> Void) throws {
-        let queryPacket = Request.query(query: .select(from: tableName,fields: fields.map{ String($0) }))
-        try execute(queryPacket, oncompletion: oncompletion)
+        try execute(.query(using: .select(from: tableName,fields: fields.map{ String($0) })), oncompletion: oncompletion)
     }
     
-    public static func insert(_ values: [String: String], oncompletion: (TableObj?, Error?) -> Void) throws {
-        let queryPacket = Request.query(query: .insert(into: tableName,fields: values))
-        try execute(queryPacket, oncompletion: oncompletion)
+    public static func insert(_ values: [Field: String], oncompletion: (TableObj?, Error?) -> Void) throws {
+        
+        var translated = [String: String]()
+        
+        for (key, value) in values {
+            translated[String(key)] = value
+        }
+        
+        try execute(.query(using: .insert(into: tableName, fields: translated)), oncompletion: oncompletion)
     }
     
-    public static func update(_ values: [String: String], conditions: [String: String], oncompletion: (TableObj?, Error?) -> Void) throws {
-        let queryPacket = Request.query(query: .update(from: tableName, to: values, with: conditions))
-        try execute(queryPacket, oncompletion: oncompletion)
+    public static func update(_ values: [Field: String], conditions: [Field: String], oncompletion: (TableObj?, Error?) -> Void) throws {
+        
+        var vals = [String: String]()
+        
+        for (key, value) in values {
+            vals[String(key)] = value
+        }
+
+        var cond = [String: String]()
+        
+        for (key, value) in conditions {
+            cond[String(key)] = value
+        }
+
+        try execute(.query(using: .update(from: tableName, to: vals, with: cond)), oncompletion: oncompletion)
     }
     
-    public static func delete(where condition: [String: String], oncompletion: (TableObj?, Error?) -> Void) throws {
-        let queryPacket = Request.query(query: .delete(from: tableName, conditions: condition))
-        try execute(queryPacket, oncompletion: oncompletion)
+    public static func delete(where conditions: [Field: String], oncompletion: (TableObj?, Error?) -> Void) throws {
+        
+        var cond = [String: String]()
+        
+        for (key, value) in conditions {
+            cond[String(key)] = value
+        }
+        
+        try execute(.query(using: .delete(from: tableName, conditions: cond)), oncompletion: oncompletion)
     }
     
     private static func execute(_ query: Request, oncompletion: (TableObj?, Error?) -> Void) throws {
@@ -53,33 +76,15 @@ public extension Table {
     }
 }
 
-public protocol Model {
-    associatedtype Field: Hashable
-    static var tableName: String { get }
-    static var primaryKey: Field { get }
-}
-
-public extension Model {
-    public static func create(_ fields: Field ..., oncompletion: (TableObj?, Error?) -> Void) throws {
-        /*let queryPacket = Request.query(query: Select(fields.map{ String($0) }, from: tableName).pack())
-         try config.connection?.execute(queryPacket) {
-         table, error in
-         
-         if error != nil { oncompletion(nil, error) }
-         else            { oncompletion(table, nil) }
-         }*/
-    }
-}
-
-// Enum Version: Cleaner/will work as is, but not as powerful depending on where we decide to go
 public enum QueryTypes {
-    
+
     var type: String {
         switch self {
         case .select: return "SELECT"
         case .insert: return "INSERT"
         case .update: return "UPDATE"
         case .delete: return "DELETE"
+        case .create: return "CREATE"
         case .raw   : return "RAW"
         }
     }
@@ -90,7 +95,7 @@ public enum QueryTypes {
         case .select(let table, let fields):
             
             fields.count == 0 ? data.append("SELECT * FROM \(table);".sData) :
-                data.append("SELECT \(fields.joined(separator: " ")) FROM \(table);".sData)
+                                data.append("SELECT \(fields.joined(separator: " ")) FROM \(table);".sData)
             
         case .insert(let table, let newValues):
             let keys = newValues.keys.map { "\($0)"}.joined(separator: ", ")
@@ -105,6 +110,10 @@ public enum QueryTypes {
         case .delete(let table, let conditions):
             let conds = conditions.map { "\($0)='\($1)'"}.joined(separator: ", ")
             data.append(("DELETE FROM \(table) WHERE " + conds + ";").sData)
+    
+        case .create(let table, let fields):
+            data.append(("CREATE TABLE \(table)(" + fields + ");").sData)
+    
         case .raw(let query):
             data.append(query.sData)
         }
@@ -118,10 +127,12 @@ public enum QueryTypes {
         
         return ""
     }
+    
     case select(from: String, fields: [String])
     case insert(into: String, fields: [String: String])
     case update(from: String, to: [String: String], with: [String: String])
     case delete(from: String, conditions: [String: String])
+    case create(table: String, fields: String)
     case raw(String)
 }
 
