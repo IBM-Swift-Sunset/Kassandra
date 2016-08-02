@@ -17,15 +17,24 @@
 import Foundation
 import Socket
 
-extension Bool {
+public protocol CSQLDataType {
+    
+    var toString: String { get }
+}
+
+public extension Bool {
     
     var toUInt8: UInt8 {
         return self ? 0x01 : 0x00
     }
 }
 
-extension String {
+extension String: CSQLDataType {
     
+    public var toString: String {
+        return self
+    }
+
     var data: Data {
         var array = Data()
         
@@ -51,7 +60,12 @@ extension String {
     }
 }
 
-extension Int {
+extension Int: CSQLDataType {
+    
+    public var toString: String {
+        return String(self)
+    }
+
     init(data: Data) {
         let u = Int(data[0]) << 24
         let um = Int(data[1]) << 16
@@ -86,8 +100,12 @@ extension Int {
     }
 }
 
-extension UInt8 {
+extension UInt8: CSQLDataType {
     
+    public var toString: String {
+        return String(self)
+    }
+
     var data: Data {
         return Data(bytes: [self])
     }
@@ -101,8 +119,12 @@ extension UInt8 {
     }
 }
 
-extension UInt16 {
+extension UInt16: CSQLDataType {
     
+    public var toString: String {
+        return String(self)
+    }
+
     init(random: Bool) {
         var r: UInt16 = 0
         arc4random_buf(&r, sizeof(UInt16.self))
@@ -224,4 +246,13 @@ extension Dictionary {
             self[key] = values[index]
         }
     }
+}
+public func changeDictType<T>(dict: [T: AnyObject]) -> [String: AnyObject] {
+    var cond = [String: AnyObject]()
+    
+    for (key, value) in dict {
+        cond[String(key)] = value
+    }
+    
+    return cond
 }

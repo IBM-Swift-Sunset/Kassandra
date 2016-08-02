@@ -19,6 +19,7 @@ import Foundation
 public protocol Table {
     associatedtype Field: Hashable
     static var tableName: String { get }
+
 }
 
 public extension Table {
@@ -27,41 +28,25 @@ public extension Table {
         try execute(.query(using: .select(from: tableName,fields: fields.map{ String($0) })), oncompletion: oncompletion)
     }
     
-    public static func insert(_ values: [Field: String], oncompletion: (TableObj?, Error?) -> Void) throws {
+    public static func insert(_ values: [Field: AnyObject], oncompletion: (TableObj?, Error?) -> Void) throws {
         
-        var translated = [String: String]()
+        let vals = changeDictType(dict: values)
         
-        for (key, value) in values {
-            translated[String(key)] = value
-        }
-        
-        try execute(.query(using: .insert(into: tableName, fields: translated)), oncompletion: oncompletion)
+        //try execute(.query(using: .insert(into: Self.tableName, fields: mirror)), oncompletion: oncompletion)
     }
     
-    public static func update(_ values: [Field: String], conditions: [Field: String], oncompletion: (TableObj?, Error?) -> Void) throws {
+    public static func update(_ values: [Field: AnyObject], conditions: [Field: AnyObject], oncompletion: (TableObj?, Error?) -> Void) throws {
         
-        var vals = [String: String]()
-        
-        for (key, value) in values {
-            vals[String(key)] = value
-        }
+        let vals = changeDictType(dict: values)
 
-        var cond = [String: String]()
-        
-        for (key, value) in conditions {
-            cond[String(key)] = value
-        }
+        let cond = changeDictType(dict: conditions)
 
         try execute(.query(using: .update(from: tableName, to: vals, with: cond)), oncompletion: oncompletion)
     }
     
-    public static func delete(where conditions: [Field: String], oncompletion: (TableObj?, Error?) -> Void) throws {
+    public static func delete(where conditions: [Field: AnyObject], oncompletion: (TableObj?, Error?) -> Void) throws {
         
-        var cond = [String: String]()
-        
-        for (key, value) in conditions {
-            cond[String(key)] = value
-        }
+        let cond = changeDictType(dict: conditions)
         
         try execute(.query(using: .delete(from: tableName, conditions: cond)), oncompletion: oncompletion)
     }
@@ -76,7 +61,7 @@ public extension Table {
     }
 }
 
-public enum QueryTypes {
+public enum Query {
 
     var type: String {
         switch self {
@@ -97,22 +82,22 @@ public enum QueryTypes {
             fields.count == 0 ? data.append("SELECT * FROM \(table);".sData) :
                                 data.append("SELECT \(fields.joined(separator: " ")) FROM \(table);".sData)
             
-        case .insert(let table, let newValues):
-            let keys = newValues.keys.map { "\($0)"}.joined(separator: ", ")
-            let vals = newValues.values.map { "'\($0)'"}.joined(separator: ", ")
+        case .insert(let table, let mirror):
+            let keys = packKeys(mirror)
+            let vals = packValues(mirror)
             data.append(("INSERT INTO \(table) ("+keys+") VALUES("+vals+");").sData)
             
         case .update(let table, let newValues, let conditions):
-            let conds = conditions.map { "\($0)='\($1)'"}.joined(separator: ", ")
-            let vals = newValues.map { "\($0)='\($1)'"}.joined(separator: ", ")
+            let conds = packPairs(conditions)
+            let vals  = packPairs(newValues)
             data.append(("UPDATE \(table) SET " + vals + " WHERE " + conds + ";").sData)
             
         case .delete(let table, let conditions):
-            let conds = conditions.map { "\($0)='\($1)'"}.joined(separator: ", ")
+            let conds = packPairs(conditions)
             data.append(("DELETE FROM \(table) WHERE " + conds + ";").sData)
     
-        case .create(let table, let fields):
-            data.append(("CREATE TABLE \(table)(" + fields + ");").sData)
+        case .create(let table, let key, let mirror):
+            data.append(("CREATE TABLE \(table)(" + packParams(key: key, mirror: mirror) + ");").sData)
     
         case .raw(let query):
             data.append(query.sData)
@@ -123,91 +108,11 @@ public enum QueryTypes {
         
         return data
     }
-    private func packConditions(conds: [String]) -> String {
-        
-        return ""
-    }
     
     case select(from: String, fields: [String])
-    case insert(into: String, fields: [String: String])
-    case update(from: String, to: [String: String], with: [String: String])
-    case delete(from: String, conditions: [String: String])
-    case create(table: String, fields: String)
+    case insert(into: String, fields: Mirror)
+    case update(from: String, to: [String: AnyObject], with: [String: AnyObject])
+    case delete(from: String, conditions: [String: AnyObject])
+    case create(table: String, key: String, fields: Mirror)
     case raw(String)
-}
-
-// Struct Version -- This might be the way to go depending on the functionality needed
-public protocol QueryType {
-    func pack() -> Query
-}
-public struct Update: QueryType {
-    
-    let tableName: String
-    
-    let newValues: [String: String]
-    let conditions: [String: String]
-    
-    init(to newValues: [String: String], in tableName: String, where condition: [String: String]) {
-        self.newValues = newValues
-        self.conditions = condition
-        self.tableName = tableName
-    }
-    
-    public func pack() -> Query {
-        let conds = conditions.map { "\($0)='\($1)'"}.joined(separator: ", ")
-        let vals = newValues.map { "\($0)='\($1)'"}.joined(separator: ", ")
-        return Query("UPDATE \(tableName) SET " + vals + " WHERE " + conds + ";")
-    }
-}
-public struct Delete: QueryType {
-    //
-    let tableName: String
-    
-    let conditions: [String: String]
-    
-    init(from tableName: String, where condition: [String: String]) {
-        self.conditions = condition
-        self.tableName = tableName
-    }
-    
-    public func pack() -> Query {
-        let conds = conditions.map { "\($0)='\($1)'"}.joined(separator: ", ")
-        return Query("DELETE FROM \(tableName) WHERE " + conds + ";")
-    }
-}
-public struct Insert: QueryType {
-    
-    let tableName: String
-    
-    let fields: [String: String]
-    
-    init(_ fields: [String: String], into tableName: String) {
-        self.fields = fields
-        self.tableName = tableName
-    }
-    
-    public func pack() -> Query {
-        let keys = fields.keys.map { "\($0)"}.joined(separator: ", ")
-        let vals = fields.values.map { "'\($0)'"}.joined(separator: ", ")
-        return Query("INSERT INTO \(tableName) ("+keys+") VALUES("+vals+");")
-    }
-}
-public struct Select: QueryType {
-    
-    let tableName: String
-    
-    let fields: [String]
-    
-    init(_ fields: [String], from tableName: String) {
-        self.fields = fields
-        self.tableName = tableName
-    }
-    
-    public func pack() -> Query {
-        return fields.count == 0 ? Query("SELECT * from \(tableName);") :
-            Query("SELECT \(fields.joined(separator: " ")) from \(tableName);")
-    }
-    func filter() {
-        
-    }
 }

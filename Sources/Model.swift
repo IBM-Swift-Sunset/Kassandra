@@ -29,24 +29,85 @@ public protocol Model {
     init(row: Row)
 }
 
+public var mirrors = [Int: Mirror]()
+
 public extension Model {
     
+    public var hashValue: Int {
+        return Self.tableName.hashValue
+    }
+
+    private var mirror: Mirror {
+        if mirrors[hashValue] == nil {
+            mirrors[hashValue] = Mirror(reflecting: self)
+        }
+        return mirrors[hashValue]!
+    }
+
     public func save() throws {
-        
+        try config.connection?.execute(.query(using: Query.insert(into: Self.tableName, fields: mirror))){
+            res,err in
+            
+            for row in res!.rows {
+                print(row["id"], row["name"], row["city"])
+            }
+        }
     }
     
     public func create(oncompletion: (TableObj?, Error?) -> Void) throws {
-        
-        let key = String(Self.primaryKey) + " int PRIMARY KEY, "
-        let params = serialize.keys.map{ String($0) + " text" }.joined(separator: ", ")
-        
-        let queryPacket = Request.query(using: .create(table: Self.tableName, fields: key + params))
-        
-        try config.connection?.execute(queryPacket) {
-            table, error in
-            
-            if error != nil { oncompletion(nil, error) }
-            else            { oncompletion(table, nil) }
-        }
+
+        let queryPacket = Request.query(using: .create(table: Self.tableName, key: String(Self.primaryKey), fields: mirror))
+        try config.connection?.execute(queryPacket, oncompletion: oncompletion)
     }
+}
+
+func getType(_ item: Any ) -> DataType? {
+
+    switch item {
+    case _ as Int     : return .int
+    case _ as String  : return .text
+    case _ as Float   : return .float
+    case _ as Double  : return .double
+    case _ as Decimal : return .decimal
+    default: return nil
+    }
+}
+
+func packType(_ item: Any) -> String? {
+    switch item {
+    case let val as Int     : return String(val)
+    case let val as String  : return "'\(val)'"
+    case let val as Float   : return String(val)
+    case let val as Double  : return String(val)
+    case let val as Decimal : return String(val)
+    default: return nil
+    }
+}
+func packParams(key: String, mirror: Mirror) -> String {
+    
+    var str = ""
+    for child in mirror.children {
+        switch child.value {
+        case is Int     : str += child.label! + " int "
+        case is String  : str += child.label! + " text "
+        case is Float   : str += child.label! + " float "
+        case is Double  : str += child.label! + " double "
+        case is Decimal : str += child.label! + " decimal "
+        default: break
+        }
+
+        child.label! == key ? (str += "PRIMARY KEY,") : (str += ",")
+    }
+    return str
+}
+
+func packPairs(_ pairs: [String: AnyObject], mirror: Mirror? = nil) -> String {
+    return pairs.map{key,val in  key + "=" + packType(val)! }.joined(separator: ", ")
+}
+func packValues(_ mirror: Mirror) -> String {
+    return mirror.children.map{ packType($0.value)! }.joined(separator: ", ")
+}
+
+func packKeys(_ mirror: Mirror) -> String {
+    return mirror.children.map { $0.label! }.joined(separator: ", ")
 }

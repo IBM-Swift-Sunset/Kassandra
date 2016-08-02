@@ -16,49 +16,6 @@
 
 import Foundation
 
-public struct Query {
-    var query: String //Long string - Int -> utf8
-    var consistency: Consistency
-    var flags: UInt8
-    
-    var values: UInt8 { // 0x01 [short] <n> followed by <n> [bytes]
-        return (flags & 0x01)
-    }
-    var skip_metadata: UInt8 { // 0x02
-        return (flags & 0x02)
-    }
-    var pageSize: UInt8 { // 0x04
-        return (flags & 0x04)
-    }
-    var withPagingState: UInt8 { //0x08
-        return (flags & 0x08)
-    }
-    var withSerialConsistency: UInt8 { // 0x10
-        return (flags & 0x10)
-    }
-    var withDefaultTimestamp: UInt8 { // 0x20
-        return (flags & 0x20)
-    }
-    var withValueNames: UInt8 { // 0x40
-        return (flags & 0x40)
-    }
-    
-    init(_ query: String) {
-        self.query = query
-        consistency = .one
-        flags = 0x00
-    }
-    
-    func pack() -> Data {
-        var data = Data()
-        
-        data.append(query.sData)
-        data.append(consistency.rawValue.data)
-        data.append(flags.data)
-        
-        return data
-    }
-}
 public enum ResponseOpcodes: UInt8 {
     case error          = 0x00
     case ready          = 0x02

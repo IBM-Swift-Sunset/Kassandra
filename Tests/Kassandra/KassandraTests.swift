@@ -103,7 +103,7 @@ class KassandraTests: XCTestCase {
     
     func testTable() throws {
     
-        do {
+       do {
             try client.connect { error in print(error) }
             
             let _ = client["test"]
@@ -116,8 +116,7 @@ class KassandraTests: XCTestCase {
                 print(result, error )
             }
             sleep(1)
-            try Employee.select {
-                result, error in
+            try Employee.select { result, error in
                 
                 for row in result!.rows {
                     print(row["id"], row["name"], row["city"])
@@ -131,8 +130,7 @@ class KassandraTests: XCTestCase {
                 print(result, error)
             }
             sleep(1)
-            try Employee.select {
-                result, error in
+            try Employee.select { result, error in
                 
                 for row in result!.rows {
                     print(row["id"], row["name"], row["city"])
@@ -145,8 +143,7 @@ class KassandraTests: XCTestCase {
                 print(result, error)
             }
             sleep(1)
-            try Employee.select {
-                result, error in
+            try Employee.select { result, error in
                 
                 for row in result!.rows {
                     print(row["id"], row["name"], row["city"])
@@ -161,21 +158,23 @@ class KassandraTests: XCTestCase {
     func testModel() throws {
         
         print("--------+---------+----------+---------")
+
         do {
-            try client.connect {
-                error in
-                
-                print(error)
-            }
-            
+            try client.connect { error in print(error) }
+
+            sleep(1)
             let _ = client["test"]
-            
-            let studentTable = Student(id: 15, name: "Aaron", school: "Duke")
-            
-            try studentTable.create(){
-                _,_ in
+
+            let studentTable = Student(id: 10, name: "Dave", school: "UNC")
+
+            try studentTable.create() {
+                result, error in
+                
+                print(result, error)
             }
             
+            try studentTable.save()
+
         } catch {
             throw error
         }

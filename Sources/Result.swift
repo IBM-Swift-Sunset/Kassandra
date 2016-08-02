@@ -27,7 +27,7 @@ public enum Kind {
     public var description: String {
         switch self {
         case .void                           : return "Void"
-        case .rows(let m, let r)             : return "Rows"
+        case .rows(let _, let _)             : return "Rows"
         case .schema(let t, let ta, let o)   : return "Scheme type: \(t), target: \(ta), options: \(o)"
         case .keyspace(let name)             : return "KeySpace: \(name)"
         case .prepared                       : return "Prepared"
