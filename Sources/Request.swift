@@ -98,15 +98,15 @@ public enum Request {
     
     case options
     
-    case query(query: Query)
+    case query(query: QueryTypes)
     
-    case prepare(query: Query)
+    case prepare(query: QueryTypes)
     
     case execute(parameters: String)
     
     case register(events: [String])
     
-    case batch(queries: [Query], flags: Byte, consistency: Consistency)
+    case batch(queries: [QueryTypes], flags: Byte, consistency: Consistency)
     
     case authResponse(token: Int)
 }

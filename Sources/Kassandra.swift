@@ -196,7 +196,7 @@ extension Kassandra {
 extension Kassandra {
     subscript(_ database: String) -> Bool {
         do {
-            try Request.query(query: Query("USE \(database);")).write(id: 0, writer: socket!)
+            try Request.query(query: .raw("USE \(database);")).write(id: 0, writer: socket!)
 
         } catch {
             return false
