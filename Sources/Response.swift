@@ -51,12 +51,12 @@ public enum Response: CustomStringConvertible {
         switch opcode {
         case .ready         : self = .ready
         case .authSuccess   : self = .authSuccess
-        case .supported     : self = .supported(by: parseMap(body))
+        case .supported     : self = .supported(by: body.decodeStringMap)
         case .result        : self = .result(of: Kind(body: body))
         case .authChallenge : self = .authChallenge(with: body.decodeInt)
         case .authenticate  : self = .authenticate(with: body.decodeString)
         case .error         : self = .error(code: body.decodeInt, message: body.decodeString)
-        case .event         : self = parseEvent(body)
+        case .event         : self = body.decodeEventResponse
         }
     }
     
@@ -76,55 +76,7 @@ public enum Response: CustomStringConvertible {
     
     case authChallenge(with: Int)
 }
-
-// Helper Functions
-private func parseEvent(_ body: Data) -> Response {
-    var body = body
-    
-    switch body.decodeString {
-    case "TOPOLOGY_CHANGE":
-        let changeType = body.decodeString
-        let inet       = body.decodeInet
-        return .event(of: .topologyChange(type: changeType, inet: inet))
-    case "STATUS_CHANGE":
-        let changeType = body.decodeString
-        let inet       = body.decodeInet
-        return .event(of: .statusChange(type: changeType, inet: inet))
-    case "SCHEMA_CHANGE":
-        let changeType = body.decodeString
-        let target     = body.decodeString
-        
-        if target == "KeySpace" {
-            let options  = body.decodeString
-            return .event(of: .schemaChange(type: changeType, target: target, changes: .options(with: options)))
-        } else {
-            let keyspace = body.decodeString
-            let objName  = body.decodeString
-            return .event(of: .schemaChange(type: changeType, target: target, changes: .keyspace(to: keyspace, withObjName: objName)))
-        }
-    default: return .event(of: .error)
-    }
-}
-
-private func parseMap(_ body: Data) -> [String: [String]]{
-    var body = body
-    var map = [String: [String]]()
-    
-    for _ in 0..<Int(body.decodeUInt16) {
-        let key = body.decodeString
-        var strList = [String]()
-        let strListLen = Int(body.decodeUInt16)
-        
-        for _ in 0..<strListLen {
-            strList.append(body.decodeString)
-        }
-        
-        map[key] = strList
-    }
-    return map
-}
-
-//Event stuff
+//Event Type
 public enum EventType: CustomStringConvertible {
     case topologyChange(type: String, inet: (String, Int))
     case statusChange(type: String, inet: (String, Int))

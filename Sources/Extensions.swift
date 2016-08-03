@@ -17,11 +17,6 @@
 import Foundation
 import Socket
 
-public protocol CSQLDataType {
-    
-    var toString: String { get }
-}
-
 public extension Bool {
     
     var toUInt8: UInt8 {
@@ -29,11 +24,7 @@ public extension Bool {
     }
 }
 
-extension String: CSQLDataType {
-    
-    public var toString: String {
-        return self
-    }
+extension String {
 
     var data: Data {
         var array = Data()
@@ -60,11 +51,7 @@ extension String: CSQLDataType {
     }
 }
 
-extension Int: CSQLDataType {
-    
-    public var toString: String {
-        return String(self)
-    }
+extension Int {
 
     init(data: Data) {
         let u = Int(data[0]) << 24
@@ -100,11 +87,7 @@ extension Int: CSQLDataType {
     }
 }
 
-extension UInt8: CSQLDataType {
-    
-    public var toString: String {
-        return String(self)
-    }
+extension UInt8 {
 
     var data: Data {
         return Data(bytes: [self])
@@ -119,11 +102,7 @@ extension UInt8: CSQLDataType {
     }
 }
 
-extension UInt16: CSQLDataType {
-    
-    public var toString: String {
-        return String(self)
-    }
+extension UInt16 {
 
     init(random: Bool) {
         var r: UInt16 = 0
@@ -234,6 +213,151 @@ extension Data {
     var decodeSDataString: String {
         return String(data: self, encoding: String.Encoding.utf8) ?? "NULL"
     }
+    var decodeStringMap: [String: [String]] {
+        mutating get {
+            var map = [String: [String]]()
+            
+            for _ in 0..<Int(self.decodeUInt16) {
+                let key = self.decodeString
+
+                var strList = [String]()
+                for _ in 0..<Int(self.decodeUInt16) {
+                    strList.append(self.decodeString)
+                }
+                
+                map[key] = strList
+            }
+            return map
+        }
+    }
+    var decodeEventResponse: Response {
+        mutating get {
+            switch self.decodeString {
+            case "TOPOLOGY_CHANGE":
+                let changeType = self.decodeString
+                let inet       = self.decodeInet
+                return .event(of: .topologyChange(type: changeType, inet: inet))
+            case "STATUS_CHANGE":
+                let changeType = self.decodeString
+                let inet       = self.decodeInet
+                return .event(of: .statusChange(type: changeType, inet: inet))
+            case "SCHEMA_CHANGE":
+                let changeType = self.decodeString
+                let target     = self.decodeString
+                
+                if target == "KeySpace" {
+                    let options  = self.decodeString
+                    return .event(of: .schemaChange(type: changeType, target: target, changes: .options(with: options)))
+                } else {
+                    let keyspace = self.decodeString
+                    let objName  = self.decodeString
+                    return .event(of: .schemaChange(type: changeType, target: target, changes: .keyspace(to: keyspace, withObjName: objName)))
+                }
+            default: return .event(of: .error)
+            }
+        }
+    }
+    var decodePreparedResponse: Kind {
+        mutating get {
+            
+            let id = self.decodeUInt16
+            
+            let meta = self.decodeMetadata
+            
+            let resMeta = self.decodeMetadata
+            
+            return Kind.prepared(id: id, metadata: meta, resMetadata: resMeta)
+        }
+    }
+    var decodeMetadata: Metadata {
+        mutating get {
+            let flags = self.decodeInt
+            let columnCount = self.decodeInt
+            var globalKeySpace: String? = nil
+            var globalTableName: String? = nil
+            var pagingState = Data()
+            
+            if flags & 0x0001 == 0x0001 {
+                globalKeySpace = self.decodeString
+                globalTableName = self.decodeString
+            }
+            
+            if flags & 0x0002 == 0x0002 {
+                // paging state [bytes] type
+                let length = self.decodeInt
+                pagingState = self.subdata(in: Range(0..<length))
+                self = self.subdata(in: Range(length..<self.count))
+            }
+            
+            return flags & 0x0004 == 0x0004 ? Metadata(flags: flags) :
+                Metadata(flags: flags, count: columnCount, keyspace: globalKeySpace, table: globalTableName, rowMetadata: nil)
+        }
+    }
+    var decodeRows: Kind {
+        mutating get {
+            let metadata = self.decodeMetadata
+            
+            var headers = [HeaderKey]()
+            var rowVals = [[Any]]()
+            
+            for _ in 0..<metadata.columnCount {
+                if metadata.isRowHeaderPresent {
+                    let _ = self.decodeString //ksname
+                    let _ = self.decodeString //tablename
+                }
+                headers.append(HeaderKey(field: self.decodeString, type: DataType(rawValue: Int(self.decodeUInt16))!))
+            }
+            
+            // Parse Row Content
+            for _ in 0..<self.decodeInt {
+                
+                var values = [Any]()
+                
+                for i in 0..<metadata.columnCount {
+                    
+                    let length = Int(self.decodeInt32)
+                    
+                    if length < 0 {
+                        values.append("NULL") // null
+                        continue
+                    }
+                    
+                    var value = self.subdata(in: Range(0..<length))
+                    
+                    //NOTE: Convert value to appropriate type here or leave as data?
+                    switch headers[i].type! {
+                    case .custom     : values.append(value.decodeInt)
+                    case .ASCII      : values.append(value.decodeInt)
+                    case .bitInt     : values.append(value.decodeInt)
+                    case .blob       : values.append(value.decodeInt)
+                    case .boolean    : values.append(value.decodeBool)
+                    case .counter    : values.append(value.decodeInt)
+                    case .decimal    : values.append(value.decodeInt)
+                    case .double     : values.append(value.decodeDouble)
+                    case .float      : values.append(value.decodeFloat)
+                    case .int        : values.append(value.decodeInt)
+                    case .text       : values.append(value.decodeSDataString)
+                    case .timestamp  : values.append(value.decodeInt)
+                    case .uuid       : values.append(value.decodeInt)
+                    case .varChar    : values.append(value.decodeSDataString)
+                    case .varInt     : values.append(value.decodeInt)
+                    case .timeUuid   : values.append(value.decodeInt)
+                    case .inet       : values.append(value.decodeInt)
+                    case .list       : values.append(value.decodeInt)
+                    case .map        : values.append(value.decodeInt)
+                    case .set        : values.append(value.decodeInt)
+                    case .UDT        : values.append(value.decodeInt)
+                    case .tuple      : values.append(value.decodeInt)
+                    }
+                    
+                    self = self.subdata(in: Range(length..<self.count))
+                }
+                rowVals.append(values)
+            }
+            
+            return .rows(metadata: metadata, rows: rowVals.map { Row(header: headers, fields: $0) })
+        }
+    }
 }
 extension Dictionary {
 
@@ -247,8 +371,8 @@ extension Dictionary {
         }
     }
 }
-public func changeDictType<T>(dict: [T: AnyObject]) -> [String: AnyObject] {
-    var cond = [String: AnyObject]()
+public func changeDictType<T>(dict: [T: Any]) -> [String: Any] {
+    var cond = [String: Any]()
     
     for (key, value) in dict {
         cond[String(key)] = value

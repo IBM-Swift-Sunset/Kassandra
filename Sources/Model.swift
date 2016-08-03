@@ -45,19 +45,19 @@ public extension Model {
     }
 
     public func save() throws {
-        try config.connection?.execute(.query(using: Query.insert(into: Self.tableName, fields: mirror))){
+        /*try config.connection?.execute(.query(using: Query.insert(into: Self.tableName, fields: mirror))){
             res,err in
             
             for row in res!.rows {
                 print(row["id"], row["name"], row["city"])
             }
-        }
+        }*/
     }
     
     public func create(oncompletion: (TableObj?, Error?) -> Void) throws {
 
-        let queryPacket = Request.query(using: .create(table: Self.tableName, key: String(Self.primaryKey), fields: mirror))
-        try config.connection?.execute(queryPacket, oncompletion: oncompletion)
+        /*let queryPacket = Request.query(using: .create(table: Self.tableName, key: String(Self.primaryKey), fields: mirror))
+        try config.connection?.execute(queryPacket, oncompletion: oncompletion)*/
     }
 }
 
@@ -80,6 +80,7 @@ func packType(_ item: Any) -> String? {
     case let val as Float   : return String(val)
     case let val as Double  : return String(val)
     case let val as Decimal : return String(val)
+    case let val as Bool    : return String(val)
     default: return nil
     }
 }
@@ -93,6 +94,7 @@ func packParams(key: String, mirror: Mirror) -> String {
         case is Float   : str += child.label! + " float "
         case is Double  : str += child.label! + " double "
         case is Decimal : str += child.label! + " decimal "
+        case is Bool    : str += child.label! + " bool "
         default: break
         }
 
@@ -101,7 +103,7 @@ func packParams(key: String, mirror: Mirror) -> String {
     return str
 }
 
-func packPairs(_ pairs: [String: AnyObject], mirror: Mirror? = nil) -> String {
+func packPairs(_ pairs: [String: Any], mirror: Mirror? = nil) -> String {
     return pairs.map{key,val in  key + "=" + packType(val)! }.joined(separator: ", ")
 }
 func packValues(_ mirror: Mirror) -> String {
@@ -110,4 +112,10 @@ func packValues(_ mirror: Mirror) -> String {
 
 func packKeys(_ mirror: Mirror) -> String {
     return mirror.children.map { $0.label! }.joined(separator: ", ")
+}
+func packKeys(_ dict: [String: Any]) -> String {
+    return dict.map {key, value in key }.joined(separator: ", ")
+}
+func packValues(_ dict: [String: Any]) -> String {
+    return dict.map {key, value in packType(value)! }.joined(separator: ", ")
 }

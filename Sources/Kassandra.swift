@@ -196,8 +196,8 @@ extension Kassandra {
 extension Kassandra {
     subscript(_ database: String) -> Bool {
         do {
-            let str: String = "USE " + database + ";"
-            let request = Query.raw(str)
+            let request = Raw(query: "USE \(database);")
+
             let r = Request.query(using: request)
             
             try r.write(id: 0, writer: socket!)

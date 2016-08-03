@@ -42,18 +42,12 @@ extension Student: Model {
     public static var primaryKey: Field = .id
     
     public var setPrimaryKey: Int? {
-        get {
-            return id
-        }
-        set {
-            id = newValue
-        }
+        get { return id }
+        set { id = newValue }
     }
-    
-    public var serialize: [Field: AnyObject] {
-        return [.name: name, .school: school]
+    public var serialize: [Student.Field : AnyObject] {
+        return [:]
     }
-
     public convenience init(row: Row) {
         let id = row["id"] as? Int
         let name = row["name"] as! String
@@ -63,14 +57,16 @@ extension Student: Model {
     }
     
 }
-public class Employee: Table {
+public class TodoItem: Table {
     public enum Field: String {
-        case id = "id"
-        case name = "name"
-        case city = "city"
+        case type = "todo"
+        case userID = "userID"
+        case title = "title"
+        case pos = "pos"
+        case completed = "completed"
     }
 
-    public static var tableName: String = "employee"
+    public static var tableName: String = "todoitem"
     
 }
 
@@ -110,49 +106,60 @@ class KassandraTests: XCTestCase {
             
             sleep(1)
     
-            try Employee.insert([.id: "7",.name: "Aaron",.city: "Austin"]) {
+        try TodoItem.insert([.type: "todo", .userID: 2,.title: "Chia", .pos: 2, .completed: false]) {
                 result, error in
                 
                 print(result, error )
             }
             sleep(1)
-            try Employee.select { result, error in
-                
-                for row in result!.rows {
-                    print(row["id"], row["name"], row["city"])
-                }
-                
-            }
-            sleep(1)
-            try Employee.update([.city: "Durham"], conditions: [.id: "7"]){
-                result, error in
-                
-                print(result, error)
-            }
-            sleep(1)
-            try Employee.select { result, error in
-                
-                for row in result!.rows {
-                    print(row["id"], row["name"], row["city"])
-                }
-            }
-            sleep(1)
-            try Employee.delete(where: [.id: "7"]) {
-                result, error in
-                
-                print(result, error)
-            }
-            sleep(1)
-            try Employee.select { result, error in
-                
-                for row in result!.rows {
-                    print(row["id"], row["name"], row["city"])
-                }
+        try TodoItem.insert([.type: "todo", .userID: 3,.title: "Joseph", .pos: 3, .completed: true]) {
+            result, error in
+            
+            print(result, error )
+        }
+        sleep(1)
+        try TodoItem.select { result, error in
+            
+            for row in result!.rows {
+                print(row["title"], row["pos"], row["completed"])
             }
             
-        } catch {
-            throw error
         }
+        try TodoItem.count { result, error in
+            
+            print(result)
+        }
+        sleep(1)
+        try TodoItem.update([.completed: true], conditions: [.userID: 2]) {
+            result, error in
+            
+            print(result, error)
+        }
+        sleep(1)
+        try TodoItem.select { result, error in
+            
+            for row in result!.rows {
+                print(row["title"], row["pos"], row["completed"])
+            }
+        }
+        sleep(1)
+        try TodoItem.delete(where: [.userID: 2]) {
+            result, error in
+            
+            print(result, error)
+        }
+        sleep(1)
+        try TodoItem.select { result, error in
+            
+            for row in result!.rows {
+                print(row["title"], row["pos"], row["completed"])
+            }
+        }
+        
+    } catch {
+        throw error
+
+    }
         sleep(5)
     }
     func testModel() throws {

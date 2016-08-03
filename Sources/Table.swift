@@ -16,6 +16,8 @@
 
 import Foundation
 
+private let connection = config.connection
+
 public protocol Table {
     associatedtype Field: Hashable
     static var tableName: String { get }
@@ -23,96 +25,49 @@ public protocol Table {
 }
 
 public extension Table {
-    
+
+    public typealias Document = [Field: Any]
+
     public static func select(_ fields: Field ..., oncompletion: (TableObj?, Error?) -> Void) throws {
-        try execute(.query(using: .select(from: tableName,fields: fields.map{ String($0) })), oncompletion: oncompletion)
+        
+        let request: Request = .query(using: Select(fields.map{ String($0) }, from: Self.tableName))
+
+        try connection?.execute(request, oncompletion: oncompletion)
+    }
+
+    public static func count(fields: [Field]? = nil, matching: Document? = nil, oncompletion: (TableObj?, Error?) -> Void) throws {
+        
+        let request: Request = .query(using: Select(fields!.map{ String($0) }, from: Self.tableName))
+        
+        try connection?.execute(request, oncompletion: oncompletion)
+    }
+
+    public static func insert(_ values: Document, oncompletion: (TableObj?, Error?) -> Void) throws {
+        
+        let values = changeDictType(dict: values)
+
+        let request = Request.query(using: Insert(values, into: Self.tableName))
+
+        try connection?.execute(request, oncompletion: oncompletion)
     }
     
-    public static func insert(_ values: [Field: AnyObject], oncompletion: (TableObj?, Error?) -> Void) throws {
-        
-        let vals = changeDictType(dict: values)
-        
-        //try execute(.query(using: .insert(into: Self.tableName, fields: mirror)), oncompletion: oncompletion)
-    }
-    
-    public static func update(_ values: [Field: AnyObject], conditions: [Field: AnyObject], oncompletion: (TableObj?, Error?) -> Void) throws {
+    public static func update(_ values: Document, conditions: Document, oncompletion: (TableObj?, Error?) -> Void) throws {
         
         let vals = changeDictType(dict: values)
 
         let cond = changeDictType(dict: conditions)
+        
+        let request = Request.query(using: Update(to: vals, in: Self.tableName, where: cond))
 
-        try execute(.query(using: .update(from: tableName, to: vals, with: cond)), oncompletion: oncompletion)
+        try connection?.execute(request, oncompletion: oncompletion)
     }
     
-    public static func delete(where conditions: [Field: AnyObject], oncompletion: (TableObj?, Error?) -> Void) throws {
+    public static func delete(where conditions: Document, oncompletion: (TableObj?, Error?) -> Void) throws {
         
         let cond = changeDictType(dict: conditions)
         
-        try execute(.query(using: .delete(from: tableName, conditions: cond)), oncompletion: oncompletion)
-    }
-    
-    private static func execute(_ query: Request, oncompletion: (TableObj?, Error?) -> Void) throws {
-        try config.connection?.execute(query) {
-            table, error in
-            
-            if error != nil { oncompletion(nil, error) }
-            else            { oncompletion(table, nil) }
-        }
-    }
-}
+        let request = Request.query(using: Delete(from: tableName, where: cond))
 
-public enum Query {
-
-    var type: String {
-        switch self {
-        case .select: return "SELECT"
-        case .insert: return "INSERT"
-        case .update: return "UPDATE"
-        case .delete: return "DELETE"
-        case .create: return "CREATE"
-        case .raw   : return "RAW"
-        }
+        try connection?.execute(request, oncompletion: oncompletion)
     }
-    public func pack() -> Data {
-        var data = Data()
-        
-        switch self {
-        case .select(let table, let fields):
-            
-            fields.count == 0 ? data.append("SELECT * FROM \(table);".sData) :
-                                data.append("SELECT \(fields.joined(separator: " ")) FROM \(table);".sData)
-            
-        case .insert(let table, let mirror):
-            let keys = packKeys(mirror)
-            let vals = packValues(mirror)
-            data.append(("INSERT INTO \(table) ("+keys+") VALUES("+vals+");").sData)
-            
-        case .update(let table, let newValues, let conditions):
-            let conds = packPairs(conditions)
-            let vals  = packPairs(newValues)
-            data.append(("UPDATE \(table) SET " + vals + " WHERE " + conds + ";").sData)
-            
-        case .delete(let table, let conditions):
-            let conds = packPairs(conditions)
-            data.append(("DELETE FROM \(table) WHERE " + conds + ";").sData)
-    
-        case .create(let table, let key, let mirror):
-            data.append(("CREATE TABLE \(table)(" + packParams(key: key, mirror: mirror) + ");").sData)
-    
-        case .raw(let query):
-            data.append(query.sData)
-        }
-        
-        data.append(Consistency.one.rawValue.data)
-        data.append(0x00.data)
-        
-        return data
-    }
-    
-    case select(from: String, fields: [String])
-    case insert(into: String, fields: Mirror)
-    case update(from: String, to: [String: AnyObject], with: [String: AnyObject])
-    case delete(from: String, conditions: [String: AnyObject])
-    case create(table: String, key: String, fields: Mirror)
-    case raw(String)
 }
