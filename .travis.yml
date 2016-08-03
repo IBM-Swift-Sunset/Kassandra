@@ -12,7 +12,7 @@ before_install:
   - sudo update-java-alternatives -s java-8-oracle
   - export JAVA_HOME=/usr/lib/jvm/java-8-oracle
   - java -version
-  
+  - brew update
   - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then brew update   ; fi
   - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then brew uninstall git ; fi
   - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then brew install git openssl; fi
