@@ -1,7 +1,8 @@
+
 matrix:
     include:
-      os: osx
-      osx_image: xcode8
+        - os: osx
+          osx_image: xcode8
 
 #addons:
 #  apt:
