@@ -1,18 +1,18 @@
-#matrix:
-#    include:
-#      os: osx
-#      osx_image: xcode8
+matrix:
+    include:
+      os: osx
+      osx_image: xcode8
 
-addons:
-  apt:
-    packages:
-      - oracle-java8-installer
+#addons:
+#  apt:
+#    packages:
+#      - oracle-java8-installer
 
 before_install:
-  - sudo update-java-alternatives -s java-8-oracle
-  - export JAVA_HOME=/usr/lib/jvm/java-8-oracle
-  - java -version
-  - brew update
+#  - sudo update-java-alternatives -s java-8-oracle
+#  - export JAVA_HOME=/usr/lib/jvm/java-8-oracle
+#  - java -version
+#  - brew update
   - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then brew update   ; fi
   - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then brew uninstall git ; fi
   - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then brew install git openssl; fi
