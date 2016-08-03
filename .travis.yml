@@ -30,3 +30,4 @@ before_install:
 
 script:
   - swift build -Xcc -I/usr/local/opt/openssl/include -Xlinker -L/usr/local/opt/openssl/lib
+  - swift test
