@@ -19,14 +19,25 @@ import Foundation
 public protocol Query {
     func pack() -> Data
 }
-
-public enum QueryOptions {
-    case orderded(by: String)
-    case count()
-    case limit(to: Int)
-    case offset(by: Int)
+extension Query {
+    public func execute(oncompletion: (TableObj?, Error?) -> Void) throws {
+        
+        let request: Request = .query(using: self)
+        
+        try config.connection?.execute(request, oncompletion: oncompletion)
+    }
+    public func execute(oncompletion: (Error?) -> Void) throws {
+        
+        let request: Request = .query(using: self)
+        
+        try config.connection?.execute(request, oncompletion: oncompletion)
+    }
 }
 
+public enum Order: String {
+    case ASC = "ASC"
+    case DESC = "DESC"
+}
 public struct Select: Query {
     
     let tableName: String
@@ -38,6 +49,15 @@ public struct Select: Query {
         self.tableName = tableName
     }
     
+    public func ordered(by: [String: Order]) {
+        
+    }
+    public func limit(to: Int) {
+        
+    }
+    public func filter(by: [String:Any]){
+        
+    }
     public func pack() -> Data {
         var data = Data()
         
@@ -55,27 +75,33 @@ public struct Update: Query {
     let tableName: String
     
     let newValues: [String: Any]
-    let conditions: [String: Any]
+    var conditions: [String: Any]
     
-    init(to newValues: [String: Any], in tableName: String, where condition: [String: Any]) {
+    init(to newValues: [String: Any], in tableName: String, where predicate: [String: Any]) {
         self.newValues = newValues
-        self.conditions = condition
         self.tableName = tableName
+        self.conditions = predicate
     }
     
+    public mutating func filter(by predicate: [String: Any]){
+        conditions = predicate
+    }
+
     public func pack() -> Data {
         var data = Data()
 
-        let conds = packPairs(conditions)
         let vals  = packPairs(newValues)
-        
+        let conds = packPairs(conditions)
+
         data.append(("UPDATE \(tableName) SET \(vals) WHERE \(conds);").sData)
+        
 
         data.append(Consistency.one.rawValue.data)
         data.append(0x00.data)
         
         return data
     }
+    
 }
 public struct Delete: Query {
 

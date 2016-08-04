@@ -29,8 +29,8 @@ public class Kassandra {
     
     private var buffer: Data
     
-    var map            = [UInt16: (TableObj?, Error?) -> Void]()
-    var awaitingResult = [UInt16: (Error?) -> Void]()
+    private var map            = [UInt16: (TableObj?, Error?) -> Void]()
+    private var awaitingResult = [UInt16: (Error?) -> Void]()
 
     public init(host: String = "localhost", port: Int32 = 9042) {
         self.host = host
@@ -71,27 +71,20 @@ public class Kassandra {
         
         oncompletion(nil)
     }
-
-    public func execute(_ request: Request, oncompletion: (Error?) -> Void) throws {
-        guard let sock = socket else {
-            throw RCErrorType.GenericError("Could not create a socket")
-            
-        }
-        writeQueue.async {
-            do {
-                let id = UInt16(random: true)
-                
-                self.awaitingResult[id] = oncompletion
-
-                try request.write(id: id, writer: sock)
-                
-            } catch {
-                oncompletion(RCErrorType.ConnectionError)
-            }
-        }
+    
+    public func execute(_ query: String, oncompletion: (TableObj?, Error?) -> Void) throws {
+        let request = Request.query(using: Raw(query: query))
+        try executeHandler(request, oncompletion: oncompletion)
+    }
+    internal func execute(_ request: Request, oncompletion: (Error?) -> Void) throws {
+        try executeHandler(request, oncompletionError: oncompletion)
     }
 
-    public func execute(_ request: Request, oncompletion: (TableObj?, Error?) -> Void) throws {
+    internal func execute(_ request: Request, oncompletion: (TableObj?, Error?) -> Void) throws {
+        try executeHandler(request, oncompletion: oncompletion)
+    }
+    private func executeHandler(_ request: Request, oncompletion: ((TableObj?, Error?) -> Void)? = nil,
+                                                    oncompletionError: ((Error?) -> Void)? = nil) throws {
         guard let sock = socket else {
             throw RCErrorType.GenericError("Could not create a socket")
             
@@ -100,13 +93,15 @@ public class Kassandra {
             do {
                 
                 let id = UInt16(random: true)
-
-                self.map[id] = oncompletion
-
+                
+                if let oncomp = oncompletion { self.map[id] = oncomp }
+                if let oncomp = oncompletionError { self.awaitingResult[id] = oncomp }
+                
                 try request.write(id: id, writer: sock)
-
+                
             } catch {
-                oncompletion(nil, RCErrorType.ConnectionError)
+                if let oncomp = oncompletion { oncomp(nil, RCErrorType.ConnectionError) }
+                if let oncomp = oncompletionError { oncomp(RCErrorType.ConnectionError) }
             }
         }
     }
@@ -114,7 +109,7 @@ public class Kassandra {
 
 extension Kassandra {
     
-    public func read() {
+    private func read() {
         
         guard let sock = socket else {
             return
@@ -145,7 +140,7 @@ extension Kassandra {
         }
     }
 
-    public func unpack() {
+    private func unpack() {
         while buffer.count >= 9 {
             
             //Unpack header
@@ -171,7 +166,7 @@ extension Kassandra {
         
         }
     }
-    public func handle(id: UInt16, flags: Byte, _ response: Response) throws {
+    private func handle(id: UInt16, flags: Byte, _ response: Response) throws {
         switch response {
         case .ready                     : awaitingResult[id]?(nil)
         case .authSuccess               : awaitingResult[id]?(nil)

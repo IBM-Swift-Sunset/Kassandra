@@ -105,62 +105,28 @@ class KassandraTests: XCTestCase {
             let _ = client["test"]
             
             sleep(1)
-    
-        try TodoItem.insert([.type: "todo", .userID: 2,.title: "Chia", .pos: 2, .completed: false]) {
-                result, error in
-                
-                print(result, error )
-            }
+        //client.
+            try TodoItem.insert([.type: "todo", .userID: 2,.title: "Chia", .pos: 2, .completed: false]).execute(oncompletion: ErrorHandler)
+            try TodoItem.insert([.type: "todo", .userID: 3,.title: "Thor", .pos: 3, .completed: true]).execute(oncompletion: ErrorHandler)
             sleep(1)
-        try TodoItem.insert([.type: "todo", .userID: 3,.title: "Joseph", .pos: 3, .completed: true]) {
-            result, error in
-            
-            print(result, error )
-        }
-        sleep(1)
-        try TodoItem.select { result, error in
-            
-            for row in result!.rows {
-                print(row["title"], row["pos"], row["completed"])
-            }
-            
-        }
-        try TodoItem.count { result, error in
-            
-            print(result)
-        }
-        sleep(1)
-        try TodoItem.update([.completed: true], conditions: [.userID: 2]) {
-            result, error in
-            
-            print(result, error)
-        }
-        sleep(1)
-        try TodoItem.select { result, error in
-            
-            for row in result!.rows {
-                print(row["title"], row["pos"], row["completed"])
-            }
-        }
-        sleep(1)
-        try TodoItem.delete(where: [.userID: 2]) {
-            result, error in
-            
-            print(result, error)
-        }
-        sleep(1)
-        try TodoItem.select { result, error in
-            
-            for row in result!.rows {
-                print(row["title"], row["pos"], row["completed"])
-            }
-        }
+            try TodoItem.select().execute(oncompletion: ResultHandler)
+            sleep(1)
+            try TodoItem.update([.completed: true], conditions: [.userID: 2]).execute(oncompletion: ErrorHandler)
+            sleep(1)
+            try TodoItem.select().execute(oncompletion: ResultHandler)
+            sleep(1)
+            try TodoItem.delete(where: [.userID: 2]).execute(oncompletion: ErrorHandler)
+            sleep(1)
+            try TodoItem.select().execute(oncompletion: ResultHandler)
+            try TodoItem.truncate().execute(oncompletion: ErrorHandler)
+            sleep(1)
+            try TodoItem.select().execute(oncompletion: ResultHandler)
+            sleep(5)
         
     } catch {
         throw error
-
     }
-        sleep(5)
+        
     }
     func testModel() throws {
         
@@ -186,5 +152,21 @@ class KassandraTests: XCTestCase {
             throw error
         }
         sleep(5)
+    }
+    public func ResultHandler(table: TableObj?, error: Error?) {
+        if let result = table{
+            print("------+------+------+------")
+            for row in result.rows {
+                print(row)
+            }
+            print("------+------+------+------\n")
+        }
+        if let error = error {
+            print(error)
+        }
+        
+    }
+    public func ErrorHandler(error: Error?) {
+        print(error)
     }
 }

@@ -59,10 +59,14 @@ public func ==(lhs: HeaderKey, rhs: HeaderKey) -> Bool {
     return lhs.hashValue == rhs.hashValue
 }
 
-public struct Row {
+public struct Row: CustomStringConvertible {
     
     let dict: [HeaderKey : Any]
     
+    public var description: String {
+        return dict.map{key, val in "\(key.field):\(String(val))" }.joined(separator: ", ")
+    }
+
     init(header: [HeaderKey], fields: [Any]){
         dict = Dictionary(keys: header, values: fields)
     }

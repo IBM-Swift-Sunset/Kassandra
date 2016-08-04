@@ -28,46 +28,35 @@ public extension Table {
 
     public typealias Document = [Field: Any]
 
-    public static func select(_ fields: Field ..., oncompletion: (TableObj?, Error?) -> Void) throws {
-        
-        let request: Request = .query(using: Select(fields.map{ String($0) }, from: Self.tableName))
-
-        try connection?.execute(request, oncompletion: oncompletion)
-    }
-
-    public static func count(fields: [Field]? = nil, matching: Document? = nil, oncompletion: (TableObj?, Error?) -> Void) throws {
-        
-        let request: Request = .query(using: Select(fields!.map{ String($0) }, from: Self.tableName))
-        
-        try connection?.execute(request, oncompletion: oncompletion)
-    }
-
-    public static func insert(_ values: Document, oncompletion: (TableObj?, Error?) -> Void) throws {
-        
-        let values = changeDictType(dict: values)
-
-        let request = Request.query(using: Insert(values, into: Self.tableName))
-
-        try connection?.execute(request, oncompletion: oncompletion)
+    public static func select(_ fields: Field ...) -> Select {
+        return Select(fields.map{ String($0) }, from: Self.tableName)
     }
     
-    public static func update(_ values: Document, conditions: Document, oncompletion: (TableObj?, Error?) -> Void) throws {
+    public static func insert(_ values: Document) -> Insert {
+        return Insert(changeDictType(dict: values), into: Self.tableName)
+    }
+    
+    public static func update(_ values: Document, conditions: Document) -> Update {
         
         let vals = changeDictType(dict: values)
 
         let cond = changeDictType(dict: conditions)
         
-        let request = Request.query(using: Update(to: vals, in: Self.tableName, where: cond))
-
-        try connection?.execute(request, oncompletion: oncompletion)
+        return Update(to: vals, in: Self.tableName, where: cond)
     }
     
-    public static func delete(where conditions: Document, oncompletion: (TableObj?, Error?) -> Void) throws {
+    public static func delete(where conditions: Document) -> Delete {
         
         let cond = changeDictType(dict: conditions)
         
-        let request = Request.query(using: Delete(from: tableName, where: cond))
+        return Delete(from: tableName, where: cond)
+    }
+    
+    public static func truncate() -> Raw {
+        return Raw(query: "TRUNCATE TABLE \(Self.tableName)")
+    }
 
-        try connection?.execute(request, oncompletion: oncompletion)
+    public static func drop() -> Raw {
+        return Raw(query: "DROP \(Self.tableName)")
     }
 }
