@@ -30,24 +30,22 @@ public final class Student {
     }
 }
 extension Student: Model {
-
-    public enum Field: String {
-        case id = "id"
-        case name = "name"
-        case school = "school"
-    }
     
+    public enum Field : String {
+        case id
+        case name
+        case school
+    }
+
     public static var tableName: String = "student"
     
-    public static var primaryKey: Field = .id
+    public static var primaryKey: Field = Field.id
     
-    public var setPrimaryKey: Int? {
+    public var key: Int? {
         get { return id }
         set { id = newValue }
     }
-    public var serialize: [Student.Field : AnyObject] {
-        return [:]
-    }
+
     public convenience init(row: Row) {
         let id = row["id"] as? Int
         let name = row["name"] as! String
@@ -59,7 +57,7 @@ extension Student: Model {
 }
 public class TodoItem: Table {
     public enum Field: String {
-        case type = "todo"
+        case type = "type"
         case userID = "userID"
         case title = "title"
         case pos = "pos"
@@ -103,13 +101,13 @@ class KassandraTests: XCTestCase {
             try client.connect { error in print(error) }
             
             let _ = client["test"]
-            
+            //TodoItem.
             sleep(1)
         //client.
             try TodoItem.insert([.type: "todo", .userID: 2,.title: "Chia", .pos: 2, .completed: false]).execute(oncompletion: ErrorHandler)
             try TodoItem.insert([.type: "todo", .userID: 3,.title: "Thor", .pos: 3, .completed: true]).execute(oncompletion: ErrorHandler)
             sleep(1)
-            try TodoItem.select().execute(oncompletion: ResultHandler)
+            try TodoItem.select().limited(to: 1).execute(oncompletion: ResultHandler)
             sleep(1)
             try TodoItem.update([.completed: true], conditions: [.userID: 2]).execute(oncompletion: ErrorHandler)
             sleep(1)
@@ -140,13 +138,15 @@ class KassandraTests: XCTestCase {
 
             let studentTable = Student(id: 10, name: "Dave", school: "UNC")
 
-            try studentTable.create() {
-                result, error in
-                
-                print(result, error)
-            }
-            
-            try studentTable.save()
+            try Student.drop().execute(oncompletion: ErrorHandler)
+            //try Student.create().execute(oncompletion: ErrorHandler)
+            sleep(1)
+            try studentTable.create(oncompletion: ErrorHandler)
+            sleep(1)
+            studentTable.id = 15
+            studentTable.name = "Aaron"
+            try studentTable.save(oncompletion: ErrorHandler)
+            //try studentTable.
 
         } catch {
             throw error

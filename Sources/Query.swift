@@ -19,6 +19,9 @@ import Foundation
 public protocol Query {
     func pack() -> Data
 }
+
+//private typealias Field: String
+
 extension Query {
     public func execute(oncompletion: (TableObj?, Error?) -> Void) throws {
         
@@ -44,30 +47,64 @@ public struct Select: Query {
     
     let fields: [String]
     
+    var order: [String: Order]? = nil
+    
+    var limitResultCount: Int? = nil
+
     init(_ fields: [String], from tableName: String) {
         self.fields = fields
         self.tableName = tableName
     }
     
-    public func ordered(by: [String: Order]) {
-        
+    private mutating func order(by predicate: [String: Order]) {
+        order = predicate
     }
-    public func limit(to: Int) {
-        
+
+    public func ordered(by predicate: [String: Order]) -> Select {
+        var new = self
+        new.order(by: predicate)
+        return new
     }
-    public func filter(by: [String:Any]){
-        
+
+    private mutating func limit(to newLimit: Int) {
+        limitResultCount = newLimit
     }
+
+    public func limited(to newLimit: Int) -> Select {
+        var new = self
+        new.limit(to: newLimit)
+        return new
+    }
+
+    public func filter(by: [String: Any]) -> Select {
+        return self
+    }
+
     public func pack() -> Data {
         var data = Data()
         
-        fields.count == 0 ? data.append("SELECT * FROM \(tableName);".sData) :
-                            data.append("SELECT \(fields.joined(separator: " ")) FROM \(tableName);".sData)
-
+        data.append(buildQueryString.sData)
         data.append(Consistency.one.rawValue.data)
         data.append(0x00.data)
         
         return data
+    }
+
+    private var buildQueryString: String {
+        var str = ""
+        
+        fields.count == 0 ? (str += "SELECT * FROM \(tableName)") :
+                            (str += "SELECT \(fields.joined(separator: " ")) FROM \(tableName)")
+        
+        if let order = order {
+            str += " ORDER BY " + order.map {key, val in "\(key) \(val.rawValue)" }.joined(separator: ", ")
+        }
+        if let limit = limitResultCount {
+            str += " LIMIT \(limit)"
+        }
+        
+        return str + ";"
+        
     }
 }
 public struct Update: Query {

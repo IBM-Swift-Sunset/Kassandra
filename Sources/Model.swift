@@ -16,25 +16,23 @@
 
 import Foundation
 
-public protocol Model {
+public protocol Model: Table {
     associatedtype Field: Hashable
     
     static var tableName: String { get }
     static var primaryKey: Field { get }
-    
-    var setPrimaryKey: Int? { get set }
-    
-    var serialize: [Field: AnyObject] { get }
-    
+
+    var key: Int? { get set }
+
     init(row: Row)
 }
 
-public var mirrors = [Int: Mirror]()
+internal var mirrors = [Int: Mirror]()
 
 public extension Model {
-    
+
     public var hashValue: Int {
-        return Self.tableName.hashValue
+        return key ?? -1
     }
 
     private var mirror: Mirror {
@@ -44,20 +42,42 @@ public extension Model {
         return mirrors[hashValue]!
     }
 
-    public func save() throws {
-        /*try config.connection?.execute(.query(using: Query.insert(into: Self.tableName, fields: mirror))){
-            res,err in
-            
-            for row in res!.rows {
-                print(row["id"], row["name"], row["city"])
-            }
-        }*/
+    public func save(oncompletion: (Error?) -> Void) throws {
+        let values: [String: Any] = mirror.children.reduce([:]) { acc, child in
+            var ret = acc
+            ret[child.label!] = child.value
+            return ret
+        }
+        try Insert(values, into: Self.tableName).execute(oncompletion: oncompletion)
     }
     
-    public func create(oncompletion: (TableObj?, Error?) -> Void) throws {
+    public func create(oncompletion: (Error?) -> Void) throws {
 
-        /*let queryPacket = Request.query(using: .create(table: Self.tableName, key: String(Self.primaryKey), fields: mirror))
-        try config.connection?.execute(queryPacket, oncompletion: oncompletion)*/
+        let values: [String: Any] = mirror.children.reduce([:]) { acc, child in
+            var ret = acc
+            ret[child.label!] = child.value
+            return ret
+        }
+ 
+        let vals = packColumnData(key: String(Self.primaryKey), mirror: mirror)
+
+        try Raw(query: "CREATE TABLE \(Self.tableName)(\(vals));").execute {
+            (err: Error?) in
+            
+            if err != nil { oncompletion(err)}
+            else {
+                do {
+                    try Insert(values, into: Self.tableName).execute(oncompletion: oncompletion)
+                } catch {
+                    
+                }
+            }
+        }
+    }
+    
+    public static func fetch(fields: [Field], oncompletion: (TableObj?, Error?) -> [Self]) throws -> [Self] {
+        //Select(fields.map{ String($0) }, from: Self.tableName).exec
+        return [Self.init(row: Row(header: [], fields: []))]
     }
 }
 
@@ -84,7 +104,7 @@ func packType(_ item: Any) -> String? {
     default: return nil
     }
 }
-func packParams(key: String, mirror: Mirror) -> String {
+func packColumnData(key: String, mirror: Mirror) -> String {
     
     var str = ""
     for child in mirror.children {
@@ -106,16 +126,15 @@ func packParams(key: String, mirror: Mirror) -> String {
 func packPairs(_ pairs: [String: Any], mirror: Mirror? = nil) -> String {
     return pairs.map{key,val in  key + "=" + packType(val)! }.joined(separator: ", ")
 }
-func packValues(_ mirror: Mirror) -> String {
-    return mirror.children.map{ packType($0.value)! }.joined(separator: ", ")
-}
-
-func packKeys(_ mirror: Mirror) -> String {
-    return mirror.children.map { $0.label! }.joined(separator: ", ")
-}
 func packKeys(_ dict: [String: Any]) -> String {
     return dict.map {key, value in key }.joined(separator: ", ")
 }
+func packKeys(_ mirror: Mirror) -> String {
+    return mirror.children.map { $0.label! }.joined(separator: ", ")
+}
 func packValues(_ dict: [String: Any]) -> String {
     return dict.map {key, value in packType(value)! }.joined(separator: ", ")
+}
+func packValues(_ mirror: Mirror) -> String {
+    return mirror.children.map{ packType($0.value)! }.joined(separator: ", ")
 }

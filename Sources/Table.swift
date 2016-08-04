@@ -57,6 +57,6 @@ public extension Table {
     }
 
     public static func drop() -> Raw {
-        return Raw(query: "DROP \(Self.tableName)")
+        return Raw(query: "DROP TABLE \(Self.tableName)")
     }
 }
