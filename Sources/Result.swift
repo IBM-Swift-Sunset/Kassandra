@@ -67,11 +67,11 @@ public struct Row: CustomStringConvertible {
         return dict.map{key, val in "\(key.field):\(String(val))" }.joined(separator: ", ")
     }
 
-    init(header: [HeaderKey], fields: [Any]){
+    public init(header: [HeaderKey], fields: [Any]){
         dict = Dictionary(keys: header, values: fields)
     }
     
-    subscript(_ field: String) -> Any {
+    public subscript(_ field: String) -> Any {
         return dict[HeaderKey(field: field, type: nil)] ?? "NULL"
     }
 }

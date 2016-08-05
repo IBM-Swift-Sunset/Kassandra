@@ -66,6 +66,21 @@ public extension Model {
         return p
     }
     
+    public func delete() throws -> Promise<Self> {
+        let p = Promise<Self>.deferred()
+
+        try Delete(from: Self.tableName, where: ["id": key!]).execute()
+            .then {
+                table in
+                p.resolve()( Self.init(row: table.rows[0]) )
+                
+            }.fail {
+                error in
+                p.reject(dueTo: error)
+        }
+        return p
+    }
+    
     public func create() throws {
 
         let values: [String: Any] = mirror.children.reduce([:]) { acc, child in

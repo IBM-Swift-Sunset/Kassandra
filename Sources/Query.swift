@@ -81,7 +81,7 @@ public struct Select: Query {
     
     var sqlfunction: SQLFunction<String>? = nil
 
-    init(_ fields: [String], from tableName: String) {
+    public init(_ fields: [String], from tableName: String) {
         self.fields = fields
         self.tableName = tableName
     }
@@ -150,7 +150,7 @@ public struct Update: Query {
     let newValues: [String: Any]
     var conditions: [String: Any]
     
-    init(to newValues: [String: Any], in tableName: String, where predicate: [String: Any]) {
+    public init(to newValues: [String: Any], in tableName: String, where predicate: [String: Any]) {
         self.newValues = newValues
         self.tableName = tableName
         self.conditions = predicate
@@ -182,7 +182,7 @@ public struct Delete: Query {
     
     let conditions: [String: Any]
     
-    init(from tableName: String, where condition: [String: Any]) {
+    public init(from tableName: String, where condition: [String: Any]) {
         self.conditions = condition
         self.tableName = tableName
     }
@@ -205,7 +205,7 @@ public struct Insert: Query {
     
     let fields: [String: Any]
     
-    init(_ fields: [String: Any], into tableName: String) {
+    public init(_ fields: [String: Any], into tableName: String) {
         self.fields = fields
         self.tableName = tableName
     }

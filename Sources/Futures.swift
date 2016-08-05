@@ -17,7 +17,7 @@
 
 import Foundation
 
-protocol Finishable {
+public protocol Finishable {
     func done(done: (() -> ())) -> ()
 }
 
@@ -33,11 +33,11 @@ public class Promise<T> : Finishable {
     
     var error: Error = RCErrorType.GenericError("")
 
-    class func deferred() -> Promise {
+    public class func deferred() -> Promise {
         return Promise<T>()
     }
     
-    func resolve() -> ((T) -> ()) {
+    public func resolve() -> ((T) -> ()) {
         func res(x: T) -> () {
             for f in self.pending {
                 if self.rejected {
@@ -55,25 +55,25 @@ public class Promise<T> : Finishable {
         return res
     }
 
-    func reject(dueTo error: Error) -> () {
+    public func reject(dueTo error: Error) -> () {
         self.error = error
         self.rejected = true
         fail(error)
         return
     }
 
-    func then(callback: ((T) -> ())) -> Promise {
+    public func then(callback: ((T) -> ())) -> Promise {
         self.pending.append(callback)
         return self
     }
     @discardableResult
-    func fail(fail: ((Error) -> ())) -> Finishable {
+    public func fail(fail: ((Error) -> ())) -> Finishable {
         self.fail = fail
         let finishablePromise : Finishable = self
         return finishablePromise
     }
 
-    func done(done: (() -> ())) -> () {
+    public func done(done: (() -> ())) -> () {
         self.done = done
     }
 }

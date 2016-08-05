@@ -115,7 +115,7 @@ class KassandraTests: XCTestCase {
                 print(error)
             }
         sleep(1)
-        //try TodoItem.update([.completed: true], conditions: [.userID: 2]).execute(oncompletion: ErrorHandler) ; sleep(1)
+        try TodoItem.update([.completed: true], conditions: [.userID: 2]).execute(oncompletion: ErrorHandler) ; sleep(1)
         try TodoItem.select().execute()
             .then { table in
                 print(table)
@@ -128,7 +128,7 @@ class KassandraTests: XCTestCase {
             }.fail { error in
                 print(error)
             }
-        sleep(10)
+        sleep(1)
         try TodoItem.delete(where: [.userID: 2]).execute(oncompletion: ErrorHandler) ; sleep(1)
         try TodoItem.select().execute()
             .then { table in
@@ -177,6 +177,7 @@ class KassandraTests: XCTestCase {
                 error in
                     print(error)
                 }
+            sleep(1)
             try Student.fetch()
                 .then { rows in
                     print(rows)
@@ -184,7 +185,19 @@ class KassandraTests: XCTestCase {
                 }.fail{ error in
                     print(error)
                 }
-
+            sleep(1)
+            try student.delete().fail {
+                error in
+                print(error)
+            }
+            sleep(1)
+            try Student.fetch()
+                .then { rows in
+                    print(rows)
+                    
+                }.fail{ error in
+                    print(error)
+            }
         } catch {
             throw error
         }
