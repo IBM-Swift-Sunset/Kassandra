@@ -42,16 +42,31 @@ public extension Model {
         return mirrors[hashValue]!
     }
 
-    public func save(oncompletion: (Error?) -> Void) throws {
+    public func save() throws -> Promise<Self> {
+        let p = Promise<Self>.deferred()
+        
         let values: [String: Any] = mirror.children.reduce([:]) { acc, child in
             var ret = acc
             ret[child.label!] = child.value
             return ret
         }
-        try Insert(values, into: Self.tableName).execute(oncompletion: oncompletion)
+        try Insert(values, into: Self.tableName).execute()
+            .then {
+                table in
+                print(table)
+                    p.resolve()( Self.init(row: table.rows.first!) )
+            
+            }
+            .fail {
+                error in
+                p.reject(dueTo: error)
+                //p.resolve()()
+            }
+        
+        return p
     }
     
-    public func create(oncompletion: (Error?) -> Void) throws {
+    public func create() throws {
 
         let values: [String: Any] = mirror.children.reduce([:]) { acc, child in
             var ret = acc
@@ -64,10 +79,10 @@ public extension Model {
         try Raw(query: "CREATE TABLE \(Self.tableName)(\(vals));").execute {
             (err: Error?) in
             
-            if err != nil { oncompletion(err)}
+            if err != nil { return }
             else {
                 do {
-                    try Insert(values, into: Self.tableName).execute(oncompletion: oncompletion)
+                    try Insert(values, into: Self.tableName).execute { (err: Error?) in }
                 } catch {
                     
                 }
@@ -75,9 +90,20 @@ public extension Model {
         }
     }
     
-    public static func fetch(fields: [Field], oncompletion: (TableObj?, Error?) -> [Self]) throws -> [Self] {
-        //Select(fields.map{ String($0) }, from: Self.tableName).exec
-        return [Self.init(row: Row(header: [], fields: []))]
+    public static func fetch(_ fields: [Field] = []) throws  -> Promise<[Self]> {
+        let p = Promise<[Self]>.deferred()
+
+        try Select(fields.map{ String($0) }, from: tableName).execute()
+            .then {
+                table in
+                    p.resolve()( table.rows.map { Self.init(row: $0) } )
+
+            }.fail {
+                error in
+                p.reject(dueTo: error)
+                //p.resolve()([])
+            }
+        return p
     }
 }
 

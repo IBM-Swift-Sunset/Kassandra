@@ -29,14 +29,17 @@ public final class Student {
         self.school = school
     }
 }
-extension Student: Model {
+extension Student: Model, CustomStringConvertible {
     
     public enum Field : String {
         case id
         case name
         case school
     }
-
+    
+    public var description: String {
+        return "id: \(id!), name: \(name), school: \(school)"
+    }
     public static var tableName: String = "student"
     
     public static var primaryKey: Field = Field.id
@@ -98,34 +101,58 @@ class KassandraTests: XCTestCase {
     func testTable() throws {
     
        do {
-            try client.connect { error in print(error) }
-            
-            let _ = client["test"]
-            //TodoItem.
-            sleep(1)
-        //client.
-            try TodoItem.insert([.type: "todo", .userID: 2,.title: "Chia", .pos: 2, .completed: false]).execute(oncompletion: ErrorHandler)
-            try TodoItem.insert([.type: "todo", .userID: 3,.title: "Thor", .pos: 3, .completed: true]).execute(oncompletion: ErrorHandler)
-            sleep(1)
-            try TodoItem.select().limited(to: 1).execute(oncompletion: ResultHandler)
-            sleep(1)
-            try TodoItem.update([.completed: true], conditions: [.userID: 2]).execute(oncompletion: ErrorHandler)
-            sleep(1)
-            try TodoItem.select().execute(oncompletion: ResultHandler)
-            sleep(1)
-            try TodoItem.delete(where: [.userID: 2]).execute(oncompletion: ErrorHandler)
-            sleep(1)
-            try TodoItem.select().execute(oncompletion: ResultHandler)
-            try TodoItem.truncate().execute(oncompletion: ErrorHandler)
-            sleep(1)
-            try TodoItem.select().execute(oncompletion: ResultHandler)
-            sleep(5)
+        try client.connect { error in print(error) }
+
+        let _ = client["test"]
+        //TodoItem.
+        sleep(1)
+        try TodoItem.insert([.type: "todo", .userID: 2,.title: "Chia", .pos: 2, .completed: false]).execute(oncompletion: ErrorHandler)
+        try TodoItem.insert([.type: "todo", .userID: 3,.title: "Thor", .pos: 3, .completed: true]).execute(oncompletion: ErrorHandler) ; sleep(1)
+        try TodoItem.select().limited(to: 2).execute()
+            .then { table in
+                print(table)
+            }.fail { error in
+                print(error)
+            }
+        sleep(1)
+        //try TodoItem.update([.completed: true], conditions: [.userID: 2]).execute(oncompletion: ErrorHandler) ; sleep(1)
+        try TodoItem.select().execute()
+            .then { table in
+                print(table)
+            }.fail { error in
+                print(error)
+            }
+        try TodoItem.count().execute()
+            .then { table in
+                print(table)
+            }.fail { error in
+                print(error)
+            }
+        sleep(10)
+        try TodoItem.delete(where: [.userID: 2]).execute(oncompletion: ErrorHandler) ; sleep(1)
+        try TodoItem.select().execute()
+            .then { table in
+                print(table)
+            }.fail { error in
+                print(error)
+            }
+        try TodoItem.truncate().execute(oncompletion: ErrorHandler) ; sleep(1)
+        
+        
+        try TodoItem.select().execute()
+            .then { table in
+                print(table)
+            }.fail { error in
+                print(error)
+            }
+        sleep(5)
         
     } catch {
         throw error
     }
         
     }
+
     func testModel() throws {
         
         print("--------+---------+----------+---------")
@@ -136,36 +163,34 @@ class KassandraTests: XCTestCase {
             sleep(1)
             let _ = client["test"]
 
-            let studentTable = Student(id: 10, name: "Dave", school: "UNC")
+            /*try Student.drop().execute(oncompletion: ErrorHandler)
+            try Student.select().execute(oncompletion: ResultHandler)
+            try Student.insert([:]).execute(oncompletion: ErrorHandler)
+            try Student.delete(where: [:]).execute(oncompletion: ErrorHandler)
+            try Student.update([:], conditions: [:]).execute(oncompletion: ErrorHandler)*/
 
-            try Student.drop().execute(oncompletion: ErrorHandler)
-            //try Student.create().execute(oncompletion: ErrorHandler)
-            sleep(1)
-            try studentTable.create(oncompletion: ErrorHandler)
-            sleep(1)
-            studentTable.id = 15
-            studentTable.name = "Aaron"
-            try studentTable.save(oncompletion: ErrorHandler)
-            //try studentTable.
+            let student = Student(id: 10, name: "Dave", school: "UNC") ; sleep(1)
+            try student.create() ; sleep(1)
+            student.id = 15
+            student.name = "Aaron"
+            try student.save().fail{
+                error in
+                    print(error)
+                }
+            try Student.fetch()
+                .then { rows in
+                    print(rows)
+    
+                }.fail{ error in
+                    print(error)
+                }
 
         } catch {
             throw error
         }
         sleep(5)
     }
-    public func ResultHandler(table: TableObj?, error: Error?) {
-        if let result = table{
-            print("------+------+------+------")
-            for row in result.rows {
-                print(row)
-            }
-            print("------+------+------+------\n")
-        }
-        if let error = error {
-            print(error)
-        }
-        
-    }
+
     public func ErrorHandler(error: Error?) {
         print(error)
     }

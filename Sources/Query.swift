@@ -23,12 +23,22 @@ public protocol Query {
 //private typealias Field: String
 
 extension Query {
-    public func execute(oncompletion: (TableObj?, Error?) -> Void) throws {
-        
+
+    public func execute() throws -> Promise<TableObj> {
+        let p = Promise<TableObj>.deferred()
+    
         let request: Request = .query(using: self)
         
-        try config.connection?.execute(request, oncompletion: oncompletion)
+        try config.connection?.execute(request) {
+            result, error in
+            
+            if let error = error { p.reject(dueTo: error) }
+            if let res = result { p.resolve()(res) }
+        }
+
+        return p
     }
+
     public func execute(oncompletion: (Error?) -> Void) throws {
         
         let request: Request = .query(using: self)
@@ -41,15 +51,35 @@ public enum Order: String {
     case ASC = "ASC"
     case DESC = "DESC"
 }
+public enum SQLFunction<T> {
+    case max([T])
+    case min([T])
+    case avg([T])
+    case sum([T])
+    case count([T])
+    
+    func pack() -> String {
+        switch self {
+        case .max(let args)     : return args.count == 0 ? "MAX(*)" : "MAX(\(args.map{ String($0) }.joined(separator: ", ")))"
+        case .min(let args)     : return args.count == 0 ? "MIN(*)" : "MIN(\(args.map{ String($0) }.joined(separator: ", ")))"
+        case .avg(let args)     : return args.count == 0 ? "AVG(*)" : "AVG(\(args.map{ String($0) }.joined(separator: ", ")))"
+        case .sum(let args)     : return args.count == 0 ? "SUM(*)" : "SUM(\(args.map{ String($0) }.joined(separator: ", ")))"
+        case .count(let args)   : return args.count == 0 ? "COUNT(*)" : "COUNT(\(args.map{ String($0) }.joined(separator: ", ")))"
+        }
+    }
+}
+
 public struct Select: Query {
     
     let tableName: String
     
     let fields: [String]
-    
+
     var order: [String: Order]? = nil
     
     var limitResultCount: Int? = nil
+    
+    var sqlfunction: SQLFunction<String>? = nil
 
     init(_ fields: [String], from tableName: String) {
         self.fields = fields
@@ -91,10 +121,16 @@ public struct Select: Query {
     }
 
     private var buildQueryString: String {
-        var str = ""
+        var str = "SELECT "
         
-        fields.count == 0 ? (str += "SELECT * FROM \(tableName)") :
-                            (str += "SELECT \(fields.joined(separator: " ")) FROM \(tableName)")
+        if let function = sqlfunction?.pack() {
+            fields.count == 0 ? (str += "\(function) FROM \(tableName)") :
+                (str += "\(function), \(fields.joined(separator: " ")) FROM \(tableName)")
+        } else {
+            fields.count == 0 ? (str += "* FROM \(tableName)") :
+                (str += "\(fields.joined(separator: " ")) FROM \(tableName)")
+        }
+        
         
         if let order = order {
             str += " ORDER BY " + order.map {key, val in "\(key) \(val.rawValue)" }.joined(separator: ", ")

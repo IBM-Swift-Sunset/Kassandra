@@ -45,7 +45,7 @@ public enum Consistency: UInt16 {
 public enum DataType: Int {
     case custom     = 0x0000
     case ASCII      = 0x0001
-    case bitInt     = 0x0002
+    case bigInt     = 0x0002
     case blob       = 0x0003
     case boolean    = 0x0004
     case counter    = 0x0005
@@ -76,6 +76,7 @@ public enum RCErrorType: Error {
     case NoDataError
     case GenericError(String)
     case IOError
+    case CassandraError(Int, String)
 }
 
 public struct CqlColMetadata {
@@ -111,10 +112,22 @@ public struct Metadata {
     }
 }
 
-public struct TableObj {
+public struct TableObj: CustomStringConvertible {
     
     var rows: [Row]
     
+    public var description: String {
+        print("rows",rows.count)
+        var str = ""
+        var len = 0
+        str += "--------+---------+----------+---------\n"
+        for row in rows {
+            str += row.description + "\n"
+            if row.description.characters.count > len { len = row.description.characters.count }
+        }
+        str += "--------+---------+----------+---------\n"
+        return str
+    }
     init(rows: [Row]){
         self.rows = rows
     }

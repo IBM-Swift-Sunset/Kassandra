@@ -168,14 +168,14 @@ extension Kassandra {
     }
     private func handle(id: UInt16, flags: Byte, _ response: Response) throws {
         switch response {
-        case .ready                     : awaitingResult[id]?(nil)
-        case .authSuccess               : awaitingResult[id]?(nil)
-        case .event                     : print(response)
-        case .error                     : print(response)
-        case .authChallenge(let token)  : try Request.authResponse(token: token).write(id: 1, writer: socket!)
-        case .authenticate(_)           : try Request.authResponse(token: 1).write(id: 1, writer: socket!)
-        case .supported                 : print(response)
-        case .result(let resultKind)    :
+        case .ready                         : awaitingResult[id]?(nil)
+        case .authSuccess                   : awaitingResult[id]?(nil)
+        case .event                         : print(response)
+        case .supported                     : print(response)
+        case .authenticate(_)               : try Request.authResponse(token: 1).write(id: 1, writer: socket!)
+        case .authChallenge(let token)      : try Request.authResponse(token: token).write(id: 1, writer: socket!)
+        case .error(let code, let message)  : map[id]?(nil, RCErrorType.CassandraError(Int(code), message))
+        case .result(let resultKind)        :
             switch resultKind {
             case .void                  : break
             case .schema                : print(response)

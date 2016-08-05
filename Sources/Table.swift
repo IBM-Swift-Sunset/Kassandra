@@ -27,7 +27,17 @@ public protocol Table {
 public extension Table {
 
     public typealias Document = [Field: Any]
+    
+    public static func count(_ fields: Field...) -> Select {
+        
+        let fields = fields.map{ String($0) }
 
+        var query = Select(fields, from: Self.tableName)
+
+        query.sqlfunction = SQLFunction.count(fields)
+
+        return query
+    }
     public static func select(_ fields: Field ...) -> Select {
         return Select(fields.map{ String($0) }, from: Self.tableName)
     }
@@ -57,6 +67,10 @@ public extension Table {
     }
 
     public static func drop() -> Raw {
+        return Raw(query: "DROP TABLE \(Self.tableName)")
+    }
+    
+    public static func created() -> Raw {
         return Raw(query: "DROP TABLE \(Self.tableName)")
     }
 }

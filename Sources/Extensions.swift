@@ -328,7 +328,7 @@ extension Data {
                     switch headers[i].type! {
                     case .custom     : values.append(value.decodeInt)
                     case .ASCII      : values.append(value.decodeInt)
-                    case .bitInt     : values.append(value.decodeInt)
+                    case .bigInt     : values.append(value.decodeBigInt)
                     case .blob       : values.append(value.decodeInt)
                     case .boolean    : values.append(value.decodeBool)
                     case .counter    : values.append(value.decodeInt)
