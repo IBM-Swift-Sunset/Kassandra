@@ -23,14 +23,14 @@ extension SocketWriter {
     }
 }
 
-public extension Bool {
+extension Bool: Convertible {
     
     var toUInt8: UInt8 {
         return self ? 0x01 : 0x00
     }
 }
 
-extension String {
+extension String: Convertible {
 
     var data: Data {
         var array = Data()
@@ -57,7 +57,7 @@ extension String {
     }
 }
 
-extension Int {
+extension Int: Convertible {
 
     init(data: Data) {
         let u = Int(data[0]) << 24
@@ -93,7 +93,7 @@ extension Int {
     }
 }
 
-extension UInt8 {
+extension UInt8: Convertible {
 
     var data: Data {
         return Data(bytes: [self])
@@ -108,7 +108,7 @@ extension UInt8 {
     }
 }
 
-extension UInt16 {
+extension UInt16: Convertible {
 
     init(random: Bool) {
         var r: UInt16 = 0
@@ -137,6 +137,30 @@ extension UInt16 {
     }
 }
 
+extension Double: Convertible {}
+extension Float: Convertible {}
+extension UInt32 {
+    var data: Data {
+        var data = Data()
+        let bytes: [UInt8] = [UInt8(self >> 24), UInt8(self >> 16),UInt8(self >> 8),UInt8(self)]
+        data.append(Data(bytes: bytes, count: 4))
+        return Data()
+    }
+}
+extension UInt64 {
+    var data: Data {
+        var data = Data()
+        data.append(UInt32(self).data)
+        data.append(UInt32(self >> 32).data)
+        return data
+    }
+}
+extension Date {
+    static var timestamp: Data {
+        let stamp = UInt64(Date().timeIntervalSince1970)
+        return stamp.data
+    }
+}
 extension Data {
     
     var decodeBool: Bool {
@@ -207,6 +231,10 @@ extension Data {
             return (host.decodeString, port.decodeInt)
         }
         
+    }
+    var decodeTimeStamp: Date {
+        let _: Date = Date()
+        return Date()
     }
     var decodeString: String {
         mutating get {

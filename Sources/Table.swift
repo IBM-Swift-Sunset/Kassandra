@@ -46,20 +46,16 @@ public extension Table {
         return Insert(changeDictType(dict: values), into: Self.tableName)
     }
     
-    public static func update(_ values: Document, conditions: Document) -> Update {
+    public static func update(_ values: Document, conditions: Predicate) -> Update {
         
         let vals = changeDictType(dict: values)
-
-        let cond = changeDictType(dict: conditions)
         
-        return Update(to: vals, in: Self.tableName, where: cond)
+        return Update(to: vals, in: Self.tableName, where: conditions)
     }
     
-    public static func delete(where conditions: Document) -> Delete {
+    public static func delete(where conditions: Predicate) -> Delete {
         
-        let cond = changeDictType(dict: conditions)
-        
-        return Delete(from: tableName, where: cond)
+        return Delete(from: tableName, where: conditions)
     }
     
     public static func truncate() -> Raw {

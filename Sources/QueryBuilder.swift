@@ -17,12 +17,7 @@
 public protocol Convertible {
     
 }
-extension String: Convertible{
-    
-}
-extension Int: Convertible {
-    
-}
+
 public enum WhereConvertible {
     case notEqual(String, Convertible)
     case equal(String, Convertible)
@@ -32,20 +27,22 @@ public enum WhereConvertible {
     case lessThanOrEqual(String, Convertible)
     case and(Predicate, Predicate)
     case or(Predicate, Predicate)
+    case inOp(String, [Convertible])
 }
 public struct Predicate: Convertible  {
     let str: String
     
     init(_ expession: WhereConvertible) {
         switch expession {
-        case .notEqual(let lhr, let rhs)             : str = "\(lhr) != \(convert(rhs))"
-        case .equal(let lhr, let rhs)                : str = "\(lhr) =  \(convert(rhs))"
-        case .greaterThan(let lhr, let rhs)          : str = "\(lhr) >  \(convert(rhs))"
-        case .greaterThanOrEqual(let lhr, let rhs)   : str = "\(lhr) >= \(convert(rhs))"
-        case .lessThan(let lhr, let rhs)             : str = "\(lhr) <  \(convert(rhs))"
-        case .lessThanOrEqual(let lhr, let rhs)      : str = "\(lhr) <= \(convert(rhs))"
-        case .and(let lhr, let rhs)                  : str = "\(lhr.str) AND \(rhs.str)"
-        case .or(let lhr, let rhs)                   : str = "\(lhr.str) OR \(rhs.str)"
+        case .notEqual(let lhs, let rhs)             : str = "\(lhs) != \(convert(rhs))"
+        case .equal(let lhs, let rhs)                : str = "\(lhs) = \(convert(rhs))"
+        case .greaterThan(let lhs, let rhs)          : str = "\(lhs) > \(convert(rhs))"
+        case .greaterThanOrEqual(let lhs, let rhs)   : str = "\(lhs) >= \(convert(rhs))"
+        case .lessThan(let lhs, let rhs)             : str = "\(lhs) < \(convert(rhs))"
+        case .lessThanOrEqual(let lhs, let rhs)      : str = "\(lhs) <= \(convert(rhs))"
+        case .and(let lhs, let rhs)                  : str = "\(lhs.str) AND \(rhs.str)"
+        case .or(let lhs, let rhs)                   : str = "\(lhs.str) OR \(rhs.str)"
+        case .inOp(let lhs, let rhs)                 : str = "\(lhs) IN (\(rhs.map { convert($0) }.joined(separator: ", ")))"
         }
     }
 }
@@ -53,8 +50,7 @@ public struct Predicate: Convertible  {
 public func convert(_ item: Convertible) -> String{
     switch item {
     case is String  : return "'\(item)'"
-    case is Int     : return "\(item)"
-    default: return ""
+    default: return "\(item)"
     }
 }
 
@@ -82,3 +78,8 @@ public func &&(rhs: Predicate, lhs: Predicate) -> Predicate {
 public func ||(rhs: Predicate, lhs: Predicate) -> Predicate {
     return Predicate(.or(rhs, lhs))
 }
+infix operator > {associativity left precedence 100}
+public func > (lhs: String, rhs: [Convertible]) -> Predicate {
+    return Predicate(.inOp(lhs, rhs))
+}
+

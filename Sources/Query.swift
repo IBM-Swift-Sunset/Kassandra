@@ -161,15 +161,15 @@ public struct Update: Query {
     let tableName: String
     
     let newValues: [String: Any]
-    var conditions: [String: Any]
+    var conditions: Predicate
     
-    public init(to newValues: [String: Any], in tableName: String, where predicate: [String: Any]) {
+    public init(to newValues: [String: Any], in tableName: String, where predicate: Predicate) {
         self.newValues = newValues
         self.tableName = tableName
         self.conditions = predicate
     }
     
-    public mutating func filter(by predicate: [String: Any]){
+    public mutating func filter(by predicate: Predicate){
         conditions = predicate
     }
 
@@ -177,7 +177,7 @@ public struct Update: Query {
         var data = Data()
 
         let vals  = packPairs(newValues)
-        let conds = packPairs(conditions)
+        let conds = conditions.str
 
         data.append(("UPDATE \(tableName) SET \(vals) WHERE \(conds);").sData)
         
@@ -193,9 +193,9 @@ public struct Delete: Query {
 
     let tableName: String
     
-    let conditions: [String: Any]
+    let conditions: Predicate
     
-    public init(from tableName: String, where condition: [String: Any]) {
+    public init(from tableName: String, where condition: Predicate) {
         self.conditions = condition
         self.tableName = tableName
     }
@@ -203,7 +203,7 @@ public struct Delete: Query {
     public func pack() -> Data {
         var data = Data()
 
-        let conds = packPairs(conditions)
+        let conds = conditions.str
         
         data.append(("DELETE FROM \(tableName) WHERE \(conds);").sData)
         data.append(Consistency.one.rawValue.data)

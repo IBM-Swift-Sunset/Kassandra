@@ -69,7 +69,7 @@ public extension Model {
     public func delete() -> Promise<Self> {
         let p = Promise<Self>.deferred()
 
-        Delete(from: Self.tableName, where: ["id": key!]).execute()
+        Delete(from: Self.tableName, where: "id" == key!).execute()
             .then {
                 table in
                 p.resolve()( Self.init(row: table.rows[0]) )
@@ -116,7 +116,6 @@ public extension Model {
             }.fail {
                 error in
                 p.reject(dueTo: error)
-                //p.resolve()([])
             }
         return p
     }

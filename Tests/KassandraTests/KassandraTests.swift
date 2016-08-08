@@ -104,16 +104,16 @@ class KassandraTests: XCTestCase {
         try client.connect { error in print(error) }
 
         let _ = client["test"]
-        //TodoItem.
+
         sleep(1)
         try TodoItem.insert([.type: "todo", .userID: 2,.title: "Chia", .pos: 2, .completed: false]).execute(oncompletion: ErrorHandler)
         try TodoItem.insert([.type: "todo", .userID: 3,.title: "Thor", .pos: 3, .completed: true]).execute(oncompletion: ErrorHandler)
         sleep(1)
-        TodoItem.select().limited(to: 2).filter(by: "type" == "todo" && "userID" == 3).execute()
+        TodoItem.select().limited(to: 2).filter(by: "type" == "todo" && "userID" == 3).ordered(by: ["title": .ASC]).execute()
             .then { table in
                 print(table)
                 
-                do { try TodoItem.update([.completed: true], conditions: [.userID: 2]).execute(oncompletion: self.ErrorHandler) } catch {}
+                do { try TodoItem.update([.completed: true], conditions: "userID" == 3).execute(oncompletion: self.ErrorHandler) } catch {}
                 
                 TodoItem.select().execute()
                     .then { table in
@@ -122,7 +122,7 @@ class KassandraTests: XCTestCase {
                             .then { table in
                                 print(table)
 
-                                do { try TodoItem.delete(where: [.userID: 2]).execute(oncompletion: self.ErrorHandler) }catch {}
+                                do { try TodoItem.delete(where: "userID" == 2).execute(oncompletion: self.ErrorHandler) }catch {}
 
                                 TodoItem.select().execute()
                                     .then { table in
