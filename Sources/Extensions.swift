@@ -17,6 +17,12 @@
 import Foundation
 import Socket
 
+extension SocketWriter {
+    func write(from data: Data) throws {
+        try self.write(from: NSData(data: data))
+    }
+}
+
 public extension Bool {
     
     var toUInt8: UInt8 {
@@ -106,7 +112,7 @@ extension UInt16 {
 
     init(random: Bool) {
         var r: UInt16 = 0
-        arc4random_buf(&r, sizeof(UInt16.self))
+        arc4random_buf(&r, MemoryLayout<UInt16>.size)
         self = r
     }
     
@@ -321,7 +327,7 @@ extension Data {
                         values.append("NULL") // null
                         continue
                     }
-                    
+                    //String.Encoding.ascii
                     var value = self.subdata(in: Range(0..<length))
                     
                     //NOTE: Convert value to appropriate type here or leave as data?
@@ -375,7 +381,7 @@ public func changeDictType<T>(dict: [T: Any]) -> [String: Any] {
     var cond = [String: Any]()
     
     for (key, value) in dict {
-        cond[String(key)] = value
+        cond[String(describing: key)] = value
     }
     
     return cond

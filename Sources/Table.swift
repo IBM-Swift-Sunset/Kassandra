@@ -30,7 +30,7 @@ public extension Table {
     
     public static func count(_ fields: Field...) -> Select {
         
-        let fields = fields.map{ String($0) }
+        let fields = fields.map{ String(describing: $0) }
 
         var query = Select(fields, from: Self.tableName)
 
@@ -39,7 +39,7 @@ public extension Table {
         return query
     }
     public static func select(_ fields: Field ...) -> Select {
-        return Select(fields.map{ String($0) }, from: Self.tableName)
+        return Select(fields.map{ String(describing: $0) }, from: Self.tableName)
     }
     
     public static func insert(_ values: Document) -> Insert {
@@ -71,6 +71,6 @@ public extension Table {
     }
     
     public static func created() -> Raw {
-        return Raw(query: "DROP TABLE \(Self.tableName)")
+        return Raw(query: "CREATE TABLE \(Self.tableName)() VALUES()")
     }
 }

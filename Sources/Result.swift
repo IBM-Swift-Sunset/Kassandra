@@ -64,7 +64,7 @@ public struct Row: CustomStringConvertible {
     let dict: [HeaderKey : Any]
     
     public var description: String {
-        return dict.map{key, val in "\(key.field):\(String(val))" }.joined(separator: ", ")
+        return dict.map{key, val in "\(key.field):\(String(describing: val))" }.joined(separator: ", ")
     }
 
     public init(header: [HeaderKey], fields: [Any]){

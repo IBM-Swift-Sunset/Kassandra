@@ -24,22 +24,27 @@ public protocol Query {
 
 extension Query {
 
-    public func execute() throws -> Promise<TableObj> {
+    public func execute() -> Promise<TableObj> {
         let p = Promise<TableObj>.deferred()
     
         let request: Request = .query(using: self)
         
-        try config.connection?.execute(request) {
-            result, error in
-            
-            if let error = error { p.reject(dueTo: error) }
-            if let res = result { p.resolve()(res) }
+        do {
+            try config.connection?.execute(request) {
+                result, error in
+                
+                if let error = error { p.reject(dueTo: error) }
+                if let res = result { p.resolve()(res) }
+            }
+        } catch {
+            p.reject(dueTo: error)
+
         }
 
         return p
     }
 
-    public func execute(oncompletion: (Error?) -> Void) throws {
+    public func execute(oncompletion: ((Error?) -> Void)) throws {
         
         let request: Request = .query(using: self)
         
@@ -60,11 +65,11 @@ public enum SQLFunction<T> {
     
     func pack() -> String {
         switch self {
-        case .max(let args)     : return args.count == 0 ? "MAX(*)" : "MAX(\(args.map{ String($0) }.joined(separator: ", ")))"
-        case .min(let args)     : return args.count == 0 ? "MIN(*)" : "MIN(\(args.map{ String($0) }.joined(separator: ", ")))"
-        case .avg(let args)     : return args.count == 0 ? "AVG(*)" : "AVG(\(args.map{ String($0) }.joined(separator: ", ")))"
-        case .sum(let args)     : return args.count == 0 ? "SUM(*)" : "SUM(\(args.map{ String($0) }.joined(separator: ", ")))"
-        case .count(let args)   : return args.count == 0 ? "COUNT(*)" : "COUNT(\(args.map{ String($0) }.joined(separator: ", ")))"
+        case .max(let args)     : return args.count == 0 ? "MAX(*)" : "MAX(\(args.map{ String(describing: $0) }.joined(separator: ", ")))"
+        case .min(let args)     : return args.count == 0 ? "MIN(*)" : "MIN(\(args.map{ String(describing: $0) }.joined(separator: ", ")))"
+        case .avg(let args)     : return args.count == 0 ? "AVG(*)" : "AVG(\(args.map{ String(describing: $0) }.joined(separator: ", ")))"
+        case .sum(let args)     : return args.count == 0 ? "SUM(*)" : "SUM(\(args.map{ String(describing: $0) }.joined(separator: ", ")))"
+        case .count(let args)   : return args.count == 0 ? "COUNT(*)" : "COUNT(\(args.map{ String(describing: $0) }.joined(separator: ", ")))"
         }
     }
 }

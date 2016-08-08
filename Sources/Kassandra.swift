@@ -19,18 +19,18 @@ import Socket
 
 public class Kassandra {
     
-    private var socket: Socket?
+    internal var socket: Socket?
     
     public var host: String = "localhost"
     public var port: Int32 = 9042
     
-    private var readQueue: DispatchQueue
-    private var writeQueue: DispatchQueue
+    internal var readQueue: DispatchQueue
+    internal var writeQueue: DispatchQueue
     
-    private var buffer: Data
+    internal var buffer: Data
     
-    private var map            = [UInt16: (TableObj?, Error?) -> Void]()
-    private var awaitingResult = [UInt16: (Error?) -> Void]()
+    internal var map            = [UInt16: (TableObj?, Error?) -> Void]()
+    internal var awaitingResult = [UInt16: (Error?) -> Void]()
 
     public init(host: String = "localhost", port: Int32 = 9042) {
         self.host = host
@@ -72,15 +72,16 @@ public class Kassandra {
         oncompletion(nil)
     }
     
-    public func execute(_ query: String, oncompletion: (TableObj?, Error?) -> Void) throws {
+    public func execute(_ query: String, oncompletion: ((TableObj?, Error?) -> Void)) throws {
         let request = Request.query(using: Raw(query: query))
         try executeHandler(request, oncompletion: oncompletion)
     }
-    internal func execute(_ request: Request, oncompletion: (Error?) -> Void) throws {
+
+    internal func execute(_ request: Request, oncompletion: ((Error?) -> Void)) throws {
         try executeHandler(request, oncompletionError: oncompletion)
     }
 
-    internal func execute(_ request: Request, oncompletion: (TableObj?, Error?) -> Void) throws {
+    internal func execute(_ request: Request, oncompletion: ((TableObj?, Error?) -> Void)) throws {
         try executeHandler(request, oncompletion: oncompletion)
     }
     private func executeHandler(_ request: Request, oncompletion: ((TableObj?, Error?) -> Void)? = nil,
@@ -109,7 +110,7 @@ public class Kassandra {
 
 extension Kassandra {
     
-    private func read() {
+    internal func read() {
         
         guard let sock = socket else {
             return
@@ -172,8 +173,8 @@ extension Kassandra {
         case .authSuccess                   : awaitingResult[id]?(nil)
         case .event                         : print(response)
         case .supported                     : print(response)
-        case .authenticate(_)               : try Request.authResponse(token: 1).write(id: 1, writer: socket!)
-        case .authChallenge(let token)      : try Request.authResponse(token: token).write(id: 1, writer: socket!)
+        case .authenticate(_)               : try Request.authResponse(token: 1).write(id: 1, writer: socket as! SocketWriter)
+        case .authChallenge(let token)      : try Request.authResponse(token: token).write(id: 1, writer: socket as! SocketWriter)
         case .error(let code, let message)  : map[id]?(nil, RCErrorType.CassandraError(Int(code), message))
         case .result(let resultKind)        :
             switch resultKind {
@@ -195,7 +196,7 @@ extension Kassandra {
 
             let r = Request.query(using: request)
             
-            try r.write(id: 0, writer: socket!)
+            try r.write(id: 0, writer: socket as! SocketWriter)
 
         } catch {
             return false

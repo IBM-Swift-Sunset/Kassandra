@@ -42,7 +42,7 @@ public extension Model {
         return mirrors[hashValue]!
     }
 
-    public func save() throws -> Promise<Self> {
+    public func save() -> Promise<Self> {
         let p = Promise<Self>.deferred()
         
         let values: [String: Any] = mirror.children.reduce([:]) { acc, child in
@@ -50,7 +50,7 @@ public extension Model {
             ret[child.label!] = child.value
             return ret
         }
-        try Insert(values, into: Self.tableName).execute()
+        Insert(values, into: Self.tableName).execute()
             .then {
                 table in
                 print(table)
@@ -66,10 +66,10 @@ public extension Model {
         return p
     }
     
-    public func delete() throws -> Promise<Self> {
+    public func delete() -> Promise<Self> {
         let p = Promise<Self>.deferred()
 
-        try Delete(from: Self.tableName, where: ["id": key!]).execute()
+        Delete(from: Self.tableName, where: ["id": key!]).execute()
             .then {
                 table in
                 p.resolve()( Self.init(row: table.rows[0]) )
@@ -89,7 +89,7 @@ public extension Model {
             return ret
         }
  
-        let vals = packColumnData(key: String(Self.primaryKey), mirror: mirror)
+        let vals = packColumnData(key: String(describing: Self.primaryKey), mirror: mirror)
 
         try Raw(query: "CREATE TABLE \(Self.tableName)(\(vals));").execute {
             (err: Error?) in
@@ -105,10 +105,10 @@ public extension Model {
         }
     }
     
-    public static func fetch(_ fields: [Field] = []) throws  -> Promise<[Self]> {
+    public static func fetch(_ fields: [Field] = []) -> Promise<[Self]> {
         let p = Promise<[Self]>.deferred()
 
-        try Select(fields.map{ String($0) }, from: tableName).execute()
+        Select(fields.map{ String(describing: $0) }, from: tableName).execute()
             .then {
                 table in
                     p.resolve()( table.rows.map { Self.init(row: $0) } )
@@ -136,12 +136,12 @@ func getType(_ item: Any ) -> DataType? {
 
 func packType(_ item: Any) -> String? {
     switch item {
-    case let val as Int     : return String(val)
+    case let val as Int     : return String(describing: val)
     case let val as String  : return "'\(val)'"
-    case let val as Float   : return String(val)
-    case let val as Double  : return String(val)
-    case let val as Decimal : return String(val)
-    case let val as Bool    : return String(val)
+    case let val as Float   : return String(describing: val)
+    case let val as Double  : return String(describing: val)
+    case let val as Decimal : return String(describing: val)
+    case let val as Bool    : return String(describing: val)
     default: return nil
     }
 }

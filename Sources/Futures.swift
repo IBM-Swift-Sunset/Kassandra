@@ -37,6 +37,10 @@ public class Promise<T> : Finishable {
         return Promise<T>()
     }
     
+    public func scatterMap() -> Promise {
+        //[].map
+        return Promise<T>()
+    }
     public func resolve() -> ((T) -> ()) {
         func res(x: T) -> () {
             for f in self.pending {
