@@ -14,9 +14,7 @@
  limitations under the License.
  */
 
-
-import Foundation
-import Socket
+import SSLService
 
 public typealias Byte = UInt8
 
@@ -29,6 +27,8 @@ public struct Config {
     var connection: Kassandra? = nil
 
     var map = [UInt16: (TableObj?, Error?) -> Void]()
+
+    var SSLConfig: SSLService.Configuration? = nil
 
     static var sharedInstance = Config()
     

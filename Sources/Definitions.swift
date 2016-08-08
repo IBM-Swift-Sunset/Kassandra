@@ -16,49 +16,6 @@
 
 import Foundation
 
-public struct Query {
-    var query: String //Long string - Int -> utf8
-    var consistency: Consistency
-    var flags: UInt8
-    
-    var values: UInt8 { // 0x01 [short] <n> followed by <n> [bytes]
-        return (flags & 0x01)
-    }
-    var skip_metadata: UInt8 { // 0x02
-        return (flags & 0x02)
-    }
-    var pageSize: UInt8 { // 0x04
-        return (flags & 0x04)
-    }
-    var withPagingState: UInt8 { //0x08
-        return (flags & 0x08)
-    }
-    var withSerialConsistency: UInt8 { // 0x10
-        return (flags & 0x10)
-    }
-    var withDefaultTimestamp: UInt8 { // 0x20
-        return (flags & 0x20)
-    }
-    var withValueNames: UInt8 { // 0x40
-        return (flags & 0x40)
-    }
-    
-    init(_ query: String) {
-        self.query = query
-        consistency = .one
-        flags = 0x00
-    }
-    
-    func pack() -> Data {
-        var data = Data()
-        
-        data.append(query.sData)
-        data.append(consistency.rawValue.data)
-        data.append(flags.data)
-        
-        return data
-    }
-}
 public enum ResponseOpcodes: UInt8 {
     case error          = 0x00
     case ready          = 0x02
@@ -88,7 +45,7 @@ public enum Consistency: UInt16 {
 public enum DataType: Int {
     case custom     = 0x0000
     case ASCII      = 0x0001
-    case bitInt     = 0x0002
+    case bigInt     = 0x0002
     case blob       = 0x0003
     case boolean    = 0x0004
     case counter    = 0x0005
@@ -119,6 +76,7 @@ public enum RCErrorType: Error {
     case NoDataError
     case GenericError(String)
     case IOError
+    case CassandraError(Int, String)
 }
 
 public struct CqlColMetadata {
@@ -154,18 +112,24 @@ public struct Metadata {
     }
 }
 
-public struct TableObj {
+public struct TableObj: CustomStringConvertible {
     
-    var rows = [[String: Data]]()
+    var rows: [Row]
     
-    init(rows: [[Data]], headers: [(name: String, type: DataType)]){
+    public var description: String {
+        print("rows",rows.count)
+        var str = ""
+        var len = 0
+        str += "--------+---------+----------+---------\n"
         for row in rows {
-            var map = [String: Data]()
-            for i in 0..<headers.count {
-                map[headers[i].name] = row[i]
-            }
-            self.rows.append(map)
+            str += row.description + "\n"
+            if row.description.characters.count > len { len = row.description.characters.count }
         }
+        str += "--------+---------+----------+---------\n"
+        return str
+    }
+    init(rows: [Row]){
+        self.rows = rows
     }
     
     subscript(_ index: String) -> String {

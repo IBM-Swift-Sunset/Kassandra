@@ -73,7 +73,7 @@ public enum Request {
                 body.append(Consistency.serial.rawValue.data)
             }
             if Sflags & 0x20 == 0x20 {
-                //body.append() // optional timestamp
+                body.append(Date.timestamp)
             }
             
             flags = Sflags
@@ -98,7 +98,7 @@ public enum Request {
     
     case options
     
-    case query(query: Query)
+    case query(using: Query)
     
     case prepare(query: Query)
     

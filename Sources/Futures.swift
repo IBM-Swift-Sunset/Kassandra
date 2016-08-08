@@ -17,66 +17,67 @@
 
 import Foundation
 
-protocol Finishable {
+public protocol Finishable {
     func done(done: (() -> ())) -> ()
 }
 
-class Promise : Finishable {
+public class Promise<T> : Finishable {
 
-    var pending: [(() -> ())] = []
+    var pending: [((T) -> ())] = []
     
-    var done: (() -> ()) = {}
+    var done: (() -> ()) = { }
     
-    var fail: (() -> ()) = {}
+    var fail: ((Error) -> ()) = { _ in }
     
     var rejected: Bool = false
     
-    class func deferred() -> Promise {
-        return Promise()
+    var error: Error = RCErrorType.GenericError("")
+
+    public class func deferred() -> Promise {
+        return Promise<T>()
     }
     
-    func resolve() -> (() -> ()) {
-        func resolve() -> () {
+    public func scatterMap() -> Promise {
+        //[].map
+        return Promise<T>()
+    }
+    public func resolve() -> ((T) -> ()) {
+        func res(x: T) -> () {
             for f in self.pending {
                 if self.rejected {
-                    fail()
+                    fail(error)
                     return
                 }
-                f()
+                f(x)
             }
             if self.rejected {
-                fail()
+                fail(error)
                 return
             }
             done()
         }
-        return resolve
-    }
-    
-    func reject() -> () {
-        self.rejected = true
+        return res
     }
 
-    func then(callback: (() -> ())) -> Promise {
+    public func reject(dueTo error: Error) -> () {
+        self.error = error
+        self.rejected = true
+        fail(error)
+        return
+    }
+
+    public func then(callback: ((T) -> ())) -> Promise {
         self.pending.append(callback)
         return self
     }
-    
-    func then(callback: ((promise: Promise) -> ())) -> Promise {
-        func thenWrapper() -> () {
-            callback(promise: self)
-        }
-        self.pending.append(thenWrapper)
-        return self
-    }
-    
-    func fail(fail: (() -> ())) -> Finishable {
+    @discardableResult
+    public func fail(fail: ((Error) -> ())) -> Finishable {
         self.fail = fail
         let finishablePromise : Finishable = self
         return finishablePromise
     }
 
-    func done(done: (() -> ())) -> () {
+    public func done(done: (() -> ())) -> () {
         self.done = done
     }
 }

@@ -17,15 +17,21 @@
 import Foundation
 import Socket
 
-extension Bool {
+extension SocketWriter {
+    func write(from data: Data) throws {
+        try self.write(from: NSData(data: data))
+    }
+}
+
+extension Bool: Convertible {
     
     var toUInt8: UInt8 {
         return self ? 0x01 : 0x00
     }
 }
 
-extension String {
-    
+extension String: Convertible {
+
     var data: Data {
         var array = Data()
         
@@ -51,7 +57,8 @@ extension String {
     }
 }
 
-extension Int {
+extension Int: Convertible {
+
     init(data: Data) {
         let u = Int(data[0]) << 24
         let um = Int(data[1]) << 16
@@ -86,8 +93,8 @@ extension Int {
     }
 }
 
-extension UInt8 {
-    
+extension UInt8: Convertible {
+
     var data: Data {
         return Data(bytes: [self])
     }
@@ -101,11 +108,11 @@ extension UInt8 {
     }
 }
 
-extension UInt16 {
-    
+extension UInt16: Convertible {
+
     init(random: Bool) {
         var r: UInt16 = 0
-        arc4random_buf(&r, sizeof(UInt16.self))
+        arc4random_buf(&r, MemoryLayout<UInt16>.size)
         self = r
     }
     
@@ -130,6 +137,30 @@ extension UInt16 {
     }
 }
 
+extension Double: Convertible {}
+extension Float: Convertible {}
+extension UInt32 {
+    var data: Data {
+        var data = Data()
+        let bytes: [UInt8] = [UInt8(self >> 24), UInt8(self >> 16),UInt8(self >> 8),UInt8(self)]
+        data.append(Data(bytes: bytes, count: 4))
+        return Data()
+    }
+}
+extension UInt64 {
+    var data: Data {
+        var data = Data()
+        data.append(UInt32(self).data)
+        data.append(UInt32(self >> 32).data)
+        return data
+    }
+}
+extension Date {
+    static var timestamp: Data {
+        let stamp = UInt64(Date().timeIntervalSince1970)
+        return stamp.data
+    }
+}
 extension Data {
     
     var decodeBool: Bool {
@@ -155,6 +186,14 @@ extension Data {
         mutating get {
             let u = Int(self.decodeUInt16) << 16
             let l = Int(self.decodeUInt16)
+            
+            return u | l
+        }
+    }
+    var decodeInt32: Int32 {
+        mutating get {
+            let u = Int32(self.decodeUInt16) << 16
+            let l = Int32(self.decodeUInt16)
             
             return u | l
         }
@@ -193,6 +232,10 @@ extension Data {
         }
         
     }
+    var decodeTimeStamp: Date {
+        let _: Date = Date()
+        return Date()
+    }
     var decodeString: String {
         mutating get {
             let length = UInt16(msb: self[0], lsb: self[1])
@@ -202,6 +245,175 @@ extension Data {
         }
     }
     var decodeSDataString: String {
-        return String(data: self, encoding: String.Encoding.utf8)!
+        return String(data: self, encoding: String.Encoding.utf8) ?? "NULL"
     }
+    var decodeAsciiString: String {
+        return String(data: self, encoding: String.Encoding.ascii) ?? "NULL"
+    }
+    var decodeStringMap: [String: [String]] {
+        mutating get {
+            var map = [String: [String]]()
+            
+            for _ in 0..<Int(self.decodeUInt16) {
+                let key = self.decodeString
+
+                var strList = [String]()
+                for _ in 0..<Int(self.decodeUInt16) {
+                    strList.append(self.decodeString)
+                }
+                
+                map[key] = strList
+            }
+            return map
+        }
+    }
+    var decodeEventResponse: Response {
+        mutating get {
+            switch self.decodeString {
+            case "TOPOLOGY_CHANGE":
+                let changeType = self.decodeString
+                let inet       = self.decodeInet
+                return .event(of: .topologyChange(type: changeType, inet: inet))
+            case "STATUS_CHANGE":
+                let changeType = self.decodeString
+                let inet       = self.decodeInet
+                return .event(of: .statusChange(type: changeType, inet: inet))
+            case "SCHEMA_CHANGE":
+                let changeType = self.decodeString
+                let target     = self.decodeString
+                
+                if target == "KeySpace" {
+                    let options  = self.decodeString
+                    return .event(of: .schemaChange(type: changeType, target: target, changes: .options(with: options)))
+                } else {
+                    let keyspace = self.decodeString
+                    let objName  = self.decodeString
+                    return .event(of: .schemaChange(type: changeType, target: target, changes: .keyspace(to: keyspace, withObjName: objName)))
+                }
+            default: return .event(of: .error)
+            }
+        }
+    }
+    var decodePreparedResponse: Kind {
+        mutating get {
+            
+            let id = self.decodeUInt16
+            
+            let meta = self.decodeMetadata
+            
+            let resMeta = self.decodeMetadata
+            
+            return Kind.prepared(id: id, metadata: meta, resMetadata: resMeta)
+        }
+    }
+    var decodeMetadata: Metadata {
+        mutating get {
+            let flags = self.decodeInt
+            let columnCount = self.decodeInt
+            var globalKeySpace: String? = nil
+            var globalTableName: String? = nil
+            var pagingState = Data()
+            
+            if flags & 0x0001 == 0x0001 {
+                globalKeySpace = self.decodeString
+                globalTableName = self.decodeString
+            }
+            
+            if flags & 0x0002 == 0x0002 {
+                // paging state [bytes] type
+                let length = self.decodeInt
+                pagingState = self.subdata(in: Range(0..<length))
+                self = self.subdata(in: Range(length..<self.count))
+            }
+            
+            return flags & 0x0004 == 0x0004 ? Metadata(flags: flags) :
+                Metadata(flags: flags, count: columnCount, keyspace: globalKeySpace, table: globalTableName, rowMetadata: nil)
+        }
+    }
+    var decodeRows: Kind {
+        mutating get {
+            let metadata = self.decodeMetadata
+            
+            var headers = [HeaderKey]()
+            var rowVals = [[Any]]()
+            
+            for _ in 0..<metadata.columnCount {
+                if metadata.isRowHeaderPresent {
+                    let _ = self.decodeString //ksname
+                    let _ = self.decodeString //tablename
+                }
+                headers.append(HeaderKey(field: self.decodeString, type: DataType(rawValue: Int(self.decodeUInt16))!))
+            }
+            
+            // Parse Row Content
+            for _ in 0..<self.decodeInt {
+                
+                var values = [Any]()
+                
+                for i in 0..<metadata.columnCount {
+                    
+                    let length = Int(self.decodeInt32)
+                    
+                    if length < 0 {
+                        values.append("NULL") // null
+                        continue
+                    }
+                    //String.Encoding.ascii
+                    var value = self.subdata(in: Range(0..<length))
+                    
+                    //NOTE: Convert value to appropriate type here or leave as data?
+                    switch headers[i].type! {
+                    case .custom     : break //values.append(value.decodeInt)
+                    case .ASCII      : values.append(value.decodeAsciiString)
+                    case .bigInt     : values.append(value.decodeBigInt)
+                    case .blob       : break //values.append(value.decodeInt)
+                    case .boolean    : values.append(value.decodeBool)
+                    case .counter    : values.append(value.decodeInt)
+                    case .decimal    : values.append(value.decodeInt)
+                    case .double     : values.append(value.decodeDouble)
+                    case .float      : values.append(value.decodeFloat)
+                    case .int        : values.append(value.decodeInt)
+                    case .text       : values.append(value.decodeSDataString)
+                    case .timestamp  : values.append(value.decodeInt)
+                    case .uuid       : values.append(value.decodeInt)
+                    case .varChar    : values.append(value.decodeSDataString)
+                    case .varInt     : values.append(value.decodeInt)
+                    case .timeUuid   : values.append(value.decodeInt)
+                    case .inet       : values.append(value.decodeInt)
+                    case .list       : values.append(value.decodeInt)
+                    case .map        : values.append(value.decodeInt)
+                    case .set        : values.append(value.decodeInt)
+                    case .UDT        : values.append(value.decodeInt)
+                    case .tuple      : values.append(value.decodeInt)
+                    }
+                    
+                    self = self.subdata(in: Range(length..<self.count))
+                }
+                rowVals.append(values)
+            }
+            
+            return .rows(metadata: metadata, rows: rowVals.map { Row(header: headers, fields: $0) })
+        }
+    }
+}
+extension Dictionary {
+
+    public init(keys: [Key], values: [Value]) {
+        precondition(keys.count == values.count)
+        
+        self.init()
+        
+        for (index, key) in keys.enumerated() {
+            self[key] = values[index]
+        }
+    }
+}
+public func changeDictType<T>(dict: [T: Any]) -> [String: Any] {
+    var cond = [String: Any]()
+    
+    for (key, value) in dict {
+        cond[String(describing: key)] = value
+    }
+    
+    return cond
 }

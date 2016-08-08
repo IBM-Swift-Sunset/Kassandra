@@ -16,21 +16,22 @@
 
 import Foundation
 import Socket
+import SSLService
 
 public class Kassandra {
     
-    private var socket: Socket?
+    internal var socket: Socket?
     
     public var host: String = "localhost"
     public var port: Int32 = 9042
     
-    private var readQueue: DispatchQueue
-    private var writeQueue: DispatchQueue
+    internal var readQueue: DispatchQueue
+    internal var writeQueue: DispatchQueue
     
-    private var buffer: Data
+    internal var buffer: Data
     
-    var map            = [UInt16: (TableObj?, Error?) -> Void]()
-    var awaitingResult = [UInt16: (Error?) -> Void]()
+    internal var map            = [UInt16: (TableObj?, Error?) -> Void]()
+    internal var awaitingResult = [UInt16: (Error?) -> Void]()
 
     public init(host: String = "localhost", port: Int32 = 9042) {
         self.host = host
@@ -71,27 +72,21 @@ public class Kassandra {
         
         oncompletion(nil)
     }
-
-    public func execute(_ request: Request, oncompletion: (Error?) -> Void) throws {
-        guard let sock = socket else {
-            throw RCErrorType.GenericError("Could not create a socket")
-            
-        }
-        writeQueue.async {
-            do {
-                let id = UInt16(random: true)
-                
-                self.awaitingResult[id] = oncompletion
-
-                try request.write(id: id, writer: sock)
-                
-            } catch {
-                oncompletion(RCErrorType.ConnectionError)
-            }
-        }
+    
+    public func execute(_ query: String, oncompletion: ((TableObj?, Error?) -> Void)) throws {
+        let request = Request.query(using: Raw(query: query))
+        try executeHandler(request, oncompletion: oncompletion)
     }
 
-    public func execute(_ request: Request, oncompletion: (TableObj?, Error?) -> Void) throws {
+    internal func execute(_ request: Request, oncompletion: ((Error?) -> Void)) throws {
+        try executeHandler(request, oncompletionError: oncompletion)
+    }
+
+    internal func execute(_ request: Request, oncompletion: ((TableObj?, Error?) -> Void)) throws {
+        try executeHandler(request, oncompletion: oncompletion)
+    }
+    private func executeHandler(_ request: Request, oncompletion: ((TableObj?, Error?) -> Void)? = nil,
+                                                    oncompletionError: ((Error?) -> Void)? = nil) throws {
         guard let sock = socket else {
             throw RCErrorType.GenericError("Could not create a socket")
             
@@ -100,13 +95,15 @@ public class Kassandra {
             do {
                 
                 let id = UInt16(random: true)
-
-                self.map[id] = oncompletion
-
+                
+                if let oncomp = oncompletion { self.map[id] = oncomp }
+                if let oncomp = oncompletionError { self.awaitingResult[id] = oncomp }
+                
                 try request.write(id: id, writer: sock)
-
+                
             } catch {
-                oncompletion(nil, RCErrorType.ConnectionError)
+                if let oncomp = oncompletion { oncomp(nil, RCErrorType.ConnectionError) }
+                if let oncomp = oncompletionError { oncomp(RCErrorType.ConnectionError) }
             }
         }
     }
@@ -114,7 +111,7 @@ public class Kassandra {
 
 extension Kassandra {
     
-    public func read() {
+    internal func read() {
         
         guard let sock = socket else {
             return
@@ -145,7 +142,7 @@ extension Kassandra {
         }
     }
 
-    public func unpack() {
+    private func unpack() {
         while buffer.count >= 9 {
             
             //Unpack header
@@ -171,24 +168,55 @@ extension Kassandra {
         
         }
     }
-    public func handle(id: UInt16, flags: Byte, _ response: Response) throws {
+    private func handle(id: UInt16, flags: Byte, _ response: Response) throws {
         switch response {
-        case .ready                     : awaitingResult[id]?(nil)
-        case .authSuccess               : awaitingResult[id]?(nil)
-        case .event                     : print(response)
-        case .error                     : print(response)
-        case .authChallenge(let token)  : try Request.authResponse(token: token).write(id: 1, writer: socket!)
-        case .authenticate(_)           : try Request.authResponse(token: 1).write(id: 1, writer: socket!)
-        case .supported                 : print(response)
-        case .result(let resultKind)    :
+        case .ready                         : awaitingResult[id]?(nil)
+        case .authSuccess                   : awaitingResult[id]?(nil)
+        case .event                         : print(response)
+        case .supported                     : print(response)
+        case .authenticate(_)               : try Request.authResponse(token: 1).write(id: 1, writer: socket as! SocketWriter)
+        case .authChallenge(let token)      : try Request.authResponse(token: token).write(id: 1, writer: socket as! SocketWriter)
+        case .error(let code, let message)  : map[id]?(nil, RCErrorType.CassandraError(Int(code), message))
+        case .result(let resultKind)        :
             switch resultKind {
             case .void                  : break
             case .schema                : print(response)
             case .keyspace              : print(response)
             case .prepared              : print(response)
-            case .rows(_, let c, let r) : map[id]?(TableObj(rows: r, headers: c),nil)
+            case .rows(_, let r)        : map[id]?(TableObj(rows: r),nil)
             }
         }
+    }
+}
+
+extension Kassandra {
+    public func setSSL(certPath: String? = nil, keyPath: String? = nil) throws {
+        
+        let SSLConfig = SSLService.Configuration(withCACertificateDirectory: nil, usingCertificateFile: certPath, withKeyFile: keyPath)
+        
+        config.SSLConfig = SSLConfig
+
+        socket?.delegate = try SSLService(usingConfiguration: SSLConfig)
+    }
+    
+    public func setSSL(with ChainFilePath: String, usingSelfSignedCert: Bool) throws {
+        
+        let SSLConfig = SSLService.Configuration(withChainFilePath: ChainFilePath, usingSelfSignedCerts: usingSelfSignedCert)
+        
+        config.SSLConfig = SSLConfig
+
+        socket?.delegate = try SSLService(usingConfiguration: SSLConfig)
+    }
+    
+    public func setSSL(with CACertificatePath: String?, using CertificateFile: String?, with KeyFile: String?, selfSignedCerts: Bool) throws {
+        
+        let SSLConfig = SSLService.Configuration(withCACertificateFilePath: CACertificatePath,
+                                                 usingCertificateFile: CertificateFile,
+                                                 withKeyFile: KeyFile,
+                                                 usingSelfSignedCerts: selfSignedCerts)
+        config.SSLConfig = SSLConfig
+
+        socket?.delegate = try SSLService(usingConfiguration: SSLConfig)
     }
 }
 
@@ -196,7 +224,11 @@ extension Kassandra {
 extension Kassandra {
     subscript(_ database: String) -> Bool {
         do {
-            try Request.query(query: Query("USE \(database);")).write(id: 0, writer: socket!)
+            let request = Raw(query: "USE \(database);")
+
+            let r = Request.query(using: request)
+            
+            try r.write(id: 0, writer: socket as! SocketWriter)
 
         } catch {
             return false
