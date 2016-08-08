@@ -16,6 +16,7 @@
 
 import Foundation
 import Socket
+import SSLService
 
 public class Kassandra {
     
@@ -185,6 +186,37 @@ extension Kassandra {
             case .rows(_, let r)        : map[id]?(TableObj(rows: r),nil)
             }
         }
+    }
+}
+
+extension Kassandra {
+    public func setSSL(certPath: String? = nil, keyPath: String? = nil) throws {
+        
+        let SSLConfig = SSLService.Configuration(withCACertificateDirectory: nil, usingCertificateFile: certPath, withKeyFile: keyPath)
+        
+        config.SSLConfig = SSLConfig
+
+        socket?.delegate = try SSLService(usingConfiguration: SSLConfig)
+    }
+    
+    public func setSSL(with ChainFilePath: String, usingSelfSignedCert: Bool) throws {
+        
+        let SSLConfig = SSLService.Configuration(withChainFilePath: ChainFilePath, usingSelfSignedCerts: usingSelfSignedCert)
+        
+        config.SSLConfig = SSLConfig
+
+        socket?.delegate = try SSLService(usingConfiguration: SSLConfig)
+    }
+    
+    public func setSSL(with CACertificatePath: String?, using CertificateFile: String?, with KeyFile: String?, selfSignedCerts: Bool) throws {
+        
+        let SSLConfig = SSLService.Configuration(withCACertificateFilePath: CACertificatePath,
+                                                 usingCertificateFile: CertificateFile,
+                                                 withKeyFile: KeyFile,
+                                                 usingSelfSignedCerts: selfSignedCerts)
+        config.SSLConfig = SSLConfig
+
+        socket?.delegate = try SSLService(usingConfiguration: SSLConfig)
     }
 }
 

@@ -107,41 +107,45 @@ class KassandraTests: XCTestCase {
         //TodoItem.
         sleep(1)
         try TodoItem.insert([.type: "todo", .userID: 2,.title: "Chia", .pos: 2, .completed: false]).execute(oncompletion: ErrorHandler)
-        try TodoItem.insert([.type: "todo", .userID: 3,.title: "Thor", .pos: 3, .completed: true]).execute(oncompletion: ErrorHandler) ; sleep(1)
-        TodoItem.select().limited(to: 2).execute()
-            .then { table in
-                print(table)
-            }.fail { error in
-                print(error)
-            }
+        try TodoItem.insert([.type: "todo", .userID: 3,.title: "Thor", .pos: 3, .completed: true]).execute(oncompletion: ErrorHandler)
         sleep(1)
-        try TodoItem.update([.completed: true], conditions: [.userID: 2]).execute(oncompletion: ErrorHandler) ; sleep(1)
-        TodoItem.select().execute()
+        TodoItem.select().limited(to: 2).filter(by: "type" == "todo" && "userID" == 3).execute()
             .then { table in
                 print(table)
-            }.fail { error in
-                print(error)
-            }
-        TodoItem.count().execute()
-            .then { table in
-                print(table)
-            }.fail { error in
-                print(error)
-            }
-        sleep(1)
-        try TodoItem.delete(where: [.userID: 2]).execute(oncompletion: ErrorHandler) ; sleep(1)
-        TodoItem.select().execute()
-            .then { table in
-                print(table)
-            }.fail { error in
-                print(error)
-            }
-        try TodoItem.truncate().execute(oncompletion: ErrorHandler) ; sleep(1)
-        
-        
-        TodoItem.select().execute()
-            .then { table in
-                print(table)
+                
+                do { try TodoItem.update([.completed: true], conditions: [.userID: 2]).execute(oncompletion: self.ErrorHandler) } catch {}
+                
+                TodoItem.select().execute()
+                    .then { table in
+                        print(table)
+                        TodoItem.count().execute()
+                            .then { table in
+                                print(table)
+
+                                do { try TodoItem.delete(where: [.userID: 2]).execute(oncompletion: self.ErrorHandler) }catch {}
+
+                                TodoItem.select().execute()
+                                    .then { table in
+                                        print(table)
+                                        
+                                        do { try TodoItem.truncate().execute(oncompletion: self.ErrorHandler) } catch {}
+
+                                        TodoItem.select().execute()
+                                            .then { table in
+                                                print(table)
+                                            }.fail { error in
+                                                print(error)
+                                        }
+                                    }.fail { error in
+                                        print(error)
+                                }
+
+                            }.fail { error in
+                                print(error)
+                        }
+                    }.fail { error in
+                        print(error)
+                }
             }.fail { error in
                 print(error)
             }

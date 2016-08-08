@@ -20,8 +20,6 @@ public protocol Query {
     func pack() -> Data
 }
 
-//private typealias Field: String
-
 extension Query {
 
     public func execute() -> Promise<TableObj> {
@@ -79,9 +77,11 @@ public struct Select: Query {
     let tableName: String
     
     let fields: [String]
-
+    
     var order: [String: Order]? = nil
     
+    var conditions: Predicate? = nil
+
     var limitResultCount: Int? = nil
     
     var sqlfunction: SQLFunction<String>? = nil
@@ -98,7 +98,7 @@ public struct Select: Query {
     public func ordered(by predicate: [String: Order]) -> Select {
         var new = self
         new.order(by: predicate)
-        return new
+        return self
     }
 
     private mutating func limit(to newLimit: Int) {
@@ -108,10 +108,16 @@ public struct Select: Query {
     public func limited(to newLimit: Int) -> Select {
         var new = self
         new.limit(to: newLimit)
-        return new
+        return self
     }
 
-    public func filter(by: [String: Any]) -> Select {
+    public mutating func filtered(by conditions: Predicate) {
+        self.conditions = conditions
+    }
+
+    public func filter(by conditions: Predicate) -> Select {
+        var new = self
+        new.filtered(by: conditions)
         return self
     }
 
@@ -136,7 +142,9 @@ public struct Select: Query {
                 (str += "\(fields.joined(separator: " ")) FROM \(tableName)")
         }
         
-        
+        if let cond = conditions {
+            str += " WHERE " + cond.str
+        }
         if let order = order {
             str += " ORDER BY " + order.map {key, val in "\(key) \(val.rawValue)" }.joined(separator: ", ")
         }
@@ -245,3 +253,5 @@ public struct Raw: Query {
         return data
     }
 }
+
+

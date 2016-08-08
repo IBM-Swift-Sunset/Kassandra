@@ -219,6 +219,9 @@ extension Data {
     var decodeSDataString: String {
         return String(data: self, encoding: String.Encoding.utf8) ?? "NULL"
     }
+    var decodeAsciiString: String {
+        return String(data: self, encoding: String.Encoding.ascii) ?? "NULL"
+    }
     var decodeStringMap: [String: [String]] {
         mutating get {
             var map = [String: [String]]()
@@ -332,10 +335,10 @@ extension Data {
                     
                     //NOTE: Convert value to appropriate type here or leave as data?
                     switch headers[i].type! {
-                    case .custom     : values.append(value.decodeInt)
-                    case .ASCII      : values.append(value.decodeInt)
+                    case .custom     : break //values.append(value.decodeInt)
+                    case .ASCII      : values.append(value.decodeAsciiString)
                     case .bigInt     : values.append(value.decodeBigInt)
-                    case .blob       : values.append(value.decodeInt)
+                    case .blob       : break //values.append(value.decodeInt)
                     case .boolean    : values.append(value.decodeBool)
                     case .counter    : values.append(value.decodeInt)
                     case .decimal    : values.append(value.decodeInt)
