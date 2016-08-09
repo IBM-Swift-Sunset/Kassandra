@@ -54,6 +54,13 @@ public enum Order: String {
     case ASC = "ASC"
     case DESC = "DESC"
 }
+public enum Flags: Byte {
+    case none = 0x00
+    case compression = 0x01
+    case tracing = 0x02
+    case all = 0x03
+    
+}
 public enum SQLFunction<T> {
     case max([T])
     case min([T])
@@ -85,10 +92,15 @@ public struct Select: Query {
     var limitResultCount: Int? = nil
     
     var sqlfunction: SQLFunction<String>? = nil
+    
+    var consistency: Consistency
+    
+    var flags: Flags = .none
 
-    public init(_ fields: [String], from tableName: String) {
+    public init(_ fields: [String], from tableName: String, consistency: Consistency = .quorum) {
         self.fields = fields
         self.tableName = tableName
+        self.consistency = consistency
     }
     
     private mutating func order(by predicate: [String: Order]) {
@@ -120,13 +132,24 @@ public struct Select: Query {
         new.filtered(by: conditions)
         return self
     }
+    
+    public mutating func set(consistency: Consistency = .any, flags: Flags = .none) {
+        self.flags = flags
+        self.consistency = consistency
+    }
+
+    public func with(consistency: Consistency = .any, flags: Flags = .none) -> Select {
+        var new = self
+        new.set(consistency: consistency, flags: flags)
+        return self
+    }
 
     public func pack() -> Data {
         var data = Data()
         
         data.append(buildQueryString.sData)
-        data.append(Consistency.one.rawValue.data)
-        data.append(0x00.data)
+        data.append(consistency.rawValue.data)
+        data.append(flags.rawValue.data)
         
         return data
     }
@@ -161,16 +184,33 @@ public struct Update: Query {
     let tableName: String
     
     let newValues: [String: Any]
+
     var conditions: Predicate
     
-    public init(to newValues: [String: Any], in tableName: String, where predicate: Predicate) {
+    var consistency: Consistency
+    
+    var flags: Flags = .none
+
+    public init(to newValues: [String: Any], in tableName: String, where predicate: Predicate, consistency: Consistency = .any) {
         self.newValues = newValues
         self.tableName = tableName
         self.conditions = predicate
+        self.consistency = consistency
     }
     
     public mutating func filter(by predicate: Predicate){
         conditions = predicate
+    }
+
+    public mutating func set(consistency: Consistency = .any, flags: Flags = .none) {
+        self.flags = flags
+        self.consistency = consistency
+    }
+    
+    public func with(consistency: Consistency = .any, flags: Flags = .none) -> Update {
+        var new = self
+        new.set(consistency: consistency, flags: flags)
+        return self
     }
 
     public func pack() -> Data {
@@ -182,8 +222,8 @@ public struct Update: Query {
         data.append(("UPDATE \(tableName) SET \(vals) WHERE \(conds);").sData)
         
 
-        data.append(Consistency.one.rawValue.data)
-        data.append(0x00.data)
+        data.append(consistency.rawValue.data)
+        data.append(flags.rawValue.data)
         
         return data
     }
@@ -195,19 +235,35 @@ public struct Delete: Query {
     
     let conditions: Predicate
     
-    public init(from tableName: String, where condition: Predicate) {
+    var consistency: Consistency
+
+    var flags: Flags = .none
+
+    public init(from tableName: String, where condition: Predicate, consistency: Consistency = .any) {
         self.conditions = condition
         self.tableName = tableName
+        self.consistency = consistency
+    }
+
+    public mutating func set(consistency: Consistency = .any, flags: Flags = .none) {
+        self.flags = flags
+        self.consistency = consistency
     }
     
+    public func with(consistency: Consistency = .any, flags: Flags = .none) -> Delete {
+        var new = self
+        new.set(consistency: consistency, flags: flags)
+        return self
+    }
+
     public func pack() -> Data {
         var data = Data()
 
         let conds = conditions.str
         
         data.append(("DELETE FROM \(tableName) WHERE \(conds);").sData)
-        data.append(Consistency.one.rawValue.data)
-        data.append(0x00.data)
+        data.append(consistency.rawValue.data)
+        data.append(flags.rawValue.data)
         
         return data
     }
@@ -218,14 +274,26 @@ public struct Insert: Query {
     
     let fields: [String: Any]
     
-    public init(_ fields: [String: Any], into tableName: String) {
+    var consistency: Consistency
+
+    var flags: Flags = .none
+
+    public init(_ fields: [String: Any], into tableName: String, consistency: Consistency = .any) {
         self.fields = fields
         self.tableName = tableName
+        self.consistency = consistency
     }
     
-    /*init(mirror: Mirror, into tableName: String) {
-        
-    }*/
+    public mutating func set(consistency: Consistency = .any, flags: Flags = .none) {
+        self.flags = flags
+        self.consistency = consistency
+    }
+    
+    public func with(consistency: Consistency = .any, flags: Flags = .none) -> Insert {
+        var new = self
+        new.set(consistency: consistency, flags: flags)
+        return self
+    }
     
     public func pack() -> Data {
         var data = Data()
@@ -234,21 +302,42 @@ public struct Insert: Query {
         let vals = packValues(fields)
         
         data.append(("INSERT INTO \(tableName) (\(keys)) VALUES(\(vals));").sData)
-        data.append(Consistency.one.rawValue.data)
-        data.append(0x00.data)
+        data.append(consistency.rawValue.data)
+        data.append(flags.rawValue.data)
         
         return data
     }
 }
 public struct Raw: Query {
+
     let query: String
+
+    var consistency: Consistency
+
+    var flags: Flags = .none
+
+    init(query: String, consistency: Consistency = .one) {
+        self.query = query
+        self.consistency = consistency
+    }
+
+    public mutating func set(consistency: Consistency = .any, flags: Flags = .none) {
+        self.flags = flags
+        self.consistency = consistency
+    }
     
+    public func with(consistency: Consistency = .any, flags: Flags = .none) -> Raw {
+        var new = self
+        new.set(consistency: consistency, flags: flags)
+        return self
+    }
+
     public func pack() -> Data {
         var data = Data()
     
         data.append(query.sData)
-        data.append(Consistency.one.rawValue.data)
-        data.append(0x00.data)
+        data.append(consistency.rawValue.data)
+        data.append(flags.rawValue.data)
         
         return data
     }

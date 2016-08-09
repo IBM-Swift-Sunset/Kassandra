@@ -17,12 +17,6 @@
 import Foundation
 import Socket
 
-extension SocketWriter {
-    func write(from data: Data) throws {
-        try self.write(from: NSData(data: data))
-    }
-}
-
 extension Bool: Convertible {
     
     var toUInt8: UInt8 {
