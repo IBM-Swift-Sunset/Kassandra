@@ -54,8 +54,8 @@ public enum Response: CustomStringConvertible {
         case .supported     : self = .supported(by: body.decodeStringMap)
         case .result        : self = .result(of: Kind(body: body))
         case .authChallenge : self = .authChallenge(with: body.decodeInt)
-        case .authenticate  : self = .authenticate(with: body.decodeString)
-        case .error         : self = .error(code: body.decodeInt, message: body.decodeString)
+        case .authenticate  : self = .authenticate(with: body.decodeSString)
+        case .error         : self = .error(code: body.decodeInt, message: body.decodeSString)
         case .event         : self = body.decodeEventResponse
         }
     }

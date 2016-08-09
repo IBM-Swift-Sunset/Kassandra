@@ -78,11 +78,11 @@ public class Kassandra {
         try executeHandler(request, oncompletion: oncompletion)
     }
 
-    internal func execute(_ request: Request, oncompletion: ((Error?) -> Void)) throws {
+    public func execute(_ request: Request, oncompletion: ((Error?) -> Void)) throws {
         try executeHandler(request, oncompletionError: oncompletion)
     }
 
-    internal func execute(_ request: Request, oncompletion: ((TableObj?, Error?) -> Void)) throws {
+    public func execute(_ request: Request, oncompletion: ((TableObj?, Error?) -> Void)) throws {
         try executeHandler(request, oncompletion: oncompletion)
     }
     private func executeHandler(_ request: Request, oncompletion: ((TableObj?, Error?) -> Void)? = nil,
@@ -94,7 +94,7 @@ public class Kassandra {
         writeQueue.async {
             do {
                 
-                let id = UInt16(random: true)
+                let id = UInt16.random
                 
                 if let oncomp = oncompletion { self.map[id] = oncomp }
                 if let oncomp = oncompletionError { self.awaitingResult[id] = oncomp }

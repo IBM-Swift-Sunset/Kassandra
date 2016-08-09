@@ -26,7 +26,7 @@ extension Bool: Convertible {
 
 extension String: Convertible {
 
-    var data: Data {
+    var shortStringData: Data {
         var array = Data()
         
         let utf = self.data(using: String.Encoding.utf8)!
@@ -36,7 +36,7 @@ extension String: Convertible {
         return array
     }
     
-    var sData: Data {   // long string
+    var longStringData: Data {   // long string
         var array = Data()
         
         let utf = self.data(using: String.Encoding.utf8)!
@@ -78,12 +78,7 @@ extension Int: Convertible {
         return encLength
     }
     var data: Data {
-        var data = Data(capacity: 4)
-        data.append(UInt8(self >> 24).data)
-        data.append(UInt8(self >> 16).data)
-        data.append(UInt8(self >> 8).data)
-        data.append(UInt8(self).data)
-        return data
+        return Data(bytes: [UInt8(self >> 24), UInt8(self >> 16), UInt8(self >> 8), UInt8(self)], count: 4)
     }
 }
 
@@ -103,11 +98,13 @@ extension UInt8: Convertible {
 }
 
 extension UInt16: Convertible {
-
-    init(random: Bool) {
-        var r: UInt16 = 0
-        arc4random_buf(&r, MemoryLayout<UInt16>.size)
-        self = r
+    
+    static var random: UInt16 {
+        #if os(Linux)
+            return UInt16(rand() % Int32(UInt16.max))
+        #else
+            return UInt16(arc4random_uniform(UInt32(UInt16(max))))
+        #endif
     }
     
     init(msb: UInt8, lsb: UInt8) {
@@ -115,19 +112,11 @@ extension UInt16: Convertible {
     }
     
     var data: Data {
-        var data = Data()
-        var bytes: [UInt8] = [0x00, 0x00]
-        bytes[0] = UInt8(self >> 8)
-        bytes[1] = UInt8(self & 0x00ff)
-        data.append(Data(bytes: bytes, count: 2))
-        return data
+        return Data(bytes: self.UInt8s, count: 2)
     }
     
     var UInt8s: [UInt8] {
-        var UInt8s: [UInt8] = [0x00, 0x00]
-        UInt8s[0] = UInt8(self >> 8)
-        UInt8s[1] = UInt8(self & 0x00ff)
-        return UInt8s
+        return [UInt8(self >> 8), UInt8(self & 0x00ff)]
     }
 }
 
@@ -135,10 +124,7 @@ extension Double: Convertible {}
 extension Float: Convertible {}
 extension UInt32 {
     var data: Data {
-        var data = Data()
-        let bytes: [UInt8] = [UInt8(self >> 24), UInt8(self >> 16),UInt8(self >> 8),UInt8(self)]
-        data.append(Data(bytes: bytes, count: 4))
-        return Data()
+        return Data(bytes: [UInt8(self >> 24), UInt8(self >> 16),UInt8(self >> 8),UInt8(self)], count: 4)
     }
 }
 extension UInt64 {
@@ -156,12 +142,19 @@ extension Date {
     }
 }
 extension Data {
-    
+
+    var decodeBlob: [UInt8] {
+        mutating get {
+            return self.filter{ _ in return true }
+        }
+    }
+
     var decodeBool: Bool {
         mutating get {
             return self.decodeUInt8 == 0x0001 ? true : false
         }
     }
+
     var decodeUInt8: UInt8 {
         mutating get {
             let uint = UInt8(self[0])
@@ -169,6 +162,7 @@ extension Data {
             return uint
         }
     }
+
     var decodeUInt16: UInt16 {
         mutating get {
             let uint = UInt16(msb: self[0], lsb: self[1])
@@ -176,6 +170,7 @@ extension Data {
             return uint
         }
     }
+
     var decodeInt: Int {
         mutating get {
             let u = Int(self.decodeUInt16) << 16
@@ -184,6 +179,7 @@ extension Data {
             return u | l
         }
     }
+
     var decodeInt32: Int32 {
         mutating get {
             let u = Int32(self.decodeUInt16) << 16
@@ -192,68 +188,84 @@ extension Data {
             return u | l
         }
     }
+
     var decodeBigInt: Int64 {
         mutating get {
-            let byte1 = Int64(self.decodeInt) << 32
-            let byte2 = Int64(self.decodeInt)
-            return byte1 | byte2
+            let u = Int64(self.decodeInt) << 32
+            let l = Int64(self.decodeInt)
+            return u | l
         }
     }
+
     var decodeDouble: Double {
         mutating get {
-            let byte1 = Int64(self.decodeInt) << 32
-            let byte2 = Int64(self.decodeInt)
-            return Double(byte1 | byte2)
+            let u = Int64(self.decodeInt) << 32
+            let l = Int64(self.decodeInt)
+            return Double(u | l)
         }
     }
+
     var decodeFloat: Float {
         mutating get {
-            let byte1 = self.decodeInt
-            return Float(byte1)
+            let u = self.decodeInt
+            return Float(u)
         }
     }
+
     var decodeVarInt: Int {
         mutating get {
             return 1
         }
     }
+
     var decodeInet: (String, Int) {
         mutating get {
             let size = Int(self.decodeUInt8)
             var host = self.subdata(in: Range(0..<size))
             var port = self.subdata(in: Range(size..<self.count))
-            return (host.decodeString, port.decodeInt)
+            return (host.decodeSString, port.decodeInt)
         }
         
     }
-    var decodeTimeStamp: Date {
-        let _: Date = Date()
-        return Date()
-    }
-    var decodeString: String {
+
+    // Decode Cassandra <String>
+    var decodeSString: String {
         mutating get {
             let length = UInt16(msb: self[0], lsb: self[1])
             let str = self.subdata(in: Range(2..<2 + Int(length)))
             self = self.subdata(in: Range(2 + Int(length)..<self.count))
-            return String(data: str, encoding: String.Encoding.utf8)!
+            return str.decodeHeaderlessString
         }
     }
-    var decodeSDataString: String {
+    
+    // Decode Cassandra <Long String>
+    var decodeLString: String {
+        mutating get {
+            let length = self.decodeInt
+            let str = self.subdata(in: Range(2..<2 + length))
+            self = self.subdata(in: Range(2 + length..<self.count))
+            return str.decodeHeaderlessString
+        }
+    }
+
+    var decodeHeaderlessString: String {
         return String(data: self, encoding: String.Encoding.utf8) ?? "NULL"
     }
+
     var decodeAsciiString: String {
         return String(data: self, encoding: String.Encoding.ascii) ?? "NULL"
     }
+    
     var decodeStringMap: [String: [String]] {
         mutating get {
             var map = [String: [String]]()
             
             for _ in 0..<Int(self.decodeUInt16) {
-                let key = self.decodeString
+                let key = self.decodeSString
 
                 var strList = [String]()
                 for _ in 0..<Int(self.decodeUInt16) {
-                    strList.append(self.decodeString)
+                    strList.append(self.decodeSString)
                 }
                 
                 map[key] = strList
@@ -261,33 +273,44 @@ extension Data {
             return map
         }
     }
+    
+    var decodeTimeStamp: Date {
+        let _: Date = Date()
+        return Date()
+    }
+    
+    var decodeUUID: UUID {
+        return UUID(uuidString: self.decodeHeaderlessString)!
+    }
+
     var decodeEventResponse: Response {
         mutating get {
-            switch self.decodeString {
+            switch self.decodeSString {
             case "TOPOLOGY_CHANGE":
-                let changeType = self.decodeString
+                let changeType = self.decodeSString
                 let inet       = self.decodeInet
                 return .event(of: .topologyChange(type: changeType, inet: inet))
             case "STATUS_CHANGE":
-                let changeType = self.decodeString
+                let changeType = self.decodeSString
                 let inet       = self.decodeInet
                 return .event(of: .statusChange(type: changeType, inet: inet))
             case "SCHEMA_CHANGE":
-                let changeType = self.decodeString
-                let target     = self.decodeString
+                let changeType = self.decodeSString
+                let target     = self.decodeSString
                 
                 if target == "KeySpace" {
-                    let options  = self.decodeString
+                    let options  = self.decodeSString
                     return .event(of: .schemaChange(type: changeType, target: target, changes: .options(with: options)))
                 } else {
-                    let keyspace = self.decodeString
-                    let objName  = self.decodeString
+                    let keyspace = self.decodeSString
+                    let objName  = self.decodeSString
                     return .event(of: .schemaChange(type: changeType, target: target, changes: .keyspace(to: keyspace, withObjName: objName)))
                 }
             default: return .event(of: .error)
             }
         }
     }
+
     var decodePreparedResponse: Kind {
         mutating get {
             
@@ -300,6 +323,7 @@ extension Data {
             return Kind.prepared(id: id, metadata: meta, resMetadata: resMeta)
         }
     }
+
     var decodeMetadata: Metadata {
         mutating get {
             let flags = self.decodeInt
@@ -309,8 +333,8 @@ extension Data {
             var pagingState = Data()
             
             if flags & 0x0001 == 0x0001 {
-                globalKeySpace = self.decodeString
-                globalTableName = self.decodeString
+                globalKeySpace = self.decodeSString
+                globalTableName = self.decodeSString
             }
             
             if flags & 0x0002 == 0x0002 {
@@ -324,6 +348,7 @@ extension Data {
                 Metadata(flags: flags, count: columnCount, keyspace: globalKeySpace, table: globalTableName, rowMetadata: nil)
         }
     }
+
     var decodeRows: Kind {
         mutating get {
             let metadata = self.decodeMetadata
@@ -333,10 +358,10 @@ extension Data {
             
             for _ in 0..<metadata.columnCount {
                 if metadata.isRowHeaderPresent {
-                    let _ = self.decodeString //ksname
-                    let _ = self.decodeString //tablename
+                    let _ = self.decodeSString //ksname
+                    let _ = self.decodeSString //tablename
                 }
-                headers.append(HeaderKey(field: self.decodeString, type: DataType(rawValue: Int(self.decodeUInt16))!))
+                headers.append(HeaderKey(field: self.decodeSString, type: DataType(rawValue: Int(self.decodeUInt16))!))
             }
             
             // Parse Row Content
@@ -357,22 +382,22 @@ extension Data {
                     
                     //NOTE: Convert value to appropriate type here or leave as data?
                     switch headers[i].type! {
-                    case .custom     : break //values.append(value.decodeInt)
+                    case .custom     : values.append(value.decodeHeaderlessString)
                     case .ASCII      : values.append(value.decodeAsciiString)
                     case .bigInt     : values.append(value.decodeBigInt)
-                    case .blob       : break //values.append(value.decodeInt)
+                    case .blob       : values.append(value.decodeBlob)
                     case .boolean    : values.append(value.decodeBool)
                     case .counter    : values.append(value.decodeInt)
                     case .decimal    : values.append(value.decodeInt)
                     case .double     : values.append(value.decodeDouble)
                     case .float      : values.append(value.decodeFloat)
                     case .int        : values.append(value.decodeInt)
-                    case .text       : values.append(value.decodeSDataString)
-                    case .timestamp  : values.append(value.decodeInt)
-                    case .uuid       : values.append(value.decodeInt)
-                    case .varChar    : values.append(value.decodeSDataString)
+                    case .text       : values.append(value.decodeHeaderlessString)
+                    case .timestamp  : values.append(value.decodeTimeStamp)
+                    case .uuid       : values.append(value.decodeUUID)
+                    case .varChar    : values.append(value.decodeHeaderlessString)
                     case .varInt     : values.append(value.decodeInt)
-                    case .timeUuid   : values.append(value.decodeInt)
+                    case .timeUUID   : values.append(value.decodeUUID)
                     case .inet       : values.append(value.decodeInt)
                     case .list       : values.append(value.decodeInt)
                     case .map        : values.append(value.decodeInt)

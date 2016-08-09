@@ -39,9 +39,9 @@ public enum Kind {
         
         switch type {
         case 2 : self = body.decodeRows
-        case 3 : self = .keyspace(name: body.decodeString)
+        case 3 : self = .keyspace(name: body.decodeSString)
         case 4 : self = body.decodePreparedResponse
-        case 5 : self = .schema(type: body.decodeString, target: body.decodeString, options: body.decodeString)
+        case 5 : self = .schema(type: body.decodeSString, target: body.decodeSString, options: body.decodeSString)
         default: self = .void
         }
     }

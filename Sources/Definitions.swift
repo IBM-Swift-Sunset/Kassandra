@@ -58,7 +58,7 @@ public enum DataType: Int {
     case uuid       = 0x000C
     case varChar    = 0x000D
     case varInt     = 0x000E
-    case timeUuid   = 0x000F
+    case timeUUID   = 0x000F
     case inet       = 0x0010
     case list       = 0x0020
     case map        = 0x0021

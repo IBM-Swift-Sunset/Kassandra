@@ -48,8 +48,8 @@ public enum Request {
             body.append(UInt16(options.count).data)
             
             for (key, value) in options {
-                body.append(key.data)
-                body.append(value.data)
+                body.append(key.shortStringData)
+                body.append(value.shortStringData)
             }
             
         case .register(let events)  :
@@ -57,7 +57,7 @@ public enum Request {
             body.append(events.count.data)
             
             for event in events {
-                body.append(event.data)
+                body.append(event.shortStringData)
             }
             
         case .batch(let queries, let Sflags, let consistency):

@@ -97,7 +97,7 @@ public struct Select: Query {
     
     var flags: Flags = .none
 
-    public init(_ fields: [String], from tableName: String, consistency: Consistency = .quorum) {
+    public init(_ fields: [String], from tableName: String, consistency: Consistency = .one) {
         self.fields = fields
         self.tableName = tableName
         self.consistency = consistency
@@ -147,7 +147,7 @@ public struct Select: Query {
     public func pack() -> Data {
         var data = Data()
         
-        data.append(buildQueryString.sData)
+        data.append(buildQueryString.longStringData)
         data.append(consistency.rawValue.data)
         data.append(flags.rawValue.data)
         
@@ -219,7 +219,7 @@ public struct Update: Query {
         let vals  = packPairs(newValues)
         let conds = conditions.str
 
-        data.append(("UPDATE \(tableName) SET \(vals) WHERE \(conds);").sData)
+        data.append(("UPDATE \(tableName) SET \(vals) WHERE \(conds);").longStringData)
         
 
         data.append(consistency.rawValue.data)
@@ -261,7 +261,7 @@ public struct Delete: Query {
 
         let conds = conditions.str
         
-        data.append(("DELETE FROM \(tableName) WHERE \(conds);").sData)
+        data.append(("DELETE FROM \(tableName) WHERE \(conds);").longStringData)
         data.append(consistency.rawValue.data)
         data.append(flags.rawValue.data)
         
@@ -301,7 +301,7 @@ public struct Insert: Query {
         let keys = packKeys(fields)
         let vals = packValues(fields)
         
-        data.append(("INSERT INTO \(tableName) (\(keys)) VALUES(\(vals));").sData)
+        data.append(("INSERT INTO \(tableName) (\(keys)) VALUES(\(vals));").longStringData)
         data.append(consistency.rawValue.data)
         data.append(flags.rawValue.data)
         
@@ -335,7 +335,7 @@ public struct Raw: Query {
     public func pack() -> Data {
         var data = Data()
     
-        data.append(query.sData)
+        data.append(query.longStringData)
         data.append(consistency.rawValue.data)
         data.append(flags.rawValue.data)
         
