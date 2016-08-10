@@ -89,6 +89,15 @@ public enum Flags: Byte {
     case all = 0x03
     
 }
+public enum QueryFlags {
+    case values             // 0x01
+    case skipMetadata       // 0x02
+    case pageSize(Int)      // 0x04
+    case withPagingState    // 0x08
+    case withSerialConsistency // 0x10
+    case withTimestamp      //0x20
+    case withValueNames     //0x40
+}
 public enum SQLFunction<T> {
     case max([T])
     case min([T])
@@ -138,7 +147,7 @@ public struct Select: Query {
     public func ordered(by predicate: [String: Order]) -> Select {
         var new = self
         new.order(by: predicate)
-        return self
+        return new
     }
 
     private mutating func limit(to newLimit: Int) {
@@ -148,7 +157,7 @@ public struct Select: Query {
     public func limited(to newLimit: Int) -> Select {
         var new = self
         new.limit(to: newLimit)
-        return self
+        return new
     }
 
     public mutating func filtered(by conditions: Predicate) {
@@ -158,7 +167,7 @@ public struct Select: Query {
     public func filter(by conditions: Predicate) -> Select {
         var new = self
         new.filtered(by: conditions)
-        return self
+        return new
     }
     
     public mutating func set(consistency: Consistency = .any, flags: Flags = .none) {
@@ -169,7 +178,7 @@ public struct Select: Query {
     public func with(consistency: Consistency = .any, flags: Flags = .none) -> Select {
         var new = self
         new.set(consistency: consistency, flags: flags)
-        return self
+        return new
     }
 
     public func pack() -> Data {
@@ -251,7 +260,7 @@ public struct Update: Query {
     public func with(consistency: Consistency = .any, flags: Flags = .none) -> Update {
         var new = self
         new.set(consistency: consistency, flags: flags)
-        return self
+        return new
     }
 
     public func pack() -> Data {
@@ -310,7 +319,7 @@ public struct Delete: Query {
     public func with(consistency: Consistency = .any, flags: Flags = .none) -> Delete {
         var new = self
         new.set(consistency: consistency, flags: flags)
-        return self
+        return new
     }
 
     public func pack() -> Data {
@@ -360,7 +369,7 @@ public struct Insert: Query {
     public func with(consistency: Consistency = .any, flags: Flags = .none) -> Insert {
         var new = self
         new.set(consistency: consistency, flags: flags)
-        return self
+        return new
     }
     
     public func pack() -> Data {
@@ -412,7 +421,7 @@ public struct Raw: Query {
     public func with(consistency: Consistency = .any, flags: Flags = .none) -> Raw {
         var new = self
         new.set(consistency: consistency, flags: flags)
-        return self
+        return new
     }
 
     public func pack() -> Data {
