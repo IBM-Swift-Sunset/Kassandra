@@ -31,7 +31,7 @@ public class Promise<T> : Finishable {
     
     var rejected: Bool = false
     
-    var error: Error = RCErrorType.GenericError("")
+    var error: Error = ErrorType.GenericError("")
 
     public class func deferred() -> Promise {
         return Promise<T>()

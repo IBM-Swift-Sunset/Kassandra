@@ -52,15 +52,14 @@ public extension Model {
         }
         Insert(values, into: Self.tableName).execute()
             .then {
-                table in
-                print(table)
-                    p.resolve()( Self.init(row: table.rows.first!) )
+                (table: TableObj) in
+                
+                p.resolve()( self )
             
             }
             .fail {
                 error in
                 p.reject(dueTo: error)
-                //p.resolve()()
             }
         
         return p
@@ -71,8 +70,9 @@ public extension Model {
 
         Delete(from: Self.tableName, where: "id" == key!).execute()
             .then {
-                table in
-                p.resolve()( Self.init(row: table.rows[0]) )
+                (table: TableObj) in
+
+                p.resolve()( self )
                 
             }.fail {
                 error in
@@ -83,26 +83,20 @@ public extension Model {
     
     public func create() throws {
 
-        let values: [String: Any] = mirror.children.reduce([:]) { acc, child in
-            var ret = acc
-            ret[child.label!] = child.value
-            return ret
-        }
- 
         let vals = packColumnData(key: String(describing: Self.primaryKey), mirror: mirror)
 
-        try Raw(query: "CREATE TABLE \(Self.tableName)(\(vals));").execute {
-            (err: Error?) in
-            
-            if err != nil { return }
-            else {
-                do {
-                    try Insert(values, into: Self.tableName).execute { (err: Error?) in }
-                } catch {
-                    
+        Raw(query: "CREATE TABLE \(Self.tableName)(\(vals));").execute()
+            .then {
+                (state: Status) in
+                switch state {
+                case .success: print("Table Created")
+                case .failure(let error): print(error)
                 }
             }
-        }
+            .fail {
+                error in
+                
+            }
     }
     
     public static func fetch(_ fields: [Field] = []) -> Promise<[Self]> {

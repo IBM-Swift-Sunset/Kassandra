@@ -18,9 +18,37 @@ import Foundation
 
 public protocol Query {
     func pack() -> Data
+    func packQuery() -> Data
+    func packParameters() -> Data
 }
-
+public enum Status {
+    case success
+    case failure(Error)
+}
 extension Query {
+    public func execute() -> Promise<Status> {
+        let p = Promise<Status>.deferred()
+        
+        let request: Request = .query(using: self)
+        
+        do {
+            try config.connection?.execute(request) {
+                result in
+                
+                switch result {
+                case .error(let error): p.reject(dueTo: error)
+                case .void: p.resolve()(Status.success)
+                default : p.reject(dueTo: ErrorType.IOError)
+                }
+                
+            }
+        } catch {
+            p.reject(dueTo: error)
+            
+        }
+        
+        return p
+    }
 
     public func execute() -> Promise<TableObj> {
         let p = Promise<TableObj>.deferred()
@@ -29,10 +57,17 @@ extension Query {
         
         do {
             try config.connection?.execute(request) {
-                result, error in
+                result in
                 
-                if let error = error { p.reject(dueTo: error) }
-                if let res = result { p.resolve()(res) }
+                switch result {
+                case .error(let error): p.reject(dueTo: error)
+                case .kind(let res):
+                    switch res {
+                    case Kind.rows(_, let r): p.resolve()(TableObj(rows: r))
+                    default: p.resolve()(TableObj(rows: []))
+                    }
+                default: p.reject(dueTo: ErrorType.NoDataError)
+                }
             }
         } catch {
             p.reject(dueTo: error)
@@ -41,18 +76,27 @@ extension Query {
 
         return p
     }
-
-    public func execute(oncompletion: ((Error?) -> Void)) throws {
-        
-        let request: Request = .query(using: self)
-        
-        try config.connection?.execute(request, oncompletion: oncompletion)
-    }
 }
 
 public enum Order: String {
     case ASC = "ASC"
     case DESC = "DESC"
+}
+public enum Flags: Byte {
+    case none = 0x00
+    case compression = 0x01
+    case tracing = 0x02
+    case all = 0x03
+    
+}
+public enum QueryFlags {
+    case values             // 0x01
+    case skipMetadata       // 0x02
+    case pageSize(Int)      // 0x04
+    case withPagingState    // 0x08
+    case withSerialConsistency // 0x10
+    case withTimestamp      //0x20
+    case withValueNames     //0x40
 }
 public enum SQLFunction<T> {
     case max([T])
@@ -85,10 +129,15 @@ public struct Select: Query {
     var limitResultCount: Int? = nil
     
     var sqlfunction: SQLFunction<String>? = nil
+    
+    var consistency: Consistency
+    
+    var flags: Flags = .none
 
-    public init(_ fields: [String], from tableName: String) {
+    public init(_ fields: [String], from tableName: String, consistency: Consistency = .one) {
         self.fields = fields
         self.tableName = tableName
+        self.consistency = consistency
     }
     
     private mutating func order(by predicate: [String: Order]) {
@@ -98,7 +147,7 @@ public struct Select: Query {
     public func ordered(by predicate: [String: Order]) -> Select {
         var new = self
         new.order(by: predicate)
-        return self
+        return new
     }
 
     private mutating func limit(to newLimit: Int) {
@@ -108,7 +157,7 @@ public struct Select: Query {
     public func limited(to newLimit: Int) -> Select {
         var new = self
         new.limit(to: newLimit)
-        return self
+        return new
     }
 
     public mutating func filtered(by conditions: Predicate) {
@@ -118,15 +167,39 @@ public struct Select: Query {
     public func filter(by conditions: Predicate) -> Select {
         var new = self
         new.filtered(by: conditions)
-        return self
+        return new
+    }
+    
+    public mutating func set(consistency: Consistency = .any, flags: Flags = .none) {
+        self.flags = flags
+        self.consistency = consistency
+    }
+
+    public func with(consistency: Consistency = .any, flags: Flags = .none) -> Select {
+        var new = self
+        new.set(consistency: consistency, flags: flags)
+        return new
     }
 
     public func pack() -> Data {
         var data = Data()
         
-        data.append(buildQueryString.sData)
-        data.append(Consistency.one.rawValue.data)
-        data.append(0x00.data)
+        data.append(buildQueryString.longStringData)
+        data.append(consistency.rawValue.data)
+        data.append(flags.rawValue.data)
+        
+        return data
+    }
+
+    public func packQuery() -> Data {
+        return buildQueryString.longStringData
+    }
+
+    public func packParameters() -> Data {
+        var data = Data()
+        
+        data.append(consistency.rawValue.data)
+        data.append(flags.rawValue.data)
         
         return data
     }
@@ -161,16 +234,33 @@ public struct Update: Query {
     let tableName: String
     
     let newValues: [String: Any]
+
     var conditions: Predicate
     
-    public init(to newValues: [String: Any], in tableName: String, where predicate: Predicate) {
+    var consistency: Consistency
+    
+    var flags: Flags = .none
+
+    public init(to newValues: [String: Any], in tableName: String, where predicate: Predicate, consistency: Consistency = .any) {
         self.newValues = newValues
         self.tableName = tableName
         self.conditions = predicate
+        self.consistency = consistency
     }
     
     public mutating func filter(by predicate: Predicate){
         conditions = predicate
+    }
+
+    public mutating func set(consistency: Consistency = .any, flags: Flags = .none) {
+        self.flags = flags
+        self.consistency = consistency
+    }
+    
+    public func with(consistency: Consistency = .any, flags: Flags = .none) -> Update {
+        var new = self
+        new.set(consistency: consistency, flags: flags)
+        return new
     }
 
     public func pack() -> Data {
@@ -179,15 +269,31 @@ public struct Update: Query {
         let vals  = packPairs(newValues)
         let conds = conditions.str
 
-        data.append(("UPDATE \(tableName) SET \(vals) WHERE \(conds);").sData)
+        data.append(("UPDATE \(tableName) SET \(vals) WHERE \(conds);").longStringData)
         
 
-        data.append(Consistency.one.rawValue.data)
-        data.append(0x00.data)
+        data.append(consistency.rawValue.data)
+        data.append(flags.rawValue.data)
         
         return data
     }
-    
+
+    public func packQuery() -> Data {
+        
+        let vals  = packPairs(newValues)
+        let conds = conditions.str
+
+        return ("UPDATE \(tableName) SET \(vals) WHERE \(conds);").longStringData
+    }
+
+    public func packParameters() -> Data {
+        var data = Data()
+        
+        data.append(consistency.rawValue.data)
+        data.append(flags.rawValue.data)
+        
+        return data
+    }
 }
 public struct Delete: Query {
 
@@ -195,19 +301,46 @@ public struct Delete: Query {
     
     let conditions: Predicate
     
-    public init(from tableName: String, where condition: Predicate) {
+    var consistency: Consistency
+
+    var flags: Flags = .none
+
+    public init(from tableName: String, where condition: Predicate, consistency: Consistency = .any) {
         self.conditions = condition
         self.tableName = tableName
+        self.consistency = consistency
+    }
+
+    public mutating func set(consistency: Consistency = .any, flags: Flags = .none) {
+        self.flags = flags
+        self.consistency = consistency
     }
     
+    public func with(consistency: Consistency = .any, flags: Flags = .none) -> Delete {
+        var new = self
+        new.set(consistency: consistency, flags: flags)
+        return new
+    }
+
     public func pack() -> Data {
         var data = Data()
 
-        let conds = conditions.str
+        data.append(("DELETE FROM \(tableName) WHERE \(conditions.str);").longStringData)
+        data.append(consistency.rawValue.data)
+        data.append(flags.rawValue.data)
         
-        data.append(("DELETE FROM \(tableName) WHERE \(conds);").sData)
-        data.append(Consistency.one.rawValue.data)
-        data.append(0x00.data)
+        return data
+    }
+
+    public func packQuery() -> Data {
+        return ("DELETE FROM \(tableName) WHERE \(conditions.str);").longStringData
+    }
+
+    public func packParameters() -> Data {
+        var data = Data()
+        
+        data.append(consistency.rawValue.data)
+        data.append(flags.rawValue.data)
         
         return data
     }
@@ -218,14 +351,26 @@ public struct Insert: Query {
     
     let fields: [String: Any]
     
-    public init(_ fields: [String: Any], into tableName: String) {
+    var consistency: Consistency
+
+    var flags: Flags = .none
+
+    public init(_ fields: [String: Any], into tableName: String, consistency: Consistency = .any) {
         self.fields = fields
         self.tableName = tableName
+        self.consistency = consistency
     }
     
-    /*init(mirror: Mirror, into tableName: String) {
-        
-    }*/
+    public mutating func set(consistency: Consistency = .any, flags: Flags = .none) {
+        self.flags = flags
+        self.consistency = consistency
+    }
+    
+    public func with(consistency: Consistency = .any, flags: Flags = .none) -> Insert {
+        var new = self
+        new.set(consistency: consistency, flags: flags)
+        return new
+    }
     
     public func pack() -> Data {
         var data = Data()
@@ -233,22 +378,71 @@ public struct Insert: Query {
         let keys = packKeys(fields)
         let vals = packValues(fields)
         
-        data.append(("INSERT INTO \(tableName) (\(keys)) VALUES(\(vals));").sData)
-        data.append(Consistency.one.rawValue.data)
-        data.append(0x00.data)
+        data.append(("INSERT INTO \(tableName) (\(keys)) VALUES(\(vals));").longStringData)
+        data.append(consistency.rawValue.data)
+        data.append(flags.rawValue.data)
+        
+        return data
+    }
+
+    public func packQuery() -> Data {
+        let keys = packKeys(fields)
+        let vals = packValues(fields)
+        return ("INSERT INTO \(tableName) (\(keys)) VALUES(\(vals));").longStringData
+    }
+
+    public func packParameters() -> Data {
+        var data = Data()
+
+        data.append(consistency.rawValue.data)
+        data.append(flags.rawValue.data)
         
         return data
     }
 }
 public struct Raw: Query {
+
     let query: String
+
+    var consistency: Consistency
+
+    var flags: Flags = .none
+
+    init(query: String, consistency: Consistency = .one) {
+        self.query = query
+        self.consistency = consistency
+    }
+
+    public mutating func set(consistency: Consistency = .any, flags: Flags = .none) {
+        self.flags = flags
+        self.consistency = consistency
+    }
     
+    public func with(consistency: Consistency = .any, flags: Flags = .none) -> Raw {
+        var new = self
+        new.set(consistency: consistency, flags: flags)
+        return new
+    }
+
     public func pack() -> Data {
         var data = Data()
     
-        data.append(query.sData)
-        data.append(Consistency.one.rawValue.data)
-        data.append(0x00.data)
+        data.append(query.longStringData)
+        data.append(consistency.rawValue.data)
+        data.append(flags.rawValue.data)
+        
+        return data
+    }
+
+    public func packQuery() -> Data {
+        return query.longStringData
+    }
+
+    public func packParameters() -> Data {
+        var data = Data()
+
+        data.append(consistency.rawValue.data)
+        data.append(flags.rawValue.data)
         
         return data
     }

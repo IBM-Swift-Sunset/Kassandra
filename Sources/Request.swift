@@ -34,22 +34,26 @@ public enum Request {
     
     func write(id: UInt16, writer: SocketWriter) throws {
         var body = Data()
-        var flags: Byte = 0x00
         
         switch self {
         case .options                        : break
-        case .execute                        : break
         case .query(let query)               : body.append(query.pack())
-        case .prepare(let query)             : body.append(query.pack())
+        case .prepare(let query)             : body.append(query.packQuery())
         case .authResponse(let token)        : body.append(token.data)
+        case .execute(let qid, let params)   :
+            
+            body.append(qid.count.data)
+            body.append(Data(bytes: qid, count: qid.count))
+            body.append(params.packParameters())
+
         case .startup(var options)           :
             options["CQL_VERSION"] = "3.0.0"
             
             body.append(UInt16(options.count).data)
             
             for (key, value) in options {
-                body.append(key.data)
-                body.append(value.data)
+                body.append(key.shortStringData)
+                body.append(value.shortStringData)
             }
             
         case .register(let events)  :
@@ -57,7 +61,7 @@ public enum Request {
             body.append(events.count.data)
             
             for event in events {
-                body.append(event.data)
+                body.append(event.shortStringData)
             }
             
         case .batch(let queries, let Sflags, let consistency):
@@ -75,15 +79,11 @@ public enum Request {
             if Sflags & 0x20 == 0x20 {
                 body.append(Date.timestamp)
             }
-            
-            flags = Sflags
         }
-        
-        // Setup the Header
-        
+
         var header = Data()
         header.append(config.version)
-        header.append(flags)
+        header.append(config.flags)
         header.append(id.bigEndian.data)
         header.append(opcode)
         
@@ -102,7 +102,7 @@ public enum Request {
     
     case prepare(query: Query)
     
-    case execute(parameters: String)
+    case execute(id: [Byte], parameters: Query)
     
     case register(events: [String])
     

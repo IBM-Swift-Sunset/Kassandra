@@ -16,6 +16,13 @@
 
 import Foundation
 
+public enum Result {
+    case error(ErrorType)
+    case kind(Kind)
+    case generic([String: Any])
+    case void
+}
+
 public enum ResponseOpcodes: UInt8 {
     case error          = 0x00
     case ready          = 0x02
@@ -58,7 +65,7 @@ public enum DataType: Int {
     case uuid       = 0x000C
     case varChar    = 0x000D
     case varInt     = 0x000E
-    case timeUuid   = 0x000F
+    case timeUUID   = 0x000F
     case inet       = 0x0010
     case list       = 0x0020
     case map        = 0x0021
@@ -68,7 +75,7 @@ public enum DataType: Int {
 }
 
 /// Return Code Errore
-public enum RCErrorType: Error {
+public enum ErrorType: Error {
     case ReadError
     case WriteError
     case SerializeError
@@ -112,27 +119,39 @@ public struct Metadata {
     }
 }
 
-public struct TableObj: CustomStringConvertible {
+public struct TableObj: CustomStringConvertible, Sequence {
     
     var rows: [Row]
     
     public var description: String {
-        print("rows",rows.count)
-        var str = ""
+        var body = ""
         var len = 0
-        str += "--------+---------+----------+---------\n"
         for row in rows {
-            str += row.description + "\n"
+            body += row.description + "\n"
             if row.description.characters.count > len { len = row.description.characters.count }
         }
-        str += "--------+---------+----------+---------\n"
-        return str
+        body += String(repeating: "-", count: len)
+        var rStr = String(repeating: "-", count: len)
+        rStr += body
+        return rStr
     }
+
     init(rows: [Row]){
         self.rows = rows
     }
     
-    subscript(_ index: String) -> String {
-        return ""
+    public func makeIterator() -> Generator<Row> {
+        return Generator<Row>(array: rows)
+    }
+}
+
+public struct Generator<T> : IteratorProtocol {
+    var array: Array<T>
+    
+    mutating public func next() -> T? {
+        if array.isEmpty { return .none }
+        let element = array[0]
+        array = Array(array[1..<array.count])
+        return element
     }
 }
