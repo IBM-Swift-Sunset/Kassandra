@@ -20,17 +20,42 @@ public typealias Byte = UInt8
 
 public var config = Config.sharedInstance
 
+public enum CompressionType {
+    
+}
+
 public struct Config {
     
     let CQL_MAX_SUPPORTED_VERSION: UInt8 = 0x03
     let version: Byte = 0x03
     var connection: Kassandra? = nil
-
-    var map = [UInt16: (TableObj?, Error?) -> Void]()
-
+    
+    var flags: Byte = 0x00
+    
+    var compressFlag: Bool {
+        return (flags & 0x01) == 0x01 ? true : false
+    }
+    
+    var tracingFlag: Bool {
+        return (flags & 0x02) == 0x02 ? true : false
+    }
+    
+    var compression: CompressionType? = nil
+    
+    
     var SSLConfig: SSLService.Configuration? = nil
 
     static var sharedInstance = Config()
     
     private init(){}
+    
+    public mutating func setCompression(_ type: CompressionType) {
+        compression = type
+        flags = flags | 0x01
+    }
+
+    public mutating func setTracing() {
+        flags = flags | 0x02
+
+    }
 }

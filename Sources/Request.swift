@@ -34,7 +34,6 @@ public enum Request {
     
     func write(id: UInt16, writer: SocketWriter) throws {
         var body = Data()
-        var flags: Byte = 0x00
         
         switch self {
         case .options                        : break
@@ -80,13 +79,11 @@ public enum Request {
             if Sflags & 0x20 == 0x20 {
                 body.append(Date.timestamp)
             }
-            
-            flags = Sflags
         }
 
         var header = Data()
         header.append(config.version)
-        header.append(flags)
+        header.append(config.flags)
         header.append(id.bigEndian.data)
         header.append(opcode)
         
