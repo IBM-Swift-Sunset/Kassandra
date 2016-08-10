@@ -148,7 +148,14 @@ extension Data {
             return self.filter{ _ in return true }
         }
     }
-
+    
+    var decodeShortBytes: [UInt8] {
+        mutating get {
+            let blob = self.subdata(in: Range(2..<Int(self.decodeUInt16)))
+            self = self.subdata(in: Range(2 + blob.count..<self.count))
+            return blob.filter{ _ in return true }
+        }
+    }
     var decodeBool: Bool {
         mutating get {
             return self.decodeUInt8 == 0x0001 ? true : false
@@ -175,7 +182,7 @@ extension Data {
         mutating get {
             let u = Int(self.decodeUInt16) << 16
             let l = Int(self.decodeUInt16)
-            
+
             return u | l
         }
     }
@@ -313,13 +320,12 @@ extension Data {
 
     var decodePreparedResponse: Kind {
         mutating get {
-            
-            let id = self.decodeUInt16
-            
+            let id = self.decodeShortBytes
+
             let meta = self.decodeMetadata
-            
+
             let resMeta = self.decodeMetadata
-            
+
             return Kind.prepared(id: id, metadata: meta, resMetadata: resMeta)
         }
     }
@@ -331,19 +337,19 @@ extension Data {
             var globalKeySpace: String? = nil
             var globalTableName: String? = nil
             var pagingState = Data()
-            
+
             if flags & 0x0001 == 0x0001 {
                 globalKeySpace = self.decodeSString
                 globalTableName = self.decodeSString
             }
-            
+
             if flags & 0x0002 == 0x0002 {
                 // paging state [bytes] type
                 let length = self.decodeInt
                 pagingState = self.subdata(in: Range(0..<length))
                 self = self.subdata(in: Range(length..<self.count))
             }
-            
+
             return flags & 0x0004 == 0x0004 ? Metadata(flags: flags) :
                 Metadata(flags: flags, count: columnCount, keyspace: globalKeySpace, table: globalTableName, rowMetadata: nil)
         }
@@ -352,7 +358,7 @@ extension Data {
     var decodeRows: Kind {
         mutating get {
             let metadata = self.decodeMetadata
-            
+
             var headers = [HeaderKey]()
             var rowVals = [[Any]]()
             

@@ -18,9 +18,33 @@ import Foundation
 
 public protocol Query {
     func pack() -> Data
+    func packQuery() -> Data
+    func packParameters() -> Data
 }
-
+public enum Status {
+    case success
+    case failure(Error)
+}
 extension Query {
+    public func execute() -> Promise<Status> {
+        let p = Promise<Status>.deferred()
+        
+        let request: Request = .query(using: self)
+        
+        do {
+            try config.connection?.execute(request) {
+                result, error in
+                
+                if let error = error { p.reject(dueTo: error) }
+                p.resolve()(Status.success)
+            }
+        } catch {
+            p.reject(dueTo: error)
+            
+        }
+        
+        return p
+    }
 
     public func execute() -> Promise<TableObj> {
         let p = Promise<TableObj>.deferred()
@@ -32,7 +56,10 @@ extension Query {
                 result, error in
                 
                 if let error = error { p.reject(dueTo: error) }
-                if let res = result { p.resolve()(res) }
+                switch result! {
+                case Kind.rows(_, let r): p.resolve()(TableObj(rows: r))
+                default: p.resolve()(TableObj(rows: []))
+                }
             }
         } catch {
             p.reject(dueTo: error)
@@ -40,13 +67,6 @@ extension Query {
         }
 
         return p
-    }
-
-    public func execute(oncompletion: ((Error?) -> Void)) throws {
-        
-        let request: Request = .query(using: self)
-        
-        try config.connection?.execute(request, oncompletion: oncompletion)
     }
 }
 
@@ -154,6 +174,19 @@ public struct Select: Query {
         return data
     }
 
+    public func packQuery() -> Data {
+        return buildQueryString.longStringData
+    }
+
+    public func packParameters() -> Data {
+        var data = Data()
+        
+        data.append(consistency.rawValue.data)
+        data.append(flags.rawValue.data)
+        
+        return data
+    }
+
     private var buildQueryString: String {
         var str = "SELECT "
         
@@ -227,7 +260,23 @@ public struct Update: Query {
         
         return data
     }
-    
+
+    public func packQuery() -> Data {
+        
+        let vals  = packPairs(newValues)
+        let conds = conditions.str
+
+        return ("UPDATE \(tableName) SET \(vals) WHERE \(conds);").longStringData
+    }
+
+    public func packParameters() -> Data {
+        var data = Data()
+        
+        data.append(consistency.rawValue.data)
+        data.append(flags.rawValue.data)
+        
+        return data
+    }
 }
 public struct Delete: Query {
 
@@ -259,9 +308,20 @@ public struct Delete: Query {
     public func pack() -> Data {
         var data = Data()
 
-        let conds = conditions.str
+        data.append(("DELETE FROM \(tableName) WHERE \(conditions.str);").longStringData)
+        data.append(consistency.rawValue.data)
+        data.append(flags.rawValue.data)
         
-        data.append(("DELETE FROM \(tableName) WHERE \(conds);").longStringData)
+        return data
+    }
+
+    public func packQuery() -> Data {
+        return ("DELETE FROM \(tableName) WHERE \(conditions.str);").longStringData
+    }
+
+    public func packParameters() -> Data {
+        var data = Data()
+        
         data.append(consistency.rawValue.data)
         data.append(flags.rawValue.data)
         
@@ -307,6 +367,21 @@ public struct Insert: Query {
         
         return data
     }
+
+    public func packQuery() -> Data {
+        let keys = packKeys(fields)
+        let vals = packValues(fields)
+        return ("INSERT INTO \(tableName) (\(keys)) VALUES(\(vals));").longStringData
+    }
+
+    public func packParameters() -> Data {
+        var data = Data()
+        
+        data.append(consistency.rawValue.data)
+        data.append(flags.rawValue.data)
+        
+        return data
+    }
 }
 public struct Raw: Query {
 
@@ -336,6 +411,19 @@ public struct Raw: Query {
         var data = Data()
     
         data.append(query.longStringData)
+        data.append(consistency.rawValue.data)
+        data.append(flags.rawValue.data)
+        
+        return data
+    }
+
+    public func packQuery() -> Data {
+        return query.longStringData
+    }
+
+    public func packParameters() -> Data {
+        var data = Data()
+        
         data.append(consistency.rawValue.data)
         data.append(flags.rawValue.data)
         

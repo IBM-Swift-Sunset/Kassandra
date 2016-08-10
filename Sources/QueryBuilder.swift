@@ -29,6 +29,7 @@ public enum WhereConvertible {
     case or(Predicate, Predicate)
     case inOp(String, [Convertible])
 }
+
 public struct Predicate: Convertible  {
     let str: String
     
@@ -57,27 +58,35 @@ public func convert(_ item: Convertible) -> String{
 public func ==(key: String, predicate: Convertible) -> Predicate {
     return Predicate(.equal(key, predicate))
 }
+
 public func !=(key: String, predicate: Convertible) -> Predicate {
     return Predicate(.notEqual(key, predicate))
 }
+
 public func >(key: String, predicate: Convertible) -> Predicate {
     return Predicate(.greaterThan(key, predicate))
 }
+
 public func >=(key: String, predicate: Convertible) -> Predicate {
     return Predicate(.greaterThanOrEqual(key, predicate))
 }
+
 public func <(key: String, predicate: Convertible) -> Predicate {
     return Predicate(.lessThan(key, predicate))
 }
+
 public func <=(key: String, predicate: Convertible) -> Predicate {
     return Predicate(.lessThanOrEqual(key, predicate))
 }
+
 public func &&(rhs: Predicate, lhs: Predicate) -> Predicate {
     return Predicate(.and(rhs, lhs))
 }
+
 public func ||(rhs: Predicate, lhs: Predicate) -> Predicate {
     return Predicate(.or(rhs, lhs))
 }
+
 infix operator > {associativity left precedence 100}
 public func > (lhs: String, rhs: [Convertible]) -> Predicate {
     return Predicate(.inOp(lhs, rhs))

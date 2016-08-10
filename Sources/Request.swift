@@ -38,10 +38,15 @@ public enum Request {
         
         switch self {
         case .options                        : break
-        case .execute                        : break
         case .query(let query)               : body.append(query.pack())
-        case .prepare(let query)             : body.append(query.pack())
+        case .prepare(let query)             : body.append(query.packQuery())
         case .authResponse(let token)        : body.append(token.data)
+        case .execute(let qid, let params)   :
+            
+            body.append(qid.count.data)
+            body.append(Data(bytes: qid, count: qid.count))
+            body.append(params.packParameters())
+
         case .startup(var options)           :
             options["CQL_VERSION"] = "3.0.0"
             
@@ -78,9 +83,7 @@ public enum Request {
             
             flags = Sflags
         }
-        
-        // Setup the Header
-        
+
         var header = Data()
         header.append(config.version)
         header.append(flags)
@@ -102,7 +105,7 @@ public enum Request {
     
     case prepare(query: Query)
     
-    case execute(parameters: String)
+    case execute(id: [Byte], parameters: Query)
     
     case register(events: [String])
     

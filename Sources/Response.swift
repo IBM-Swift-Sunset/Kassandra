@@ -35,7 +35,7 @@ public enum Response: CustomStringConvertible {
         case .error (let code, let message) : return ("Error: \(code) || \(message)")
         case .ready                         : return "Ready"
         case .authenticate(let authType)    : return "Authenticate with \(authType)"
-        case .supported(let map)            : return "\(map)"
+        case .supported(let map)            : return "---\(map)"
         case .result(let message)           : return message.description
         case .authSuccess                   : return "Authentication Success"
         case .event(let type)               : return type.description
@@ -72,16 +72,12 @@ public enum Response: CustomStringConvertible {
     
     case authSuccess
     
-    case event(of: EventType)
+    case event(of: Event)
     
     case authChallenge(with: Int)
 }
-//Event Type
-public enum EventType: CustomStringConvertible {
-    case topologyChange(type: String, inet: (String, Int))
-    case statusChange(type: String, inet: (String, Int))
-    case schemaChange(type: String, target: String, changes: schemaChangeType)
-    case error
+
+public enum Event: CustomStringConvertible {
     
     public var description: String {
         switch self {
@@ -94,10 +90,17 @@ public enum EventType: CustomStringConvertible {
         case .error: return ""
         }
     }
+    
+    case topologyChange(type: String, inet: (String, Int))
+
+    case statusChange(type: String, inet: (String, Int))
+
+    case schemaChange(type: String, target: String, changes: SchemaChange)
+
+    case error
 }
-public enum schemaChangeType: CustomStringConvertible {
-    case options(with: String)
-    case keyspace(to: String, withObjName: String)
+
+public enum SchemaChange: CustomStringConvertible {
     
     public var description: String {
         switch self{
@@ -106,4 +109,8 @@ public enum schemaChangeType: CustomStringConvertible {
             
         }
     }
+
+    case options(with: String)
+
+    case keyspace(to: String, withObjName: String)
 }

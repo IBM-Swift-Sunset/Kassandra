@@ -83,7 +83,7 @@ class KassandraTests: XCTestCase {
         return [
             ("testConnect", testConnect),
             ("testTable", testTable),
-            ("testModel", testModel),
+            //("testModel", testModel),
         ]
     }
     
@@ -101,56 +101,36 @@ class KassandraTests: XCTestCase {
     func testTable() throws {
     
        do {
-        try client.connect { error in print(error) }
+        try client.connect(oncompletion: ErrorHandler)
 
         let _ = client["test"]
 
         sleep(1)
-        try TodoItem.insert([.type: "todo", .userID: 2,.title: "Chia", .pos: 2, .completed: false]).execute(oncompletion: ErrorHandler)
-        try TodoItem.insert([.type: "todo", .userID: 3,.title: "Thor", .pos: 3, .completed: true]).execute(oncompletion: ErrorHandler)
-        sleep(1)
-        TodoItem.select().limited(to: 2).filter(by: "type" == "todo" && "userID" == 3).ordered(by: ["title": .ASC]).execute()
-            .then { table in
-                print(table)
-                
-                do { try TodoItem.update([.completed: true], conditions: "userID" == 3).execute(oncompletion: self.ErrorHandler) } catch {}
-                
-                TodoItem.select().execute()
-                    .then { table in
-                        print(table)
-                        TodoItem.count().execute()
-                            .then { table in
-                                print(table)
+        let query: Raw = Raw(query: "INSERT INTO todoitem (userid) VALUES(176);")
+    
+        try client.execute(Request.prepare(query: query)) {
+            prepared, error in
+            var id: [Byte] = []
 
-                                do { try TodoItem.delete(where: "userID" == 2).execute(oncompletion: self.ErrorHandler) }catch {}
-
-                                TodoItem.select().execute()
-                                    .then { table in
-                                        print(table)
-                                        
-                                        do { try TodoItem.truncate().execute(oncompletion: self.ErrorHandler) } catch {}
-
-                                        TodoItem.select().execute()
-                                            .then { table in
-                                                print(table)
-                                            }.fail { error in
-                                                print(error)
-                                        }
-                                    }.fail { error in
-                                        print(error)
-                                }
-
-                            }.fail { error in
-                                print(error)
-                        }
-                    }.fail { error in
-                        print(error)
+            if let prep = prepared {
+                switch prep {
+                case Kind.prepared(let sid, _, _): id = sid
+                default: print("failure")
                 }
-            }.fail { error in
-                print(error)
             }
-        sleep(5)
-        
+            print(id)
+            do {
+                try self.client.execute(Request.execute(id: id, parameters: query)) {
+                    prepared, error in
+                    print("--",prepared, error)
+                }
+            } catch{
+                
+            }
+            
+        }
+        sleep(10)
+        print("ffef")
     } catch {
         throw error
     }
@@ -162,7 +142,7 @@ class KassandraTests: XCTestCase {
         print("--------+---------+----------+---------")
 
         do {
-            try client.connect { error in print(error) }
+            try client.connect(oncompletion: ErrorHandler)
 
             sleep(1)
             let _ = client["test"]
@@ -210,6 +190,6 @@ class KassandraTests: XCTestCase {
     }
 
     public func ErrorHandler(error: Error?) {
-        print(error)
+        if error != nil { print(error) }
     }
 }

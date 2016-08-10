@@ -17,11 +17,6 @@
 import Foundation
 
 public enum Kind {
-    case void
-    case rows(metadata: Metadata, rows: [Row])
-    case schema(type: String, target: String, options: String)
-    case keyspace(name: String)
-    case prepared(id: UInt16, metadata: Metadata?, resMetadata: Metadata?)
     
     public var description: String {
         switch self {
@@ -36,7 +31,7 @@ public enum Kind {
         var body = body
         
         let type = body.decodeInt
-        
+
         switch type {
         case 2 : self = body.decodeRows
         case 3 : self = .keyspace(name: body.decodeSString)
@@ -45,6 +40,17 @@ public enum Kind {
         default: self = .void
         }
     }
+
+    case void
+
+    case rows(metadata: Metadata, rows: [Row])
+
+    case schema(type: String, target: String, options: String)
+
+    case keyspace(name: String)
+
+    case prepared(id: [Byte], metadata: Metadata?, resMetadata: Metadata?)
+
 }
 
 public struct HeaderKey: Hashable {

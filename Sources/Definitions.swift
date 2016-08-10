@@ -68,7 +68,7 @@ public enum DataType: Int {
 }
 
 /// Return Code Errore
-public enum RCErrorType: Error {
+public enum ErrorType: Error {
     case ReadError
     case WriteError
     case SerializeError
@@ -117,17 +117,18 @@ public struct TableObj: CustomStringConvertible {
     var rows: [Row]
     
     public var description: String {
-        print("rows",rows.count)
-        var str = ""
+        var body = ""
         var len = 0
-        str += "--------+---------+----------+---------\n"
         for row in rows {
-            str += row.description + "\n"
+            body += row.description + "\n"
             if row.description.characters.count > len { len = row.description.characters.count }
         }
-        str += "--------+---------+----------+---------\n"
-        return str
+        body += String(repeating: "-", count: len)
+        var rStr = String(repeating: "-", count: len)
+        rStr += body
+        return rStr
     }
+
     init(rows: [Row]){
         self.rows = rows
     }
