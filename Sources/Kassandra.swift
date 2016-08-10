@@ -32,8 +32,7 @@ public class Kassandra {
     
     internal var buffer: Data
     
-    internal var map            = [UInt16: (Kind?, Error?) -> Void]()
-    internal var awaitingResult = [UInt16: (Error?) -> Void]()
+    internal var map = [UInt16: (Result) -> Void]()
 
     public init(host: String = "localhost", port: Int32 = 9042) {
         self.host = host
@@ -75,20 +74,16 @@ public class Kassandra {
         oncompletion(nil)
     }
     
-    public func execute(_ query: String, oncompletion: ((Kind?, Error?) -> Void)) throws {
+    public func execute(_ query: String, oncompletion: ((Result) -> Void)) throws {
         let request = Request.query(using: Raw(query: query))
         try executeHandler(request, oncompletion: oncompletion)
     }
 
-    public func execute(_ request: Request, oncompletion: ((Error?) -> Void)) throws {
-        try executeHandler(request, oncompletionError: oncompletion)
-    }
-
-    public func execute(_ request: Request, oncompletion: ((Kind?, Error?) -> Void)) throws {
+    public func execute(_ request: Request, oncompletion: ((Result) -> Void)) throws {
         try executeHandler(request, oncompletion: oncompletion)
     }
-    private func executeHandler(_ request: Request, oncompletion: ((Kind?, Error?) -> Void)? = nil,
-                                                    oncompletionError: ((Error?) -> Void)? = nil) throws {
+
+    private func executeHandler(_ request: Request, oncompletion: ((Result) -> Void)? = nil) throws {
         guard let sock = socket else {
             throw ErrorType.GenericError("Could not create a socket")
             
@@ -99,13 +94,11 @@ public class Kassandra {
                 let id = UInt16.random
                 
                 if let oncomp = oncompletion { self.map[id] = oncomp }
-                if let oncomp = oncompletionError { self.awaitingResult[id] = oncomp }
 
                 try request.write(id: id, writer: sock)
                 
             } catch {
-                if let oncomp = oncompletion { oncomp(nil, ErrorType.ConnectionError) }
-                if let oncomp = oncompletionError { oncomp(ErrorType.ConnectionError) }
+                if let oncomp = oncompletion { oncomp(.error(ErrorType.ConnectionError)) }
             }
         }
     }
@@ -148,7 +141,7 @@ extension Kassandra {
         while buffer.count >= 9 {
 
             //Unpack header
-            let flags       = UInt8(buffer[1])    // flags
+            let flags       = UInt8(buffer[1])
             let streamID    = UInt16(msb: buffer[3], lsb: buffer[2])
             let opcode      = UInt8(buffer[4])
             let bodyLength  = Int(data: buffer.subdata(in: Range(5...8)))
@@ -170,14 +163,14 @@ extension Kassandra {
     }
     private func handle(id: UInt16, flags: Byte, _ response: Response) throws {
         switch response {
-        case .ready                         : awaitingResult[id]?(nil)
-        case .authSuccess                   : awaitingResult[id]?(nil)
+        case .ready                         : map[id]?(.void)
+        case .authSuccess                   : map[id]?(.void)
         case .event(let event)              : delegate?.didReceiveEvent(event: event)
-        case .supported                     : print(response)
+        case .supported(let options)        : map[id]?(.generic(options))
         case .authenticate(_)               : try Request.authResponse(token: 1).write(id: 1, writer: socket as! SocketWriter)
         case .authChallenge(let token)      : try Request.authResponse(token: token).write(id: 1, writer: socket as! SocketWriter)
-        case .error(let code, let message)  : map[id]?(nil, ErrorType.CassandraError(Int(code), message))
-        case .result(let resultKind)        : map[id]?(resultKind, nil)
+        case .error(let code, let message)  : map[id]?(.error(ErrorType.CassandraError(Int(code), message)))
+        case .result(let resultKind)        : map[id]?(.kind(resultKind))
         }
     }
 }

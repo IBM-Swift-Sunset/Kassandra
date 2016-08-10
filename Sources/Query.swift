@@ -33,10 +33,14 @@ extension Query {
         
         do {
             try config.connection?.execute(request) {
-                result, error in
+                result in
                 
-                if let error = error { p.reject(dueTo: error) }
-                p.resolve()(Status.success)
+                switch result {
+                case .error(let error): p.reject(dueTo: error)
+                case .void: p.resolve()(Status.success)
+                default : p.reject(dueTo: ErrorType.IOError)
+                }
+                
             }
         } catch {
             p.reject(dueTo: error)
@@ -53,12 +57,16 @@ extension Query {
         
         do {
             try config.connection?.execute(request) {
-                result, error in
+                result in
                 
-                if let error = error { p.reject(dueTo: error) }
-                switch result! {
-                case Kind.rows(_, let r): p.resolve()(TableObj(rows: r))
-                default: p.resolve()(TableObj(rows: []))
+                switch result {
+                case .error(let error): p.reject(dueTo: error)
+                case .kind(let res):
+                    switch res {
+                    case Kind.rows(_, let r): p.resolve()(TableObj(rows: r))
+                    default: p.resolve()(TableObj(rows: []))
+                    }
+                default: p.reject(dueTo: ErrorType.NoDataError)
                 }
             }
         } catch {
@@ -376,7 +384,7 @@ public struct Insert: Query {
 
     public func packParameters() -> Data {
         var data = Data()
-        
+
         data.append(consistency.rawValue.data)
         data.append(flags.rawValue.data)
         
@@ -423,7 +431,7 @@ public struct Raw: Query {
 
     public func packParameters() -> Data {
         var data = Data()
-        
+
         data.append(consistency.rawValue.data)
         data.append(flags.rawValue.data)
         

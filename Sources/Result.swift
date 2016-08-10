@@ -27,6 +27,7 @@ public enum Kind {
         case .prepared                       : return "Prepared"
         }
     }
+
     public init(body: Data) {
         var body = body
         

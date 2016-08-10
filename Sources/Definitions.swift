@@ -16,6 +16,13 @@
 
 import Foundation
 
+public enum Result {
+    case error(ErrorType)
+    case kind(Kind)
+    case generic([String: Any])
+    case void
+}
+
 public enum ResponseOpcodes: UInt8 {
     case error          = 0x00
     case ready          = 0x02
@@ -112,7 +119,7 @@ public struct Metadata {
     }
 }
 
-public struct TableObj: CustomStringConvertible {
+public struct TableObj: CustomStringConvertible, Sequence {
     
     var rows: [Row]
     
@@ -133,7 +140,18 @@ public struct TableObj: CustomStringConvertible {
         self.rows = rows
     }
     
-    subscript(_ index: String) -> String {
-        return ""
+    public func makeIterator() -> Generator<Row> {
+        return Generator<Row>(array: rows)
+    }
+}
+
+public struct Generator<T> : IteratorProtocol {
+    var array: Array<T>
+    
+    mutating public func next() -> T? {
+        if array.isEmpty { return .none }
+        let element = array[0]
+        array = Array(array[1..<array.count])
+        return element
     }
 }
