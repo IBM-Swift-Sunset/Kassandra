@@ -9,7 +9,7 @@ A Swift Cassandra driver
 1. Download the [Swift DEVELOPMENT 08-04 snapshot](https://swift.org/download/#snapshots)
 
 2. Download Cassandra, Python, and pip
-  You can use `brew install postgresql python` and `easy_install pip`
+  You can use `brew install cassandra python` and `easy_install pip`
 
 3. Install Cqlsh
   You can use `pip install cqlsh`
