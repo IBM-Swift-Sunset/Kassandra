@@ -17,6 +17,7 @@
 import Foundation
 import Socket
 import SSLService
+import Dispatch
 
 public class Kassandra {
     
@@ -42,8 +43,8 @@ public class Kassandra {
         
         buffer = Data()
 
-        readQueue = DispatchQueue(label: "read queue", attributes: .concurrent)
-        writeQueue = DispatchQueue(label: "write queue", attributes: .concurrent)
+        readQueue = DispatchQueue(label: "read queue", attributes: DispatchQueue.Attributes.concurrent)
+        writeQueue = DispatchQueue(label: "write queue", attributes: DispatchQueue.Attributes.concurrent)
     }
     
     public func connect(oncompletion: (Error?) -> Void) throws {

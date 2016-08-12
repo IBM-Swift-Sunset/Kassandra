@@ -40,11 +40,11 @@ public enum Request {
         case .query(let query)               : body.append(query.pack())
         case .prepare(let query)             : body.append(query.packQuery())
         case .authResponse(let token)        : body.append(token.data)
-        case .execute(let qid, let params)   :
+        case .execute(let qid, let query)   :
             
-            body.append(qid.count.data)
+            body.append(UInt16(qid.count).data)
             body.append(Data(bytes: qid, count: qid.count))
-            body.append(params.packParameters())
+            body.append(query.packParameters())
 
         case .startup(var options)           :
             options["CQL_VERSION"] = "3.0.0"
@@ -64,32 +64,50 @@ public enum Request {
                 body.append(event.shortStringData)
             }
             
-        case .batch(let queries, let Sflags, let consistency):
-            
-            for query in queries {
-                //if withNames {}
-                body.append(query.pack())
+        case .batch(let queries, let type, let flags, let consistency):
+
+            switch type {
+            case .logged    : body.append(0x00.data)
+            case .unlogged  : body.append(0x01.data)
+            case .counter   : body.append(0x02.data)
             }
             
+            body.append(UInt16(queries.count).data)
+
+            for query in queries {
+                if let id = query.preparedID {
+                    body.append(0x01.data)
+                    body.append(UInt16(id.count).data)
+                    body.append(Data(bytes: id, count: id.count))
+                } else {
+                    body.append(0x00.data)
+                    body.append(query.packParameters())
+                }
+                
+                body.append(UInt16(0).data)
+            }
+
             body.append(consistency.rawValue.data)
+            body.append(flags.data)
             
-            if Sflags & 0x10 == 0x10 {
+            if flags & 0x10 == 0x10 {
                 body.append(Consistency.serial.rawValue.data)
             }
-            if Sflags & 0x20 == 0x20 {
+
+            if flags & 0x20 == 0x20 {
                 body.append(Date.timestamp)
             }
         }
 
         var header = Data()
-        header.append(config.version)
-        header.append(config.flags)
+        header.append(config.version.data)
+        header.append(config.flags.data)
         header.append(id.bigEndian.data)
-        header.append(opcode)
-        
+        header.append(opcode.data)
+
         header.append(body.count.data)
         header.append(body)
-        
+
         try writer.write(from: header)
         
     }
@@ -106,7 +124,7 @@ public enum Request {
     
     case register(events: [String])
     
-    case batch(queries: [Query], flags: Byte, consistency: Consistency)
+    case batch(queries: [Query], type: BatchType, flags: Byte, consistency: Consistency)
     
     case authResponse(token: Int)
 }

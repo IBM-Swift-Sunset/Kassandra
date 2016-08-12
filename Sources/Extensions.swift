@@ -56,10 +56,10 @@ extension Int: Convertible {
     init(data: Data) {
         let u = Int(data[0]) << 24
         let um = Int(data[1]) << 16
-        let ul = Int(data[2]) << 8
+        let lm = Int(data[2]) << 8
         let l = Int(data[3])
         
-        self = u | um | ul | l
+        self = u | um | lm | l
     }
     var toUInt8s: [UInt8] {
         var encLength = [UInt8]()
@@ -78,7 +78,7 @@ extension Int: Convertible {
         return encLength
     }
     var data: Data {
-        return Data(bytes: [UInt8(self >> 24), UInt8(self >> 16), UInt8(self >> 8), UInt8(self)], count: 4)
+        return Data(bytes: [UInt8((self & 0xFF000000) >> 24),UInt8((self & 0x00FF0000) >> 16),UInt8((self & 0x0000FF00) >> 8),UInt8(self & 0x000000FF)], count: 4)
     }
 }
 
@@ -116,7 +116,7 @@ extension UInt16: Convertible {
     }
     
     var UInt8s: [UInt8] {
-        return [UInt8(self >> 8), UInt8(self & 0x00ff)]
+        return [UInt8((self & 0xFF00) >> 8), UInt8(self & 0x00ff)]
     }
 }
 
@@ -124,14 +124,14 @@ extension Double: Convertible {}
 extension Float: Convertible {}
 extension UInt32 {
     var data: Data {
-        return Data(bytes: [UInt8(self >> 24), UInt8(self >> 16),UInt8(self >> 8),UInt8(self)], count: 4)
+        return Data(bytes: [UInt8((self & 0xFF000000) >> 24),UInt8((self & 0x00FF0000) >> 16),UInt8((self & 0x0000FF00) >> 8),UInt8(self & 0x000000FF)], count: 4)
     }
 }
 extension UInt64 {
     var data: Data {
         var data = Data()
-        data.append(UInt32(self).data)
-        data.append(UInt32(self >> 32).data)
+        data.append(UInt32((self & 0xFFFFFFFF00000000) >> 32).data)
+        data.append(UInt32((self & 0x00000000FFFFFFFF)).data)
         return data
     }
 }
@@ -151,11 +151,13 @@ extension Data {
     
     var decodeShortBytes: [UInt8] {
         mutating get {
-            let blob = self.subdata(in: Range(2..<Int(self.decodeUInt16)))
-            self = self.subdata(in: Range(2 + blob.count..<self.count))
+            let length = Int(self.decodeUInt16)
+            let blob = self.subdata(in: Range(0..<length))
+            self = self.subdata(in: Range(blob.count..<self.count))
             return blob.filter{ _ in return true }
         }
     }
+
     var decodeBool: Bool {
         mutating get {
             return self.decodeUInt8 == 0x0001 ? true : false
@@ -286,8 +288,8 @@ extension Data {
         return Date()
     }
     
-    var decodeUUID: UUID {
-        return UUID(uuidString: self.decodeHeaderlessString)!
+    var decodeUUID: NSUUID {
+        return NSUUID(uuidString: self.decodeHeaderlessString)!
     }
 
     var decodeEventResponse: Response {

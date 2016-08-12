@@ -18,6 +18,12 @@
 import XCTest
 @testable import Kassandra
 
+#if os(OSX) || os(iOS)
+    import Darwin
+#elseif os(Linux)
+    import Glibc
+#endif
+
 public final class Student {
     var id: Int?
     var name: String
@@ -82,11 +88,12 @@ class KassandraTests: XCTestCase {
             ("testConnect", testConnect),
             ("testCreateKeyspace", testCreateKeyspace),
             ("testKeyspaceWithCreateATable", testKeyspaceWithCreateATable),
-            ("testTruncateTable",testTruncateTable),
-            ("testOptions",testOptions),
             ("testKeyspaceWithFetchCompletedTodoItems", testKeyspaceWithFetchCompletedTodoItems),
-            ("testZDropTableAndDeleteKeyspace", testZDropTableAndDeleteKeyspace)
-            //("testPreparedQuery", testPreparedQuery),
+            ("testOptions",testOptions),
+            ("testPreparedQuery", testPreparedQuery),
+            ("testTruncateTable",testTruncateTable),
+            ("testZBatch", testZBatch),
+            ("testZDropTableAndDeleteKeyspace", testZDropTableAndDeleteKeyspace),
             //("testMaxTodoitemID", testMaxTodoitemID),
             //("testTable", testTable),
             //("testModel", testModel),
@@ -120,13 +127,13 @@ class KassandraTests: XCTestCase {
 
             try client.execute(.query(using: query)) {
                 result in
-                print(result)
+
                 switch result {
                 case .kind(let res):
                     switch res {
-                    case .schema: print(res) ; expectation1.fulfill()
-                    case .void: print(res) ; expectation1.fulfill()
-                    default: break
+                    case .schema: expectation1.fulfill()
+                    case .void  : expectation1.fulfill()
+                    default     : break
                     }
                 default: break
                 }
@@ -153,13 +160,13 @@ class KassandraTests: XCTestCase {
             let query: Query = Raw(query: "CREATE TABLE IF NOT EXISTS todoitem(userID int primary key, type text, title text, pos int, completed boolean);")
             try client.execute(.query(using: query)) {
                 result in
-                print(result)
+
                 switch result {
                 case .kind(let res):
                     switch res {
-                    case .schema: print(res) ; expectation1.fulfill()
-                    case .void: print(res) ; expectation1.fulfill()
-                    default: break
+                    case .schema: expectation1.fulfill()
+                    case .void  : expectation1.fulfill()
+                    default     : break
                     }
                 default: break
                 }
@@ -206,16 +213,13 @@ class KassandraTests: XCTestCase {
             TodoItem.select().limited(to: 3).execute()
                 .then {
                 (table: TableObj) in
-                
-                print(table)
-                
+
                 let _ : Promise<Status> = TodoItem.update([.title: "Zeus"], conditions: "userID" == 1).execute()
                 sleep(1)
                 
                 TodoItem.select().filter(by: "userID" == 1).execute()
                     .then { (table: TableObj) in
                         
-                        print(table)
                         expectation1.fulfill()
                         
                     }.fail {
@@ -264,7 +268,6 @@ class KassandraTests: XCTestCase {
             TodoItem.count().execute().then {
                 (table: TableObj) in
                 
-                print(table)
                 XCTAssertEqual((table.rows[0]["count"] as! Int64), 10)
                 
                 let _ : Promise<Status> = TodoItem.truncate().execute()
@@ -274,9 +277,9 @@ class KassandraTests: XCTestCase {
                 TodoItem.count().execute().then {
                     (truncatedTable: TableObj) in
                     
-                    print(truncatedTable)
                     XCTAssertEqual((truncatedTable.rows[0]["count"] as! Int64), 0)
                     
+                    expectation1.fulfill()
                     }.fail{
                         error in
                         
@@ -287,10 +290,6 @@ class KassandraTests: XCTestCase {
                     
                     print(error)
             }
-            
-            sleep(3)
-            expectation1.fulfill()
-            
         } catch {
             throw error
         }
@@ -313,12 +312,8 @@ class KassandraTests: XCTestCase {
             try client.execute(.options) {
                 result in
                 
-                print(result)
                 expectation1.fulfill()
             }
-            
-            sleep(1)
-            
         } catch {
             throw error
         }
@@ -344,20 +339,19 @@ class KassandraTests: XCTestCase {
             sleep(2)
             
             let query: Query = Raw(query: "DROP KEYSPACE test;")
+
             try client.execute(.query(using: query)) {
                 result in
-                print(result)
+
                 switch result {
                 case .kind(let res):
                     switch res {
-                    case .schema: print(res) ; expectation1.fulfill()
+                    case .schema: expectation1.fulfill()
                     default: break
                     }
                 default: break
                 }
             }
-            sleep(2)
-            
         } catch {
             throw error
         }
@@ -403,55 +397,49 @@ class KassandraTests: XCTestCase {
      
      }*/
     
-    /*   func testPreparedQuery() throws {
+    func testPreparedQuery() throws {
      
-     let expectation1 = expectation(description: "Execute a prepared query")
-     do {
-     try client.connect() { error in
-     
-     XCTAssertNil(error)
-     }
-     
-     sleep(1)
-     let _ = client["test"]
-     
-     let query: Query = Raw(query: "SELECT userID FROM todoitem WHERE completed = true allow filtering;").with(consistency: .all)
-     
-     try client.execute(.prepare(query: query)) {
-     result in
-     print(result)
-     switch result {
-     case .kind(let res):
-     switch res {
-     case .prepared(let id, _, _):
-     
-     print(res)
-     print(id)
-     sleep(2)
-     expectation1.fulfill()
-     /*do {try self.client.execute(.execute(id: id, parameters: query)) {
-     result in
-     
-     print(result)
-     
-     expectation1.fulfill()
-     }
-     } catch { }*/
-     default: break
-     }
-     default: break
-     }
-     
-     }
-     
-     sleep(2)
-     
+        let expectation1 = expectation(description: "Execute a prepared query")
+            do {
+                try client.connect() {
+                    error in
+                    XCTAssertNil(error)
+                }
+
+                sleep(1)
+                let _ = client["test"]
+
+                let query: Query = Raw(query: "SELECT userID FROM todoitem WHERE completed = true allow filtering;").with(consistency: .all)
+
+                try client.execute(.prepare(query: query)) {
+                    result in
+
+                    switch result {
+                    case .kind(let res):
+                        switch res {
+                        case .prepared(let id, _, _):
+                            do {
+                                try self.client.execute(.execute(id: id, parameters: query)) {
+                                    result in
+                                    
+                                    switch result {
+                                    case .error(let error): print(error)
+                                    default: expectation1.fulfill()
+                                    }
+                                }
+                            } catch { }
+                        default: break
+                        }
+                    default: break
+                    }
+
+         }
      } catch {
      throw error
      }
      waitForExpectations(timeout: 5, handler: { error in XCTAssertNil(error, "Timeout") })
      
-     } */
+     }
 
      /*
     /*
@@ -577,6 +565,43 @@ class KassandraTests: XCTestCase {
         
     }
     */
+    
+    public func testZBatch() {
+        let expectation1 = expectation(description: "Execute a batch query")
+        
+        var insert1 = TodoItem.insert([.type: "todo", .userID: 99,.title: "Water Plants", .pos: 15, .completed: false])
+        
+        insert1.prepare()
+            .then {
+                id in
+                
+                insert1.preparedID = id
+                
+                let insert2 = TodoItem.insert([.type: "todo", .userID: 98,.title: "Make Dinner", .pos: 14, .completed: true])
+                let insert3 = TodoItem.insert([.type: "todo", .userID: 97,.title: "Excercise", .pos: 13, .completed: true])
+                let insert4 = TodoItem.insert([.type: "todo", .userID: 96,.title: "Sprint Plannning", .pos: 12, .completed: false])
+                
+                [insert1,insert2,insert3,insert4].execute(with: .logged, consis: .any) { result in
+                    
+                    switch result {
+                    case .error(let error)  : print(error)
+                    case .kind              : expectation1.fulfill()
+                    default                 : break
+                    }
+                    
+                }
+    
+            }.fail {
+                error in
+                
+                print(error)
+            }
+        
+        
+        
+        
+        waitForExpectations(timeout: 5, handler: { error in XCTAssertNil(error, "Timeout") })
+    }
     public func ErrorHandler(error: Result?) {
         print(error)
     }

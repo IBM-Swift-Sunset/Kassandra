@@ -17,6 +17,11 @@
 import Foundation
 
 public protocol Query {
+    
+    var preparedID: [Byte]? { get set }
+
+    func build() -> String
+
     func pack() -> Data
     func packQuery() -> Data
     func packParameters() -> Data
@@ -25,7 +30,50 @@ public enum Status {
     case success
     case failure(Error)
 }
+
+extension Array where Element: Query {
+    func execute(with type: BatchType, consis: Consistency, oncompletion: ((Result)->Void)) {
+        do {
+            let request: Request = Request.batch(queries: self, type: type, flags: 0x00, consistency: .any)
+            try config.connection?.execute(request) {
+                result in
+                
+                oncompletion(result)
+            }
+        } catch {
+            oncompletion(Result.error(ErrorType.IOError))
+        }
+    }
+}
+
 extension Query {
+    public func prepare() -> Promise<[Byte]> {
+        let p = Promise<[Byte]>.deferred()
+        
+        let request: Request = .prepare(query: self)
+        
+        do {
+            try config.connection?.execute(request) {
+                result in
+                
+                switch result {
+                case .error(let error): p.reject(dueTo: error)
+                case .kind(let res):
+                    switch res {
+                    case Kind.prepared(let id, _,_) : p.resolve()(id)
+                    default                         : break
+                    }
+                default: p.reject(dueTo: ErrorType.IOError)
+                }
+            }
+        } catch {
+            p.reject(dueTo: error)
+            
+        }
+        
+        return p
+    
+    }
     public func execute() -> Promise<Status> {
         let p = Promise<Status>.deferred()
         
@@ -118,7 +166,7 @@ public enum SQLFunction<T> {
 
 public struct Select: Query {
     
-    let tableName: String
+    let table: String
     
     let fields: [String]
     
@@ -134,9 +182,11 @@ public struct Select: Query {
     
     var flags: Flags = .none
 
-    public init(_ fields: [String], from tableName: String, consistency: Consistency = .one) {
+    public var preparedID: [Byte]? = nil
+
+    public init(_ fields: [String], from table: String, consistency: Consistency = .one) {
         self.fields = fields
-        self.tableName = tableName
+        self.table = table
         self.consistency = consistency
     }
     
@@ -184,7 +234,7 @@ public struct Select: Query {
     public func pack() -> Data {
         var data = Data()
         
-        data.append(buildQueryString.longStringData)
+        data.append(build().longStringData)
         data.append(consistency.rawValue.data)
         data.append(flags.rawValue.data)
         
@@ -192,27 +242,27 @@ public struct Select: Query {
     }
 
     public func packQuery() -> Data {
-        return buildQueryString.longStringData
+        return build().longStringData
     }
 
     public func packParameters() -> Data {
         var data = Data()
-        
+
         data.append(consistency.rawValue.data)
         data.append(flags.rawValue.data)
         
         return data
     }
 
-    private var buildQueryString: String {
+    public func build() -> String {
         var str = "SELECT "
         
         if let function = sqlfunction?.pack() {
-            fields.count == 0 ? (str += "\(function) FROM \(tableName)") :
-                (str += "\(function), \(fields.joined(separator: " ")) FROM \(tableName)")
+            fields.count == 0 ? (str += "\(function) FROM \(table)") :
+                (str += "\(function), \(fields.joined(separator: " ")) FROM \(table)")
         } else {
-            fields.count == 0 ? (str += "* FROM \(tableName)") :
-                (str += "\(fields.joined(separator: " ")) FROM \(tableName)")
+            fields.count == 0 ? (str += "* FROM \(table)") :
+                (str += "\(fields.joined(separator: " ")) FROM \(table)")
         }
         
         if let cond = conditions {
@@ -241,6 +291,8 @@ public struct Update: Query {
     
     var flags: Flags = .none
 
+    public var preparedID: [Byte]? = nil
+
     public init(to newValues: [String: Any], in tableName: String, where predicate: Predicate, consistency: Consistency = .any) {
         self.newValues = newValues
         self.tableName = tableName
@@ -263,13 +315,17 @@ public struct Update: Query {
         return new
     }
 
+    public func build() -> String {
+        let vals  = packPairs(newValues)
+        let conds = conditions.str
+        
+        return "UPDATE \(tableName) SET \(vals) WHERE \(conds);"
+    }
+
     public func pack() -> Data {
         var data = Data()
 
-        let vals  = packPairs(newValues)
-        let conds = conditions.str
-
-        data.append(("UPDATE \(tableName) SET \(vals) WHERE \(conds);").longStringData)
+        data.append(build().longStringData)
         
 
         data.append(consistency.rawValue.data)
@@ -288,7 +344,7 @@ public struct Update: Query {
 
     public func packParameters() -> Data {
         var data = Data()
-        
+
         data.append(consistency.rawValue.data)
         data.append(flags.rawValue.data)
         
@@ -304,6 +360,8 @@ public struct Delete: Query {
     var consistency: Consistency
 
     var flags: Flags = .none
+
+    public var preparedID: [Byte]? = nil
 
     public init(from tableName: String, where condition: Predicate, consistency: Consistency = .any) {
         self.conditions = condition
@@ -322,10 +380,14 @@ public struct Delete: Query {
         return new
     }
 
+    public func build() -> String {
+        return "DELETE FROM \(tableName) WHERE \(conditions.str);"
+    }
+
     public func pack() -> Data {
         var data = Data()
 
-        data.append(("DELETE FROM \(tableName) WHERE \(conditions.str);").longStringData)
+        data.append(build().longStringData)
         data.append(consistency.rawValue.data)
         data.append(flags.rawValue.data)
         
@@ -355,6 +417,8 @@ public struct Insert: Query {
 
     var flags: Flags = .none
 
+    public var preparedID: [Byte]? = nil
+
     public init(_ fields: [String: Any], into tableName: String, consistency: Consistency = .any) {
         self.fields = fields
         self.tableName = tableName
@@ -371,14 +435,18 @@ public struct Insert: Query {
         new.set(consistency: consistency, flags: flags)
         return new
     }
-    
-    public func pack() -> Data {
-        var data = Data()
-    
+
+    public func build() -> String {
         let keys = packKeys(fields)
         let vals = packValues(fields)
         
-        data.append(("INSERT INTO \(tableName) (\(keys)) VALUES(\(vals));").longStringData)
+        return "INSERT INTO \(tableName) (\(keys)) VALUES(\(vals));"
+    }
+
+    public func pack() -> Data {
+        var data = Data()
+        
+        data.append(build().longStringData)
         data.append(consistency.rawValue.data)
         data.append(flags.rawValue.data)
         
@@ -408,6 +476,8 @@ public struct Raw: Query {
 
     var flags: Flags = .none
 
+    public var preparedID: [Byte]? = nil
+
     init(query: String, consistency: Consistency = .one) {
         self.query = query
         self.consistency = consistency
@@ -422,6 +492,10 @@ public struct Raw: Query {
         var new = self
         new.set(consistency: consistency, flags: flags)
         return new
+    }
+
+    public func build() -> String {
+        return query
     }
 
     public func pack() -> Data {
@@ -448,4 +522,9 @@ public struct Raw: Query {
     }
 }
 
+public enum BatchType: Byte {
+    case logged     = 0x00
+    case unlogged   = 0x01
+    case counter    = 0x02
+}
 
