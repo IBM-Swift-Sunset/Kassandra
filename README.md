@@ -10,7 +10,9 @@ A Swift Cassandra driver
 
 4. Add Kassandra as a dependency in your Package.swift file:
 
-  `.Package(url: "https://github.com/IBM-Swift/Kassandra", majorVersion: 0, minor: 2)`
+  ```swift
+  .Package(url: "https://github.com/IBM-Swift/Kassandra", majorVersion: 0, minor: 2)
+  ```
 
 5. Compile your application with: 
 
@@ -23,7 +25,9 @@ A Swift Cassandra driver
 
 1. Download [Docker Toolbox](https://www.docker.com/products/docker-toolbox)
 
-2. Go pull [Cassandra from DockerHub](https://hub.docker.com/r/library/cassandra/) with `docker pull cassandra`
+2. Go pull [Cassandra from DockerHub](https://hub.docker.com/r/library/cassandra/) with:
+
+  `docker pull cassandra`
 
 3. Run the Cassandra container with:
 
