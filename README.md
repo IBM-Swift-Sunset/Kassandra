@@ -27,46 +27,7 @@ A Swift Cassandra driver
 
 2. Go pull [Cassandra from DockerHub](https://hub.docker.com/r/library/cassandra/) or you can you this command `docker pull cassandra`
 
-## Deploying Docker to IBM Bluemix Container
 
-1. Login to your [Bluemix](https://new-console.ng.bluemix.net/?direct=classic) account (create an account, if necessary) 
+## License
 
-2. Download and install the [Cloud Foundry tools](https://new-console.ng.bluemix.net/docs/starters/install_cli.html):
-```
-cf login
-bluemix api https://api.ng.bluemix.net
-bluemix login -u username -o org_name -s space_name
-```
-
-3. Download and install the [IBM Container's Plugin] (https://console.ng.bluemix.net/docs/containers/container_cli_cfic_install.html)
-
-4. Log into cf ic
-  `cf ic login` 
-
-5. Tag the Docker image:
-
-  `docker tag cassandra registry.ng.bluemix.net/<ORGANIZATION_NAME>/cassandra`
-
-6. Push the Docker image: 
-
-  `docker push registry.ng.bluemix.net/<ORGANIZATION_NAME>/cassandra`
-
-7. Go to Bluemix and look for Compute 
-
-    ![Kassandra](Images/ClickCompute.png)
-
-8. Search for the '+' sign on the top right corner 
-
-    ![Kassandra](Images/ClickOnPlus.png)
-
-9. Then look for the 'cassandra' container that you pushed
-
-    ![Kassandra](Images/SearchForYourContainer.png)
-
-10. Input the value suggested in the images. Do not require advanced options unless you have any
-
-    ![Kassandra](Images/Scalable.png)
-
-11. Create the container and you should see your container on the dashboard page
-
-
+This library is licensed under Apache 2.0. Full license text is available in [LICENSE](LICENSE).
