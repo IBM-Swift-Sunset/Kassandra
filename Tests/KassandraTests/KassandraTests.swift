@@ -206,7 +206,7 @@ class KassandraTests: XCTestCase {
             
             sleep(1)
             let _ = client["test"]
-            let query: Query = Raw(query: "CREATE TABLE IF NOT EXISTS breadshop (userID bigint primary key, type text, name text, cost float, rate double);")
+            let query: Query = Raw(query: "CREATE TABLE IF NOT EXISTS breadshop (userID uuid primary key, type text, name text, cost float, rate double);")
             try client.execute(.query(using: query)) {
                 result in
                 
@@ -241,7 +241,12 @@ class KassandraTests: XCTestCase {
             sleep(1)
             let _ = client["test"]
             
-            let _ : Promise<Status> = BreadShop.insert([.type: "cocount", .userID: 1,.name: "cocount bread", .cost: 2.40, .rate: 9.67]).execute()
+            let query: Query = Raw(query: "INSERT INTO breadshop (userID, type, name, cost, rate) VALUES (60780342-90fe-11e2-8823-0026c650d722, 'Sandwich', 'roller', 2.90, 9.99);")
+            try client.execute(.query(using: query)) {
+                result in
+                
+                print(result)
+            }
             
             sleep(2)
             
@@ -251,9 +256,9 @@ class KassandraTests: XCTestCase {
                     
                 }.fail {
                     error in
-                    print("ErrorMSG: ",error)
+                    print("Error: ",error)
             }
-            
+            sleep(5)
         } catch {
             throw error
         }

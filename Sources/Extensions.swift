@@ -261,6 +261,7 @@ extension Data {
     }
 
     var decodeHeaderlessString: String {
+        print("\(#function)", self)
         return String(data: self, encoding: String.Encoding.utf8) ?? "NULL"
     }
 
@@ -292,7 +293,16 @@ extension Data {
     }
     
     var decodeUUID: NSUUID {
-        return NSUUID(uuidString: self.decodeHeaderlessString)!
+        mutating get {
+            //let u1 = UInt64(self.decodeInt) << 32
+            //let u2 = UInt64(self.decodeInt) << 32
+            //print("\(#function) uuid: ", u1 | u2)
+            let blob = self.subdata(in: Range(0..<16))
+            self = self.subdata(in: Range(16..<self.count))
+            let x = UnsafeMutablePointer<UInt8>.allocate(capacity: 16)
+            blob.copyBytes(to: x, count: 16)
+            return NSUUID(uuidBytes: x)
+        }
     }
 
     var decodeEventResponse: Response {
@@ -390,7 +400,7 @@ extension Data {
                     }
                     //String.Encoding.ascii
                     var value = self.subdata(in: Range(0..<length))
-                    
+                    print("\(#function) - Result: ", headers[i].type)
                     //NOTE: Convert value to appropriate type here or leave as data?
                     switch headers[i].type! {
                     case .custom     : values.append(value.decodeHeaderlessString)
