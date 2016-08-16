@@ -77,6 +77,19 @@ public class TodoItem: Table {
     
 }
 
+public class BreadShop: Table {
+    public enum Field: String {
+        case type = "type"
+        case userID = "userID"
+        case name = "name"
+        case cost = "cost"
+        case rate = "rate"
+}
+    
+    public static var tableName: String = "breadshop"
+    
+}
+
 class KassandraTests: XCTestCase {
     
     private var client: Kassandra!
@@ -93,7 +106,7 @@ class KassandraTests: XCTestCase {
             ("testPreparedQuery", testPreparedQuery),
             ("testTruncateTable",testTruncateTable),
             ("testZBatch", testZBatch),
-            ("testZDropTableAndDeleteKeyspace", testZDropTableAndDeleteKeyspace),
+            //("testZDropTableAndDeleteKeyspace", testZDropTableAndDeleteKeyspace),
             //("testMaxTodoitemID", testMaxTodoitemID),
             //("testTable", testTable),
             //("testModel", testModel),
@@ -179,6 +192,71 @@ class KassandraTests: XCTestCase {
         }
         
         waitForExpectations(timeout: 5, handler: { error in XCTAssertNil(error, "Timeout") })
+    }
+    
+    func testKeyspaceWithCreateABreadShopTable() throws {
+        
+        let expectation1 = expectation(description: "Create a table in the keyspace or table exist in the keyspace")
+        
+        do {
+            try client.connect() { error in
+                
+                XCTAssertNil(error)
+            }
+            
+            sleep(1)
+            let _ = client["test"]
+            let query: Query = Raw(query: "CREATE TABLE IF NOT EXISTS breadshop (userID bigint primary key, type text, name text, cost float, rate double);")
+            try client.execute(.query(using: query)) {
+                result in
+                
+                switch result {
+                case .kind(let res):
+                    switch res {
+                    case .schema: expectation1.fulfill()
+                    case .void  : expectation1.fulfill()
+                    default     : break
+                    }
+                default: break
+                }
+            }
+            
+            sleep(2)
+            
+        } catch {
+            throw error
+        }
+        
+        waitForExpectations(timeout: 5, handler: { error in XCTAssertNil(error, "Timeout") })
+    }
+    
+    func testKeyspaceWithCreateABreadShopTableInsertAndSelect() throws {
+        
+        do {
+            try client.connect() { error in
+                
+                XCTAssertNil(error)
+            }
+            
+            sleep(1)
+            let _ = client["test"]
+            
+            let _ : Promise<Status> = BreadShop.insert([.type: "cocount", .userID: 1,.name: "cocount bread", .cost: 2.40, .rate: 9.67]).execute()
+            
+            sleep(2)
+            
+            BreadShop.select().execute()
+                .then { (table: TableObj) in
+                    print(table)
+                    
+                }.fail {
+                    error in
+                    print("ErrorMSG: ",error)
+            }
+            
+        } catch {
+            throw error
+        }
     }
   
     func testKeyspaceWithFetchCompletedTodoItems() throws {
@@ -322,7 +400,7 @@ class KassandraTests: XCTestCase {
         
     }
     
-    func testZDropTableAndDeleteKeyspace() throws {
+/*    func testZDropTableAndDeleteKeyspace() throws {
         
         let expectation1 = expectation(description: "Drop the table and delete the keyspace")
         
@@ -359,7 +437,7 @@ class KassandraTests: XCTestCase {
         waitForExpectations(timeout: 5, handler: { error in XCTAssertNil(error, "Timeout") })
         
     }
-    
+*/
     /*func testMaxTodoitemID() throws {
      
      let expectation1 = expectation(description: "Get the max todoitem")

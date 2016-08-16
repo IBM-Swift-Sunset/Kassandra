@@ -136,7 +136,7 @@ extension UInt64 {
     }
 }
 extension Date {
-    static var timestamp: Data {
+     static var timestamp: Data {
         let stamp = UInt64(Date().timeIntervalSince1970)
         return stamp.data
     }
@@ -208,16 +208,19 @@ extension Data {
 
     var decodeDouble: Double {
         mutating get {
-            let u = Int64(self.decodeInt) << 32
-            let l = Int64(self.decodeInt)
-            return Double(u | l)
+            let u = UInt64(self.decodeInt) << 32
+            print("\(#function) u: ", u)
+            let l = UInt64(self.decodeInt)
+            print("\(#function) l: ", l)
+            return Double(bitPattern: u | l)
         }
     }
 
     var decodeFloat: Float {
         mutating get {
-            let u = self.decodeInt
-            return Float(u)
+            let u = UInt32(self.decodeInt)
+            print("\(#function) u: ", u, type(of: u))
+            return Float(bitPattern: u)
         }
     }
 
