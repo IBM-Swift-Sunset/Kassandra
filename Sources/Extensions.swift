@@ -136,9 +136,9 @@ extension UInt64 {
     }
 }
 extension Date {
-     static var timestamp: Data {
-        let stamp = UInt64(Date().timeIntervalSince1970)
-        return stamp.data
+    static var data: Data {
+        let stamp = Date().timeIntervalSince1970
+        return stamp.bitPattern.data
     }
 }
 extension Data {
@@ -188,6 +188,23 @@ extension Data {
             return u | l
         }
     }
+    
+    var decodeUInt32: UInt32 {
+        mutating get {
+            let u = UInt32(self.decodeUInt16) << 16
+            let l = UInt32(self.decodeUInt16)
+            return u | l
+        }
+    }
+    
+    var decodeUInt64: UInt64 {
+        mutating get {
+        let u = UInt64(self.decodeUInt32) << 32
+        let l = UInt64(self.decodeUInt32)
+        
+        return u | l
+        }
+    }
 
     var decodeInt32: Int32 {
         mutating get {
@@ -209,9 +226,8 @@ extension Data {
     var decodeDouble: Double {
         mutating get {
             let u = UInt64(self.decodeInt) << 32
-            print("\(#function) u: ", u)
             let l = UInt64(self.decodeInt)
-            print("\(#function) l: ", l)
+            
             return Double(bitPattern: u | l)
         }
     }
@@ -219,7 +235,7 @@ extension Data {
     var decodeFloat: Float {
         mutating get {
             let u = UInt32(self.decodeInt)
-            print("\(#function) u: ", u, type(of: u))
+
             return Float(bitPattern: u)
         }
     }
@@ -261,7 +277,6 @@ extension Data {
     }
 
     var decodeHeaderlessString: String {
-        print("\(#function)", self)
         return String(data: self, encoding: String.Encoding.utf8) ?? "NULL"
     }
 
@@ -288,23 +303,29 @@ extension Data {
     }
     
     var decodeTimeStamp: Date {
-        let _: Date = Date()
-        return Date()
+        var data = Date.data
+        let decodedata: UInt64 = data.decodeUInt64
+        let timeInterval = TimeInterval(bitPattern: decodedata)
+        let date = Date(timeIntervalSince1970: timeInterval)
+        return date
     }
     
     var decodeUUID: NSUUID {
         mutating get {
-            //let u1 = UInt64(self.decodeInt) << 32
-            //let u2 = UInt64(self.decodeInt) << 32
-            //print("\(#function) uuid: ", u1 | u2)
             let blob = self.subdata(in: Range(0..<16))
             self = self.subdata(in: Range(16..<self.count))
-            let x = UnsafeMutablePointer<UInt8>.allocate(capacity: 16)
-            blob.copyBytes(to: x, count: 16)
-            return NSUUID(uuidBytes: x)
+            let data = UnsafeMutablePointer<UInt8>.allocate(capacity: 16)
+            blob.copyBytes(to: data, count: 16)
+            return NSUUID(uuidBytes: data)
         }
     }
 
+    var decodeTimeUUID: NSUUID {
+        mutating get {
+            return self.decodeUUID
+        }
+    }
+    
     var decodeEventResponse: Response {
         mutating get {
             switch self.decodeSString {
@@ -400,7 +421,7 @@ extension Data {
                     }
                     //String.Encoding.ascii
                     var value = self.subdata(in: Range(0..<length))
-                    print("\(#function) - Result: ", headers[i].type)
+                    
                     //NOTE: Convert value to appropriate type here or leave as data?
                     switch headers[i].type! {
                     case .custom     : values.append(value.decodeHeaderlessString)
@@ -418,7 +439,7 @@ extension Data {
                     case .uuid       : values.append(value.decodeUUID)
                     case .varChar    : values.append(value.decodeHeaderlessString)
                     case .varInt     : values.append(value.decodeInt)
-                    case .timeUUID   : values.append(value.decodeUUID)
+                    case .timeUUID   : values.append(value.decodeTimeUUID)
                     case .inet       : values.append(value.decodeInt)
                     case .list       : values.append(value.decodeInt)
                     case .map        : values.append(value.decodeInt)

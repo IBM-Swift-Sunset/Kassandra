@@ -81,6 +81,7 @@ public class BreadShop: Table {
     public enum Field: String {
         case type = "type"
         case userID = "userID"
+        case time = "time"
         case name = "name"
         case cost = "cost"
         case rate = "rate"
@@ -206,7 +207,7 @@ class KassandraTests: XCTestCase {
             
             sleep(1)
             let _ = client["test"]
-            let query: Query = Raw(query: "CREATE TABLE IF NOT EXISTS breadshop (userID uuid primary key, type text, name text, cost float, rate double);")
+            let query: Query = Raw(query: "CREATE TABLE IF NOT EXISTS breadshop (userID uuid primary key, type text, name text, cost float, rate double, time timestamp);")
             try client.execute(.query(using: query)) {
                 result in
                 
@@ -241,7 +242,7 @@ class KassandraTests: XCTestCase {
             sleep(1)
             let _ = client["test"]
             
-            let query: Query = Raw(query: "INSERT INTO breadshop (userID, type, name, cost, rate) VALUES (60780342-90fe-11e2-8823-0026c650d722, 'Sandwich', 'roller', 2.90, 9.99);")
+            let query: Query = Raw(query: "INSERT INTO breadshop (userID, type, name, cost, rate, time) VALUES (60780342-90fe-11e2-8823-0026c650d722, 'Sandwich', 'roller', 2.90, 9.99, '2013-03-07 11:17:38');")
             try client.execute(.query(using: query)) {
                 result in
                 

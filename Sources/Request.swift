@@ -95,7 +95,7 @@ public enum Request {
             }
 
             if flags & 0x20 == 0x20 {
-                body.append(Date.timestamp)
+                body.append(Date.data)
             }
         }
 
