@@ -91,6 +91,19 @@ public class BreadShop: Table {
     
 }
 
+public class TestScore: Table {
+    public enum Field: String {
+        case commit = "commit"
+        case score = "score"
+        case userID = "user"
+        case subject = "subject"
+        case time = "time"
+    }
+    
+    public static var tableName: String = "testscore"
+    
+}
+
 class KassandraTests: XCTestCase {
     
     private var client: Kassandra!
@@ -102,6 +115,8 @@ class KassandraTests: XCTestCase {
             ("testConnect", testConnect),
             ("testCreateKeyspace", testCreateKeyspace),
             ("testKeyspaceWithCreateATable", testKeyspaceWithCreateATable),
+            ("testKeyspaceWithCreateABreadShopTable", testKeyspaceWithCreateABreadShopTable),
+            ("testKeyspaceWithCreateABreadShopTableInsertAndSelect", testKeyspaceWithCreateABreadShopTableInsertAndSelect),
             ("testKeyspaceWithFetchCompletedTodoItems", testKeyspaceWithFetchCompletedTodoItems),
             ("testOptions",testOptions),
             ("testPreparedQuery", testPreparedQuery),
@@ -233,6 +248,7 @@ class KassandraTests: XCTestCase {
     
     func testKeyspaceWithCreateABreadShopTableInsertAndSelect() throws {
         
+        let expectation1 = expectation(description: "Insert and select the row")
         do {
             try client.connect() { error in
                 
@@ -253,7 +269,7 @@ class KassandraTests: XCTestCase {
             
             BreadShop.select().execute()
                 .then { (table: TableObj) in
-                    print(table)
+                    expectation1.fulfill()
                     
                 }.fail {
                     error in
@@ -263,6 +279,80 @@ class KassandraTests: XCTestCase {
         } catch {
             throw error
         }
+        waitForExpectations(timeout: 5, handler: { error in XCTAssertNil(error, "Timeout") })
+        
+    }
+    
+    func testKeyspaceWithCreateATestScoreTable() throws {
+        
+        let expectation1 = expectation(description: "Create a table in the keyspace or table exist in the keyspace")
+        do {
+            try client.connect() { error in
+                
+                XCTAssertNil(error)
+            }
+            
+            sleep(1)
+            let _ = client["test"]
+            let query: Query = Raw(query: "CREATE TABLE IF NOT EXISTS testscore (userID ascii primary key, commit blob, score int, subject text, time timestamp);")
+            try client.execute(.query(using: query)) {
+                result in
+                
+                switch result {
+                case .kind(let res):
+                    switch res {
+                    case .schema: expectation1.fulfill()
+                    case .void  : expectation1.fulfill()
+                    default     : break
+                    }
+                default: break
+                }
+            }
+            
+            sleep(2)
+            
+        } catch {
+            throw error
+        }
+        
+        waitForExpectations(timeout: 5, handler: { error in XCTAssertNil(error, "Timeout") })
+    }
+    
+    func testKeyspaceWithCreateATestScoreTableInsertAndSelect() throws {
+    
+        let expectation1 = expectation(description: "Insert and select the row")
+        do {
+            try client.connect() { error in
+                
+                XCTAssertNil(error)
+            }
+            
+            sleep(1)
+            let _ = client["test"]
+            
+            let query: Query = Raw(query: "INSERT INTO testscore (userID, commit, score, subject, time) VALUES ('admin', textAsBlob('bdb14fbe076f6b94444c660e36a400151f26fc6f'), 99, 'Calculus', toTimestamp(now()));")
+            try client.execute(.query(using: query)) {
+                result in
+                
+                print(result)
+            }
+            
+            sleep(2)
+            
+            TestScore.select().execute()
+                .then { (table: TableObj) in
+                    expectation1.fulfill()
+                }.fail {
+                    error in
+                    print("Error: ",error)
+            }
+            sleep(5)
+
+        } catch {
+            throw error
+        }
+        waitForExpectations(timeout: 5, handler: { error in XCTAssertNil(error, "Timeout") })
+        
     }
   
     func testKeyspaceWithFetchCompletedTodoItems() throws {
