@@ -49,30 +49,58 @@ public enum Consistency: UInt16 {
     case unknown
 }
 
-public enum DataType: Int {
-    case custom     = 0x0000
-    case ASCII      = 0x0001
-    case bigInt     = 0x0002
-    case blob       = 0x0003
-    case boolean    = 0x0004
-    case counter    = 0x0005
-    case decimal    = 0x0006
-    case double     = 0x0007
-    case float      = 0x0008
-    case int        = 0x0009
-    case text       = 0x000A
-    case timestamp  = 0x000B
-    case uuid       = 0x000C
-    case varChar    = 0x000D
-    case varInt     = 0x000E
-    case timeUUID   = 0x000F
-    case inet       = 0x0010
-    case list       = 0x0020
-    case map        = 0x0021
-    case set        = 0x0022
-    case UDT        = 0x0030
-    case tuple      = 0x0031
+public indirect enum DataType {
+    public var opcode: UInt16 {
+        switch self {
+        case .custom    : return 0x0000
+        case .ASCII     : return 0x0001
+        case .bigInt    : return 0x0002
+        case .blob      : return 0x0003
+        case .boolean   : return 0x0004
+        case .counter   : return 0x0005
+        case .decimal   : return 0x0006
+        case .double    : return 0x0007
+        case .float     : return 0x0008
+        case .int       : return 0x0009
+        case .text      : return 0x000A
+        case .timestamp : return 0x000B
+        case .uuid      : return 0x000C
+        case .varChar   : return 0x000D
+        case .varInt    : return 0x000E
+        case .timeUUID  : return 0x000F
+        case .inet      : return 0x0010
+        case .list      : return 0x0020
+        case .map       : return 0x0021
+        case .set       : return 0x0022
+        case .UDT       : return 0x0030
+        case .tuple     : return 0x0031
+        }
+    }
+    
+    case custom
+    case ASCII
+    case bigInt
+    case blob
+    case boolean
+    case counter
+    case decimal
+    case double
+    case float
+    case int
+    case text
+    case timestamp
+    case uuid
+    case varChar
+    case varInt
+    case timeUUID
+    case inet
+    case list(type: DataType)
+    case map(type: Any)
+    case set(type: Any)
+    case UDT(type: Any)
+    case tuple(type: Any)
 }
+
 
 /// Return Code Errore
 public enum ErrorType: Error {

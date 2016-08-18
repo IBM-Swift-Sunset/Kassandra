@@ -239,13 +239,33 @@ extension Data {
             return Float(bitPattern: u)
         }
     }
-
-    var decodeVarInt: Int {
+    
+    var decodeDecimal: Decimal {
         mutating get {
-            return 1
+            return Decimal()
         }
     }
+    
+    var decodeVarInt: String {
+        let buf = UnsafePointer<UInt8>(self.filter { _ in true })
+        let charA = UInt8(UnicodeScalar("a").value)
+        let char0 = UInt8(UnicodeScalar("0").value)
+        
+        func intToHex(value: UInt8) -> UInt8 {
+            return (value > 9) ? (charA + value - 10) : (char0 + value)
+        }
+        
+        let ptr = UnsafeMutablePointer<UInt8>.allocate(capacity: count * 2)
+        
+        for i in 0 ..< count {
+            ptr[i*2] = intToHex(value: (buf[i] >> 4) & 0xF)
+            ptr[i*2+1] = intToHex(value: buf[i] & 0xF)
+        }
+        
+        return "0x" + String(bytesNoCopy: ptr, length: count*2, encoding: String.Encoding.utf8, freeWhenDone: true)!
+    }
 
+    
     var decodeInet: (String, Int) {
         mutating get {
             let size = Int(self.decodeUInt8)
@@ -326,6 +346,19 @@ extension Data {
         }
     }
     
+    var decodeList: [Any] {
+        mutating get {
+            let len = self.decodeInt
+            var lst = [Data]()
+            for _ in 0..<len {
+                let len = self.decodeInt
+                lst.append(self.subdata(in: Range(0..<len)))
+                self = self.subdata(in: Range(len..<self.count))
+            }
+            return lst
+        }
+    }
+    
     var decodeEventResponse: Response {
         mutating get {
             switch self.decodeSString {
@@ -390,11 +423,44 @@ extension Data {
                 Metadata(flags: flags, count: columnCount, keyspace: globalKeySpace, table: globalTableName, rowMetadata: nil)
         }
     }
-
+    
+    var decodeType: DataType? {
+        mutating get {
+            //id
+            let type = Int(self.decodeUInt16)
+            //value
+            switch type {
+            case 0x0000: return DataType.custom
+            case 0x0001: return DataType.ASCII
+            case 0x0002: return DataType.bigInt
+            case 0x0003: return DataType.blob
+            case 0x0004: return DataType.boolean
+            case 0x0005: return DataType.counter
+            case 0x0006: return DataType.decimal
+            case 0x0007: return DataType.double
+            case 0x0008: return DataType.float
+            case 0x0009: return DataType.int
+            case 0x000A: return DataType.text
+            case 0x000B: return DataType.timestamp
+            case 0x000C: return DataType.uuid
+            case 0x000D: return DataType.varChar
+            case 0x000E: return DataType.varInt
+            case 0x000F: return DataType.timeUUID
+            case 0x0010: return DataType.inet
+            case 0x0020: return DataType.list(type: self.decodeType!)
+            case 0x0021: return DataType.map(type: 1)
+            case 0x0022: return DataType.set(type: 1)
+            case 0x0030: return DataType.UDT(type: 1)
+            case 0x0031: return DataType.tuple(type: 1)
+            default    : return nil
+            }
+        }
+    }
+    
     var decodeRows: Kind {
         mutating get {
             let metadata = self.decodeMetadata
-
+            
             var headers = [HeaderKey]()
             var rowVals = [[Any]]()
             
@@ -403,7 +469,8 @@ extension Data {
                     let _ = self.decodeSString //ksname
                     let _ = self.decodeSString //tablename
                 }
-                headers.append(HeaderKey(field: self.decodeSString, type: DataType(rawValue: Int(self.decodeUInt16))!))
+                
+                headers.append(HeaderKey(field: self.decodeSString, type: self.decodeType!))
             }
             
             // Parse Row Content
@@ -416,37 +483,13 @@ extension Data {
                     let length = Int(self.decodeInt32)
                     
                     if length < 0 {
-                        values.append("NULL") // null
+                        values.append("NULL")
                         continue
                     }
                     //String.Encoding.ascii
-                    var value = self.subdata(in: Range(0..<length))
-                    
-                    //NOTE: Convert value to appropriate type here or leave as data?
-                    switch headers[i].type! {
-                    case .custom     : values.append(value.decodeHeaderlessString)
-                    case .ASCII      : values.append(value.decodeAsciiString)
-                    case .bigInt     : values.append(value.decodeBigInt)
-                    case .blob       : values.append(value.decodeBlob)
-                    case .boolean    : values.append(value.decodeBool)
-                    case .counter    : values.append(value.decodeInt)
-                    case .decimal    : values.append(value.decodeInt)
-                    case .double     : values.append(value.decodeDouble)
-                    case .float      : values.append(value.decodeFloat)
-                    case .int        : values.append(value.decodeInt)
-                    case .text       : values.append(value.decodeHeaderlessString)
-                    case .timestamp  : values.append(value.decodeTimeStamp)
-                    case .uuid       : values.append(value.decodeUUID)
-                    case .varChar    : values.append(value.decodeHeaderlessString)
-                    case .varInt     : values.append(value.decodeInt)
-                    case .timeUUID   : values.append(value.decodeTimeUUID)
-                    case .inet       : values.append(value.decodeInt)
-                    case .list       : values.append(value.decodeInt)
-                    case .map        : values.append(value.decodeInt)
-                    case .set        : values.append(value.decodeInt)
-                    case .UDT        : values.append(value.decodeInt)
-                    case .tuple      : values.append(value.decodeInt)
-                    }
+                    let value = self.subdata(in: Range(0..<length))
+                    let decodedValue = option(type: headers[i].type!, data: value)
+                    values.append(decodedValue)
                     
                     self = self.subdata(in: Range(length..<self.count))
                 }
@@ -457,6 +500,65 @@ extension Data {
         }
     }
 }
+
+private func option(type: DataType, data: Data) -> Any {
+    var data = data
+    
+    switch type {
+    case .custom     : return data.decodeHeaderlessString
+    case .ASCII      : return data.decodeAsciiString
+    case .bigInt     : return data.decodeBigInt
+    case .blob       : return data.decodeBlob
+    case .boolean    : return data.decodeBool
+    case .counter    : return data.decodeInt
+    case .decimal    : return data.decodeInt
+    case .double     : return data.decodeDouble
+    case .float      : return data.decodeFloat
+    case .int        : return data.decodeInt
+    case .text       : return data.decodeHeaderlessString
+    case .timestamp  : return data.decodeTimeStamp
+    case .uuid       : return data.decodeUUID
+    case .varChar    : return data.decodeHeaderlessString
+    case .varInt     : return data.decodeVarInt
+    case .timeUUID   : return data.decodeUUID
+    case .inet       : return data.decodeInt
+    case .list(let t): return decodeList(type: t, data: data)
+    case .map        : return data.decodeInt
+    case .set        : return data.decodeInt
+    case .UDT        : return data.decodeInt
+    case .tuple      : return data.decodeInt
+    }
+}
+
+private func decodeList(type: DataType, data: Data) -> [Any] {
+    var data = data
+    let len = data.decodeInt
+    var lst = [Any]()
+    for _ in 0..<len {
+        let len = data.decodeInt
+        let val = option(type: type, data: data.subdata(in: Range(0..<len)))
+        lst.append(val)
+        data = data.subdata(in: Range(len..<data.count))
+    }
+    return lst
+}
+
+/*
+private func decodeSet(type: DataType, data: Data) -> Set<Convertible> {
+    var data = data
+    let len = data.decodeInt
+    var lst = Set<Convertible>()
+    for _ in 0..<len {
+        let len = data.decodeInt
+        let val = option(type: type, data: data.subdata(in: Range(0..<len)))
+        lst.append(val)
+        data = data.subdata(in: Range(len..<data.count))
+    }
+    return lst
+    
+}*/
+
+
 extension Dictionary {
 
     public init(keys: [Key], values: [Value]) {
