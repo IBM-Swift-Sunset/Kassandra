@@ -118,6 +118,18 @@ public class IceCream: Table {
     
 }
 
+public class BookCollection: Table {
+    public enum Field: String {
+        case id = "id"
+        case name = "name"
+        case price = "price"
+        case series = "series"
+        case emails = "emails"
+    }
+    
+    public static var tableName: String = "bookcollection"
+}
+
 class KassandraTests: XCTestCase {
     
     private var client: Kassandra!
@@ -129,6 +141,8 @@ class KassandraTests: XCTestCase {
             ("testConnect", testConnect),
             ("testCreateKeyspace", testCreateKeyspace),
             ("testKeyspaceWithCreateATable", testKeyspaceWithCreateATable),
+            ("testKeyspaceWithCreateABookCollectionTable", testKeyspaceWithCreateABookCollectionTable),
+            ("testKeyspaceWithCreateABookCollectionTableInsertAndSelect", testKeyspaceWithCreateABookCollectionTableInsertAndSelect),
             ("testKeyspaceWithCreateABreadShopTable", testKeyspaceWithCreateABreadShopTable),
             ("testKeyspaceWithCreateABreadShopTableInsertAndSelect", testKeyspaceWithCreateABreadShopTableInsertAndSelect),
             ("testKeyspaceWithCreateAIceCreamTable", testKeyspaceWithCreateAIceCreamTable),
@@ -373,6 +387,75 @@ class KassandraTests: XCTestCase {
         }
         waitForExpectations(timeout: 5, handler: { error in XCTAssertNil(error, "Timeout") })
         
+    }
+    
+    func testKeyspaceWithCreateABookCollectionTable() throws {
+        
+        let expectation1 = expectation(description: "Create a table in the keyspace or table exist in the keyspace")
+        do {
+            try client.connect() { error in
+                
+                XCTAssertNil(error)
+            }
+            
+            sleep(1)
+            let _ = client["test"]
+            let query: Query = Raw(query: "CREATE TABLE IF NOT EXISTS bookcollection (id uuid primary key, name text, price float, series map<text,text>, emails set<text>);")
+            try client.execute(.query(using: query)) {
+                result in
+                
+                switch result {
+                case .kind(let res):
+                    switch res {
+                    case .schema: expectation1.fulfill()
+                    case .void  : expectation1.fulfill()
+                    default     : break
+                    }
+                default: break
+                }
+            }
+            
+            sleep(2)
+            
+        } catch {
+            throw error
+        }
+        
+        waitForExpectations(timeout: 5, handler: { error in XCTAssertNil(error, "Timeout") })
+    }
+    
+    func testKeyspaceWithCreateABookCollectionTableInsertAndSelect() throws {
+        
+        do {
+            try client.connect() { error in
+                
+                XCTAssertNil(error)
+            }
+            
+            sleep(1)
+            let _ = client["test"]
+            
+            let query: Query = Raw(query: "INSERT INTO bookcollection (id, name, price, series, emails) VALUES (uuid(), 'Harry Potter', 89.99, {'Volume 1' : 'Harry Potter and the Philosophers Stone', 'Volume 2' : 'Harry Potter and the Chamber of Secrets', 'Volume 3':'Harry Potter and the Prisoner of Azkaban', 'Volume 4':'Harry Potter and the Goblet of Fire', 'Volume 5':'Harry Potter and the Order of the Phoenix', 'Volume 6':'Harry Potter and the Half-Blood Prince', 'Volume 7':'Harry Potter and the Deathly Hallows'}, {'harrypotter@gmail.com', 'hermionegranger@gmail.com', 'ronweasley@gmail.com', 'harrypotterfan@gmail.com','ronweasley@gmail.com'});")
+            try client.execute(.query(using: query)) {
+                result in
+                
+                print(result)
+            }
+            
+            sleep(2)
+            
+            BookCollection.select().execute()
+                .then { (table: TableObj) in
+                    print(table)
+                }.fail {
+                    error in
+                    print("Error: ",error)
+            }
+            sleep(5)
+            
+        } catch {
+            throw error
+        }
     }
     
     func testKeyspaceWithCreateAIceCreamTable() throws {

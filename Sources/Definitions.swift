@@ -95,8 +95,8 @@ public indirect enum DataType {
     case timeUUID
     case inet
     case list(type: DataType)
-    case map(type: Any)
-    case set(type: Any)
+    case map(keytype: DataType, valuetype: DataType)
+    case set(type: DataType)
     case UDT(type: Any)
     case tuple(type: Any)
 }

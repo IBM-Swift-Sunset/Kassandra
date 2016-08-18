@@ -448,8 +448,8 @@ extension Data {
             case 0x000F: return DataType.timeUUID
             case 0x0010: return DataType.inet
             case 0x0020: return DataType.list(type: self.decodeType!)
-            case 0x0021: return DataType.map(type: 1)
-            case 0x0022: return DataType.set(type: 1)
+            case 0x0021: return DataType.map(keytype: self.decodeType!, valuetype: self.decodeType!)
+            case 0x0022: return DataType.set(type: self.decodeType!)
             case 0x0030: return DataType.UDT(type: 1)
             case 0x0031: return DataType.tuple(type: 1)
             default    : return nil
@@ -480,12 +480,11 @@ extension Data {
                 
                 for i in 0..<metadata.columnCount {
                     
-                    let length = Int(self.decodeInt32)
-                    
-                    if length < 0 {
+                    guard case let length = Int(self.decodeInt32), length > 0 else {
                         values.append("NULL")
                         continue
                     }
+                    
                     //String.Encoding.ascii
                     let value = self.subdata(in: Range(0..<length))
                     let decodedValue = option(type: headers[i].type!, data: value)
@@ -500,6 +499,33 @@ extension Data {
         }
     }
 }
+
+public struct AnyKey: Hashable {
+    public let underlying: Any
+    public let hashValueFunc: () -> Int
+    public let equalityFunc: (Any) -> Bool
+    
+    init<T: Hashable>(_ key: T) {
+        underlying = key
+        
+        hashValueFunc = { key.hashValue }
+        
+        equalityFunc = {
+            if let other = $0 as? T {
+                return key == other
+            }
+            return false
+        }
+    }
+    
+    public var hashValue: Int { return hashValueFunc() }
+}
+
+public func ==(x: AnyKey, y: AnyKey) -> Bool {
+    return x.equalityFunc(y.underlying)
+}
+
+
 
 private func option(type: DataType, data: Data) -> Any {
     var data = data
@@ -523,8 +549,8 @@ private func option(type: DataType, data: Data) -> Any {
     case .timeUUID   : return data.decodeUUID
     case .inet       : return data.decodeInt
     case .list(let t): return decodeList(type: t, data: data)
-    case .map        : return data.decodeInt
-    case .set        : return data.decodeInt
+    case .map(let k, let v) : return decodeMap(keyType: k, valueType: v, data: data)
+    case .set(let t) : return decodeSet(type: t, data: data)
     case .UDT        : return data.decodeInt
     case .tuple      : return data.decodeInt
     }
@@ -543,20 +569,46 @@ private func decodeList(type: DataType, data: Data) -> [Any] {
     return lst
 }
 
-/*
-private func decodeSet(type: DataType, data: Data) -> Set<Convertible> {
+private func decodeSet(type: DataType, data: Data) -> Set<AnyKey> {
     var data = data
     let len = data.decodeInt
-    var lst = Set<Convertible>()
+    var lst = Set<AnyKey>()
     for _ in 0..<len {
         let len = data.decodeInt
         let val = option(type: type, data: data.subdata(in: Range(0..<len)))
-        lst.append(val)
+        switch val {
+            case let k as String: lst.insert(AnyKey(k))
+            case let k as Double: lst.insert(AnyKey(k))
+            case let k as Float: lst.insert(AnyKey(k))
+            case let k as Bool: lst.insert(AnyKey(k))
+            default: break
+        }
         data = data.subdata(in: Range(len..<data.count))
     }
     return lst
     
-}*/
+}
+
+private func decodeMap(keyType: DataType,valueType: DataType, data: Data) -> [AnyKey : Any] {
+    var data = data
+    var map = [AnyKey : Any]()
+    
+    for _ in 0..<data.decodeInt {
+        let len1 = data.decodeInt
+        let key = option(type: keyType, data: data.subdata(in: Range(0..<len1)))
+        data = data.subdata(in: Range(len1..<data.count))
+        
+        let len2 = data.decodeInt
+        let value = option(type: valueType, data: data.subdata(in: Range(0..<len2)))
+        data = data.subdata(in: Range(len2..<data.count))
+        
+        switch key {
+        case let k as String: map[AnyKey(k)] = value
+        default: break
+        }
+    }
+    return map
+}
 
 
 extension Dictionary {
