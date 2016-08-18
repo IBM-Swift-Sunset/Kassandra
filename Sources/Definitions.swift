@@ -97,8 +97,8 @@ public indirect enum DataType {
     case list(type: DataType)
     case map(keytype: DataType, valuetype: DataType)
     case set(type: DataType)
-    case UDT(type: Any)
-    case tuple(type: Any)
+    case UDT(name: String, headers: [HeaderKey])
+    case tuple(types: [DataType])
 }
 
 

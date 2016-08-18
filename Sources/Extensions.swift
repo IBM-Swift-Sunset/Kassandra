@@ -269,11 +269,35 @@ extension Data {
     var decodeInet: (String, Int) {
         mutating get {
             let size = Int(self.decodeUInt8)
+            print("(size, count): ", size, self.count)
             var host = self.subdata(in: Range(0..<size))
+            print(host.decodeSString)
             var port = self.subdata(in: Range(size..<self.count))
+            print(port.decodeInt)
             return (host.decodeSString, port.decodeInt)
         }
         
+    }
+    
+    var decodeInetIp: String {
+        mutating get {
+            //var host = self.subdata(in: Range(0..<self.count))
+            //print("Bytes: ", host)
+            //print(self[0], self[1], self[2], self[3])
+            /*let u1 = self.decodeUInt8
+            let u2 = self.decodeUInt8
+            let l1 = self.decodeUInt8
+            let l2 = self.decodeUInt8
+            print("(u1, u2, l1, l2): ",u1, u2, l1, l2)*/
+            let u = UInt32(self.decodeUInt16) <<  16
+            let l = UInt32(self.decodeUInt16)
+            let data = UInt32(u | l)
+            print("(u, l, data)", u, l, data, data.data, type(of:data.data))
+            let result = String(data: data.data, encoding: String.Encoding.utf8) ?? "NULL"
+            print(result)
+            
+            return String("-")
+        }
     }
 
     // Decode Cassandra <String>
@@ -450,9 +474,26 @@ extension Data {
             case 0x0020: return DataType.list(type: self.decodeType!)
             case 0x0021: return DataType.map(keytype: self.decodeType!, valuetype: self.decodeType!)
             case 0x0022: return DataType.set(type: self.decodeType!)
-            case 0x0030: return DataType.UDT(type: 1)
-            case 0x0031: return DataType.tuple(type: 1)
-            default    : return nil
+            case 0x0030:
+                let keyspacename = self.decodeSString
+                let UDTname = self.decodeSString
+                var headers = [HeaderKey]()
+                for _ in 0..<self.decodeUInt16 {
+                    let name = self.decodeSString
+                    let type = self.decodeType!
+                    headers.append(HeaderKey(field: name, type: type))
+                }
+                print(keyspacename,UDTname, headers)
+       return DataType.UDT(name: keyspacename + "." + UDTname,headers: headers)
+            case 0x0031:
+                var arr = [DataType]()
+                for _ in 0..<Int(self.decodeUInt16) {
+                    let x = self.decodeType!
+                    print(x)
+                    arr.append(x)
+                }
+                return DataType.tuple(types: arr)
+            default     : return nil
             }
         }
     }
@@ -487,6 +528,7 @@ extension Data {
                     
                     //String.Encoding.ascii
                     let value = self.subdata(in: Range(0..<length))
+                    print("\(#function) (Bytes of the value, header type): ", value, headers[i].type!)
                     let decodedValue = option(type: headers[i].type!, data: value)
                     values.append(decodedValue)
                     
@@ -547,12 +589,12 @@ private func option(type: DataType, data: Data) -> Any {
     case .varChar    : return data.decodeHeaderlessString
     case .varInt     : return data.decodeVarInt
     case .timeUUID   : return data.decodeUUID
-    case .inet       : return data.decodeInt
+    case .inet       : return data.decodeInetIp
     case .list(let t): return decodeList(type: t, data: data)
     case .map(let k, let v) : return decodeMap(keyType: k, valueType: v, data: data)
     case .set(let t) : return decodeSet(type: t, data: data)
-    case .UDT        : return data.decodeInt
-    case .tuple      : return data.decodeInt
+    case .UDT(_, let h) : return decodeUDT(headers: h, data: data)
+    case .tuple(let t) : return decodeTuple(types: t, data: data)
     }
 }
 
@@ -610,6 +652,31 @@ private func decodeMap(keyType: DataType,valueType: DataType, data: Data) -> [An
     return map
 }
 
+private func decodeTuple(types: [DataType], data: Data) -> [Any] {
+    var data = data
+    var arr = [Any]()
+    for type in types {
+        let len = data.decodeInt
+        arr.append(option(type: type, data: data.subdata(in: Range(0..<len))))
+        data = data.subdata(in: Range(len..<data.count))
+    }
+    return arr
+}
+
+private func decodeUDT(headers: [HeaderKey], data: Data) -> [String: Any] {
+    var data = data
+    print("\n\n")
+    print(headers)
+    var obj = [String: Any]()
+    
+    for header in headers {
+        let len = data.decodeInt
+        let val = option(type: header.type!, data: data.subdata(in: Range(0..<len)))
+        obj[header.field] = val
+        data = data.subdata(in: Range(len..<data.count))
+    }
+    return obj
+}
 
 extension Dictionary {
 

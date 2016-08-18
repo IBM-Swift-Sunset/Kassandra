@@ -130,6 +130,17 @@ public class BookCollection: Table {
     public static var tableName: String = "bookcollection"
 }
 
+public class CollectRanData: Table {
+    public enum Field: String {
+        case id = "id"
+        case numbers = "numbers"
+    }
+    
+    public static var tableName: String = "collectrandata"
+}
+
+
+
 class KassandraTests: XCTestCase {
     
     private var client: Kassandra!
@@ -145,6 +156,8 @@ class KassandraTests: XCTestCase {
             ("testKeyspaceWithCreateABookCollectionTableInsertAndSelect", testKeyspaceWithCreateABookCollectionTableInsertAndSelect),
             ("testKeyspaceWithCreateABreadShopTable", testKeyspaceWithCreateABreadShopTable),
             ("testKeyspaceWithCreateABreadShopTableInsertAndSelect", testKeyspaceWithCreateABreadShopTableInsertAndSelect),
+            ("testKeyspaceWithCreateACollectRanDataTable", testKeyspaceWithCreateACollectRanDataTable),
+            ("testKeyspaceWithCreateACollectRanDataTableInsertAndSelect", testKeyspaceWithCreateACollectRanDataTableInsertAndSelect),
             ("testKeyspaceWithCreateAIceCreamTable", testKeyspaceWithCreateAIceCreamTable),
             ("testKeyspaceWithCreateAIceCreamTableInsertAndSelect", testKeyspaceWithCreateAIceCreamTableInsertAndSelect),
             ("testKeyspaceWithCreateATestScoreTable", testKeyspaceWithCreateATestScoreTable),
@@ -330,7 +343,81 @@ class KassandraTests: XCTestCase {
             let query: Query = Raw(query: "CREATE TABLE IF NOT EXISTS testscore (userID ascii primary key, commit blob, score int, subject text, time timestamp, userip inet);")
             try client.execute(.query(using: query)) {
                 result in
+                print(result)
+                switch result {
+                case .kind(let res):
+                    switch res {
+                    case .schema: expectation1.fulfill()
+                    case .void  : expectation1.fulfill()
+                    default     : break
+                    }
+                default: break
+                }
+            }
+            
+            sleep(2)
+            
+        } catch {
+            throw error
+        }
+        
+        waitForExpectations(timeout: 5, handler: { error in XCTAssertNil(error, "Timeout") })
+    }
+
+    func testKeyspaceWithCreateATestScoreTableInsertAndSelect() throws {
+    
+        let expectation1 = expectation(description: "Insert and select the row")
+        do {
+            try client.connect() { error in
                 
+                XCTAssertNil(error)
+            }
+            
+            sleep(1)
+            let _ = client["test"]
+            
+            let query: Query = Raw(query: "INSERT INTO testscore (userID, commit, score, subject, time, userip) VALUES ('admin', textAsBlob('bdb14fbe076f6b94444c660e36a400151f26fc6f'), 99, 'Calculus', toTimestamp(now()), '200.199.198.197');")
+            try client.execute(.query(using: query)) {
+                result in
+                
+                print(result)
+            }
+            
+            sleep(2)
+            
+            TestScore.select().execute()
+                .then { (table: TableObj) in
+                    print(table)
+                    expectation1.fulfill()
+                }.fail {
+                    error in
+                    print("Error: ",error)
+            }
+            sleep(5)
+            
+
+        } catch {
+            throw error
+        }
+        waitForExpectations(timeout: 5, handler: { error in XCTAssertNil(error, "Timeout") })
+        
+    }
+    
+    func testKeyspaceWithCreateACollectRanDataTable() throws {
+        
+        let expectation1 = expectation(description: "Create a table in the keyspace or table exist in the keyspace")
+        do {
+            try client.connect() { error in
+                
+                XCTAssertNil(error)
+            }
+            
+            sleep(1)
+            let _ = client["test"]
+            let query: Query = Raw(query: "CREATE TABLE IF NOT EXISTS collectrandata (id int primary key, numbers tuple<int, text, float>);")
+            try client.execute(.query(using: query)) {
+                result in
+                print(result)
                 switch result {
                 case .kind(let res):
                     switch res {
@@ -351,9 +438,8 @@ class KassandraTests: XCTestCase {
         waitForExpectations(timeout: 5, handler: { error in XCTAssertNil(error, "Timeout") })
     }
     
-    func testKeyspaceWithCreateATestScoreTableInsertAndSelect() throws {
-    
-        let expectation1 = expectation(description: "Insert and select the row")
+    func testKeyspaceWithCreateACollectRanDataTableInsertAndSelect() throws {
+        
         do {
             try client.connect() { error in
                 
@@ -363,7 +449,7 @@ class KassandraTests: XCTestCase {
             sleep(1)
             let _ = client["test"]
             
-            let query: Query = Raw(query: "INSERT INTO testscore (userID, commit, score, subject, time, userip) VALUES ('admin', textAsBlob('bdb14fbe076f6b94444c660e36a400151f26fc6f'), 99, 'Calculus', toTimestamp(now()), '2001:db8::1:80');")
+            let query: Query = Raw(query: "INSERT INTO collectrandata (id, numbers) VALUES (1,  (3, 'bar', 2.20));")
             try client.execute(.query(using: query)) {
                 result in
                 
@@ -372,21 +458,19 @@ class KassandraTests: XCTestCase {
             
             sleep(2)
             
-            TestScore.select().execute()
+            CollectRanData.select().execute()
                 .then { (table: TableObj) in
                     print(table)
-                    expectation1.fulfill()
                 }.fail {
                     error in
                     print("Error: ",error)
             }
             sleep(5)
-
+            
+            
         } catch {
             throw error
         }
-        waitForExpectations(timeout: 5, handler: { error in XCTAssertNil(error, "Timeout") })
-        
     }
     
     func testKeyspaceWithCreateABookCollectionTable() throws {
@@ -912,15 +996,53 @@ class KassandraTests: XCTestCase {
     }
     */
     
+    /*
+ func testAUDT() throws {
+ 
+ do {
+ try client.connect() { error in
+ 
+ XCTAssertNil(error)
+ }
+ 
+ sleep(1)
+ let _ = client["test"]
+ 
+ let query: Query = Raw(query: "insert into example4(user, arr) values (1, {street: 'dulce ln', city: 'austin', zip_code: 07746, phone: '7328823142'});")
+ try client.execute(.query(using: query)) {
+ result in
+ 
+ print(result)
+ }
+ 
+ sleep(2)
+ 
+ let query2: Query = Raw(query: "select * from example4;")
+ try client.execute(.query(using: query2)) {
+ result in
+ 
+ print(result)
+ }
+ 
+ 
+ sleep(5)
+ 
+ 
+ } catch {
+ throw error
+ }
+ }
+*/
+ 
     public func testZBatch() {
         let expectation1 = expectation(description: "Execute a batch query")
-        
+ 
         var insert1 = TodoItem.insert([.type: "todo", .userID: 99,.title: "Water Plants", .pos: 15, .completed: false])
-        
+ 
         insert1.prepare()
             .then {
                 id in
-                
+ 
                 insert1.preparedID = id
                 
                 let insert2 = TodoItem.insert([.type: "todo", .userID: 98,.title: "Make Dinner", .pos: 14, .completed: true])
