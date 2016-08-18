@@ -247,7 +247,11 @@ extension Data {
     }
     
     var decodeVarInt: String {
-        let buf = UnsafePointer<UInt8>(self.filter { _ in true })
+        return toHex(data: self)
+    }
+
+    private func toHex(data: Data) -> String {
+        let buf = UnsafePointer<UInt8>(data.filter { _ in true })
         let charA = UInt8(UnicodeScalar("a").value)
         let char0 = UInt8(UnicodeScalar("0").value)
         
@@ -255,49 +259,33 @@ extension Data {
             return (value > 9) ? (charA + value - 10) : (char0 + value)
         }
         
-        let ptr = UnsafeMutablePointer<UInt8>.allocate(capacity: count * 2)
+        let ptr = UnsafeMutablePointer<UInt8>.allocate(capacity: data.count * 2)
         
-        for i in 0 ..< count {
+        for i in 0 ..< data.count {
             ptr[i*2] = intToHex(value: (buf[i] >> 4) & 0xF)
             ptr[i*2+1] = intToHex(value: buf[i] & 0xF)
         }
         
-        return "0x" + String(bytesNoCopy: ptr, length: count*2, encoding: String.Encoding.utf8, freeWhenDone: true)!
+        return String(bytesNoCopy: ptr, length: data.count*2, encoding: String.Encoding.utf8, freeWhenDone: true)!
     }
-
-    
     var decodeInet: (String, Int) {
         mutating get {
-            let size = Int(self.decodeUInt8)
-            print("(size, count): ", size, self.count)
-            var host = self.subdata(in: Range(0..<size))
-            print(host.decodeSString)
-            var port = self.subdata(in: Range(size..<self.count))
-            print(port.decodeInt)
-            return (host.decodeSString, port.decodeInt)
+            
+            if count == 4 {
+                let str: String = "\(String(describing: self[0])).\(String(describing: self[1])).\(String(describing: self[2])).\(String(describing: self[3]))"
+                return (str, 0)
+            } else {
+                var result = ""
+                for i in 0..<count {
+                    result += toHex(data: Data(bytes: [self[i]], count:  1))
+                    if i % 2 == 1 {
+                        result += ":"
+                    }
+                }
+                return (result, 0)
+            }
         }
         
-    }
-    
-    var decodeInetIp: String {
-        mutating get {
-            //var host = self.subdata(in: Range(0..<self.count))
-            //print("Bytes: ", host)
-            //print(self[0], self[1], self[2], self[3])
-            /*let u1 = self.decodeUInt8
-            let u2 = self.decodeUInt8
-            let l1 = self.decodeUInt8
-            let l2 = self.decodeUInt8
-            print("(u1, u2, l1, l2): ",u1, u2, l1, l2)*/
-            let u = UInt32(self.decodeUInt16) <<  16
-            let l = UInt32(self.decodeUInt16)
-            let data = UInt32(u | l)
-            print("(u, l, data)", u, l, data, data.data, type(of:data.data))
-            let result = String(data: data.data, encoding: String.Encoding.utf8) ?? "NULL"
-            print(result)
-            
-            return String("-")
-        }
     }
 
     // Decode Cassandra <String>
@@ -589,7 +577,7 @@ private func option(type: DataType, data: Data) -> Any {
     case .varChar    : return data.decodeHeaderlessString
     case .varInt     : return data.decodeVarInt
     case .timeUUID   : return data.decodeUUID
-    case .inet       : return data.decodeInetIp
+    case .inet       : return data.decodeInet
     case .list(let t): return decodeList(type: t, data: data)
     case .map(let k, let v) : return decodeMap(keyType: k, valueType: v, data: data)
     case .set(let t) : return decodeSet(type: t, data: data)

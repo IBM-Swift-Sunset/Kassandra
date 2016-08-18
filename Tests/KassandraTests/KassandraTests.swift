@@ -151,7 +151,7 @@ class KassandraTests: XCTestCase {
         return [
             ("testConnect", testConnect),
             ("testCreateKeyspace", testCreateKeyspace),
-            ("testKeyspaceWithCreateATable", testKeyspaceWithCreateATable),
+            /*("testKeyspaceWithCreateATable", testKeyspaceWithCreateATable),
             ("testKeyspaceWithCreateABookCollectionTable", testKeyspaceWithCreateABookCollectionTable),
             ("testKeyspaceWithCreateABookCollectionTableInsertAndSelect", testKeyspaceWithCreateABookCollectionTableInsertAndSelect),
             ("testKeyspaceWithCreateABreadShopTable", testKeyspaceWithCreateABreadShopTable),
@@ -159,14 +159,14 @@ class KassandraTests: XCTestCase {
             ("testKeyspaceWithCreateACollectRanDataTable", testKeyspaceWithCreateACollectRanDataTable),
             ("testKeyspaceWithCreateACollectRanDataTableInsertAndSelect", testKeyspaceWithCreateACollectRanDataTableInsertAndSelect),
             ("testKeyspaceWithCreateAIceCreamTable", testKeyspaceWithCreateAIceCreamTable),
-            ("testKeyspaceWithCreateAIceCreamTableInsertAndSelect", testKeyspaceWithCreateAIceCreamTableInsertAndSelect),
+            ("testKeyspaceWithCreateAIceCreamTableInsertAndSelect", testKeyspaceWithCreateAIceCreamTableInsertAndSelect), */
             ("testKeyspaceWithCreateATestScoreTable", testKeyspaceWithCreateATestScoreTable),
             ("testKeyspaceWithCreateATestScoreTableInsertAndSelect", testKeyspaceWithCreateATestScoreTableInsertAndSelect),
-            ("testKeyspaceWithFetchCompletedTodoItems", testKeyspaceWithFetchCompletedTodoItems),
+            /*("testKeyspaceWithFetchCompletedTodoItems", testKeyspaceWithFetchCompletedTodoItems),
             ("testOptions",testOptions),
             ("testPreparedQuery", testPreparedQuery),
             ("testTruncateTable",testTruncateTable),
-            ("testZBatch", testZBatch),
+            ("testZBatch", testZBatch),*/
             //("testZDropTableAndDeleteKeyspace", testZDropTableAndDeleteKeyspace),
             //("testMaxTodoitemID", testMaxTodoitemID),
             //("testTable", testTable),
@@ -219,7 +219,7 @@ class KassandraTests: XCTestCase {
         waitForExpectations(timeout: 5, handler: { error in XCTAssertNil(error, "Timeout") })
     }
     
-   func testKeyspaceWithCreateATable() throws {
+/*   func testKeyspaceWithCreateATable() throws {
         
         let expectation1 = expectation(description: "Create a table in the keyspace or table exist in the keyspace")
         
@@ -327,7 +327,7 @@ class KassandraTests: XCTestCase {
         }
         waitForExpectations(timeout: 5, handler: { error in XCTAssertNil(error, "Timeout") })
         
-    }
+    }*/
     
     func testKeyspaceWithCreateATestScoreTable() throws {
         
@@ -376,10 +376,10 @@ class KassandraTests: XCTestCase {
             sleep(1)
             let _ = client["test"]
             
-            let query: Query = Raw(query: "INSERT INTO testscore (userID, commit, score, subject, time, userip) VALUES ('admin', textAsBlob('bdb14fbe076f6b94444c660e36a400151f26fc6f'), 99, 'Calculus', toTimestamp(now()), '200.199.198.197');")
+            let query: Query = Raw(query: "INSERT INTO testscore (userID, commit, score, subject, time, userip) VALUES ('admin', textAsBlob('bdb14fbe076f6b94444c660e36a400151f26fc6f'), 99, 'Calculus', toTimestamp(now()), '127.0.0.1');")
             try client.execute(.query(using: query)) {
                 result in
-                
+
                 print(result)
             }
             
@@ -403,7 +403,7 @@ class KassandraTests: XCTestCase {
         
     }
     
-    func testKeyspaceWithCreateACollectRanDataTable() throws {
+    /*func testKeyspaceWithCreateACollectRanDataTable() throws {
         
         let expectation1 = expectation(description: "Create a table in the keyspace or table exist in the keyspace")
         do {
@@ -750,7 +750,7 @@ class KassandraTests: XCTestCase {
         
         waitForExpectations(timeout: 5, handler: { error in XCTAssertNil(error, "Timeout") })
         
-    }
+    }*/
     
 /*    func testZDropTableAndDeleteKeyspace() throws {
         
