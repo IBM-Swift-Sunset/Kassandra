@@ -340,7 +340,7 @@ class KassandraTests: XCTestCase {
             
             sleep(1)
             let _ = client["test"]
-            let query: Query = Raw(query: "CREATE TABLE IF NOT EXISTS testscore (userID ascii primary key, commit blob, score int, subject text, time timestamp, userip inet);")
+            let query: Query = Raw(query: "CREATE TABLE IF NOT EXISTS testscore (userID ascii primary key, commit blob, score decimal, subject text, time timestamp, userip inet);")
             try client.execute(.query(using: query)) {
                 result in
                 print(result)
@@ -375,8 +375,8 @@ class KassandraTests: XCTestCase {
             
             sleep(1)
             let _ = client["test"]
-            
-            let query: Query = Raw(query: "INSERT INTO testscore (userID, commit, score, subject, time, userip) VALUES ('admin', textAsBlob('bdb14fbe076f6b94444c660e36a400151f26fc6f'), 99, 'Calculus', toTimestamp(now()), '127.0.0.1');")
+
+            let query: Query = Raw(query: "INSERT INTO testscore (userID, commit, score, subject, time, userip) VALUES ('admin', textAsBlob('bdb14fbe076f6b94444c660e36a400151f26fc6f'), 1.44, 'Calculus', toTimestamp(now()), '127.0.0.1');")
             try client.execute(.query(using: query)) {
                 result in
 
@@ -827,7 +827,7 @@ class KassandraTests: XCTestCase {
      
      }*/
     
-    func testPreparedQuery() throws {
+/*    func testPreparedQuery() throws {
      
         let expectation1 = expectation(description: "Execute a prepared query")
             do {
@@ -869,7 +869,7 @@ class KassandraTests: XCTestCase {
      }
      waitForExpectations(timeout: 5, handler: { error in XCTAssertNil(error, "Timeout") })
      
-     }
+     }*/
 
      /*
     /*
@@ -1034,7 +1034,7 @@ class KassandraTests: XCTestCase {
  }
 */
  
-    public func testZBatch() {
+/*    public func testZBatch() {
         let expectation1 = expectation(description: "Execute a batch query")
  
         var insert1 = TodoItem.insert([.type: "todo", .userID: 99,.title: "Water Plants", .pos: 15, .completed: false])
@@ -1069,7 +1069,7 @@ class KassandraTests: XCTestCase {
         
         
         waitForExpectations(timeout: 5, handler: { error in XCTAssertNil(error, "Timeout") })
-    }
+    }*/
     public func ErrorHandler(error: Result?) {
         print(error)
     }

@@ -242,7 +242,17 @@ extension Data {
     
     var decodeDecimal: Decimal {
         mutating get {
-            return Decimal()
+            let scaled = UInt64(decodeUInt32)
+            print(scaled)
+            let unscaled = UInt32(decodeVarInt)!
+            print(unscaled)
+            print("Float: ",Float(bitPattern: unscaled))
+            let test = Double(unscaled) * pow(10, (-1 * Double(scaled)))
+            print("testts", test)
+            //let data: Double = Double(bitPattern: unscaled!) * pow(10, (-1 * Double(bitPattern: scaled)))
+            //print("Data is: ",data)
+            //Decimal(
+            return Decimal(floatLiteral: test)
         }
     }
     
@@ -567,7 +577,7 @@ private func option(type: DataType, data: Data) -> Any {
     case .blob       : return data.decodeBlob
     case .boolean    : return data.decodeBool
     case .counter    : return data.decodeInt
-    case .decimal    : return data.decodeInt
+    case .decimal    : return data.decodeDecimal
     case .double     : return data.decodeDouble
     case .float      : return data.decodeFloat
     case .int        : return data.decodeInt
