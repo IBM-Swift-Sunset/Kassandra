@@ -66,20 +66,17 @@ class KassandraTests: XCTestCase {
     
     func testConnect() throws {
         
-        try connection.connect() { result in XCTAssertNil(result.asError) }
+        try connection.connect() { result in XCTAssertNil(result) }
     }
     
-    public func resultHandler(_ result: QueryResult) {
-        
-    }
     func testCreateKeyspace() throws {
         
         let expectation1 = expectation(description: "Created a keyspace or Keyspace exist")
         
         try connection.connect() { result in
             
-            if result.asError == nil {
-                self.connection.execute(query: "CREATE KEYSPACE IF NOT EXISTS test WITH replication = {'class':'SimpleStrategy', 'replication_factor': 1};") {
+            if result == nil {
+                self.connection.execute("CREATE KEYSPACE IF NOT EXISTS test WITH replication = {'class':'SimpleStrategy', 'replication_factor': 1};") {
                         result in
 
                         if result.success { expectation1.fulfill() }
@@ -95,7 +92,7 @@ class KassandraTests: XCTestCase {
         
         try connection.connect() { result in
             
-            if result.asError == nil {
+            if result == nil {
                 let _ = self.connection["test"]
 
                 self.connection.execute(query: "CREATE TABLE IF NOT EXISTS todoitem(userID int primary key, type text, title text, pos int, completed boolean);") {
@@ -115,7 +112,7 @@ class KassandraTests: XCTestCase {
         
         try connection.connect() { result in
             
-            if result.asError == nil {
+            if result == nil {
                 let _ = self.connection["test"]
                 
                 self.connection.execute(query: "CREATE TABLE IF NOT EXISTS breadshop (userID uuid primary key, type text, breadname text, cost float, rate double, time timestamp);") {
@@ -135,7 +132,7 @@ class KassandraTests: XCTestCase {
         let bread: [Field: Any] = [BreadShop.userid: "uuid()", BreadShop.type: "Sandwich", BreadShop.breadname: "Roller", BreadShop.cost: "2.1", BreadShop.rate: "9.1", BreadShop.time : "2013-03-07 11:17:38"]
         
         try connection.connect() { result in
-            XCTAssertNil(result.asError)
+            XCTAssertNil(result)
             
             let _ = self.connection["test"]
             
@@ -157,7 +154,7 @@ class KassandraTests: XCTestCase {
         
         try connection.connect() { result in
             
-            if result.asError == nil {
+            if result == nil {
                 let _ = self.connection["test"]
                 
                 self.connection.execute(query: "CREATE TABLE IF NOT EXISTS testscore (userID ascii primary key, commit blob, score decimal, subject text, time timestamp, userip inet);") {
@@ -177,7 +174,7 @@ class KassandraTests: XCTestCase {
         let test: [Field: Any] = [TestScore.userid: "admin", TestScore.commit: "textAsBlob('bdb14fbe076f6b94444c660e36a400151f26fc6f')", TestScore.score: 3.141, TestScore.subject: "Calculus", TestScore.time: "toTimestamp(now())", TestScore.userip : "127.0.0.1"]
         
         try connection.connect() { result in
-            XCTAssertNil(result.asError)
+            XCTAssertNil(result)
             
             let _ = self.connection["test"]
             
@@ -199,7 +196,7 @@ class KassandraTests: XCTestCase {
         
         try connection.connect() { result in
             
-            if result.asError == nil {
+            if result == nil {
                 let _ = self.connection["test"]
                 
                 self.connection.execute(query: "CREATE TABLE IF NOT EXISTS collectrandata (id int primary key, numbers tuple<int, text, float>);") {
@@ -219,7 +216,7 @@ class KassandraTests: XCTestCase {
         let random: [Field: Any] = [CollectRanData.id: 1, CollectRanData.numbers: "(3, 'bar', 2.20)"]
         
         try connection.connect() { result in
-            XCTAssertNil(result.asError)
+            XCTAssertNil(result)
             
             let _ = self.connection["test"]
             
@@ -240,7 +237,7 @@ class KassandraTests: XCTestCase {
         
         try connection.connect() { result in
             
-            if result.asError == nil {
+            if result == nil {
                 let _ = self.connection["test"]
                 
                 self.connection.execute(query: "CREATE TABLE IF NOT EXISTS bookcollection (id uuid primary key, bookname text, price float, series map<text,text>, emails set<text>);") {
@@ -260,7 +257,7 @@ class KassandraTests: XCTestCase {
         let books: [Field: Any] = [BookCollection.id: "uuid()", BookCollection.bookname: "Harry Potter", BookCollection.price: 89.99, BookCollection.series: "{'Volume 1' : 'Harry Potter and the Philosophers Stone', 'Volume 2' : 'Harry Potter and the Chamber of Secrets', 'Volume 3':'Harry Potter and the Prisoner of Azkaban', 'Volume 4':'Harry Potter and the Goblet of Fire', 'Volume 5':'Harry Potter and the Order of the Phoenix', 'Volume 6':'Harry Potter and the Half-Blood Prince', 'Volume 7':'Harry Potter and the Deathly Hallows'}", BookCollection.emails: "{'harrypotter@gmail.com', 'hermionegranger@gmail.com', 'ronweasley@gmail.com', 'harrypotterfan@gmail.com','ronweasley@gmail.com'}"]
         
         try connection.connect() { result in
-            XCTAssertNil(result.asError)
+            XCTAssertNil(result)
             
             let _ = self.connection["test"]
             
@@ -281,7 +278,7 @@ class KassandraTests: XCTestCase {
         
         try connection.connect() { result in
             
-            if result.asError == nil {
+            if result == nil {
                 let _ = self.connection["test"]
                 
                 self.connection.execute(query: "CREATE TABLE IF NOT EXISTS icecream (id uuid primary key, icecreamname text, price float, flavors list<text>, calories varint);") {
@@ -301,7 +298,7 @@ class KassandraTests: XCTestCase {
         let iceCreamPack: [Field: Any] = [IceCream.id: "uuid()", IceCream.icecreamname: "Xtreme Cookie n Cream", IceCream.price: 5.99, IceCream.flavors: "['Cookies', 'Strawberry Milk', 'Chocolate']", IceCream.calories: 1080]
         
         try connection.connect() { result in
-            XCTAssertNil(result.asError)
+            XCTAssertNil(result)
             
             let _ = self.connection["test"]
             
@@ -329,7 +326,7 @@ class KassandraTests: XCTestCase {
         let athena: [Field: Any] =  [TodoItem.type: "todo", TodoItem.userID: 7, TodoItem.title: "Athena", TodoItem.pos: 7, TodoItem.completed: true]
             
         try connection.connect() { result in
-            XCTAssertNil(result.asError)
+            XCTAssertNil(result)
         
             let _ = self.connection["test"]
         
@@ -343,7 +340,7 @@ class KassandraTests: XCTestCase {
                                         TodoItem.update(values: [TodoItem.title: "Zeus"], cond: TodoItem.userID == 1).execute {
                                             result in
 
-                                            XCTAssertNil(result.asError)
+                                            XCTAssertNil(result)
 
                                             TodoItem.select().limited(to: 3).execute(self.connection) {
                                                 result in
@@ -369,8 +366,8 @@ class KassandraTests: XCTestCase {
         
         let expectation1 = expectation(description: "Truncate table")
         
-        try connection.connect() { result in XCTAssertNil(result.asError)
-            if result.asError == nil {
+        try connection.connect() { result in XCTAssertNil(result)
+            if result == nil {
                 let _ = self.connection["test"]
                 
                 let hera: [Field: Any] = [TodoItem.type: "todo", TodoItem.userID: 10, TodoItem.title: "Hera", TodoItem.pos: 10, TodoItem.completed: true]
@@ -414,7 +411,7 @@ class KassandraTests: XCTestCase {
         let expectation1 = expectation(description: "Showing options")
 
         try connection.connect() { result in
-            if result.asError == nil {
+            if result == nil {
                 
                 let _ = self.connection["test"]
 
@@ -433,7 +430,7 @@ class KassandraTests: XCTestCase {
         
         try connection.connect() { result in
 
-             XCTAssertNil(result.asError)
+             XCTAssertNil(result)
         
             let _ = self.connection["test"]
             
@@ -456,7 +453,7 @@ class KassandraTests: XCTestCase {
 
         try connection.connect() { result in
             
-            XCTAssertNil(result.asError)
+            XCTAssertNil(result)
             
             let _ = self.connection["test"]
             
@@ -485,7 +482,7 @@ class KassandraTests: XCTestCase {
         
         try connection.connect() { result in
             
-            XCTAssertNil(result.asError)
+            XCTAssertNil(result)
             
             let _ = self.connection["test"]
     
