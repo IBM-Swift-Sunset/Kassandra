@@ -258,8 +258,7 @@ extension Data {
 
     var decodeTimeStamp: Date {
         mutating get {
-            let decodedata: UInt64 = self.decodeUInt64
-            let timeInterval = TimeInterval(bitPattern: decodedata)
+            let timeInterval = TimeInterval(exactly: Double(self.decodeUInt64 / UInt64(1000)))!
             return Date(timeIntervalSince1970: timeInterval)
         }
     }
