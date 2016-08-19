@@ -75,9 +75,9 @@ class KassandraTests: XCTestCase {
         
         try connection.connect() { result in
             
-            if( result == nil) {
+            if result == nil {
                 let query: Query = Raw(query: "CREATE KEYSPACE IF NOT EXISTS test WITH replication = {'class':'SimpleStrategy', 'replication_factor': 1};")
-                try self.connection.execute(.query(using: query)) {
+                self.connection.execute(query) {
                     result in
                     
                     if result.success { expectation1.fulfill() }
@@ -91,19 +91,16 @@ class KassandraTests: XCTestCase {
         
         let expectation1 = expectation(description: "Create a table in the keyspace or table exist in the keyspace")
         
-        do {
-            try connection.connect() { result in
-                XCTAssertNil(result)
-            }
+        try connection.connect() { result in
+            XCTAssertNil(result)
+        
             let _ = self.connection["test"]
+
             let query: Query = Raw(query: "CREATE TABLE IF NOT EXISTS todoitem(userID int primary key, type text, title text, pos int, completed boolean);")
-            try self.connection.execute(.query(using: query)) {
-                result in
+            self.connection.execute(query) { result in
                 
                 if result.success { expectation1.fulfill() }
             }
-        } catch {
-            throw error
         }
         waitForExpectations(timeout: 5, handler: { error in XCTAssertNil(error, "Timeout") })
     }
@@ -112,20 +109,19 @@ class KassandraTests: XCTestCase {
     func testKeyspaceWithCreateABreadShopTable() throws {
         
         let expectation1 = expectation(description: "Create a table in the keyspace or table exist in the keyspace")
-        do {
-            try connection.connect() { result in
-                XCTAssertNil(result)
-            }
+
+        try connection.connect() { result in
+            XCTAssertNil(result)
+        
             let _ = self.connection["test"]
             
-            try self.connection.execute("CREATE TABLE IF NOT EXISTS breadshop (userID uuid primary key, type text, breadname text, cost float, rate double, time timestamp);") {
+            self.connection.execute("CREATE TABLE IF NOT EXISTS breadshop (userID uuid primary key, type text, breadname text, cost float, rate double, time timestamp);") {
                 result in
                 
                 if result.success { expectation1.fulfill() }
             }
-        } catch {
-            throw error
         }
+        
         waitForExpectations(timeout: 5, handler: { error in XCTAssertNil(error, "Timeout") })
     }
     
@@ -156,19 +152,17 @@ class KassandraTests: XCTestCase {
         
         let expectation1 = expectation(description: "Create a table in the keyspace or table exist in the keyspace")
         
-        do {
-            try connection.connect() { result in
-                XCTAssertNil(result)
-            }
+        try connection.connect() { result in
+            
+            XCTAssertNil(result)
+            
             let _ = self.connection["test"]
             
-            try self.connection.execute("CREATE TABLE IF NOT EXISTS testscore (userID ascii primary key, commit blob, score decimal, subject text, time timestamp, userip inet);") {
+            self.connection.execute("CREATE TABLE IF NOT EXISTS testscore (userID ascii primary key, commit blob, score decimal, subject text, time timestamp, userip inet);") {
                 result in
                 
                 if result.success { expectation1.fulfill() }
             }
-        } catch {
-            throw error
         }
         waitForExpectations(timeout: 5, handler: { error in XCTAssertNil(error, "Timeout") })
     }

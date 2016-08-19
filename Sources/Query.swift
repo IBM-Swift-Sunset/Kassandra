@@ -430,7 +430,7 @@ public struct Raw: Query {
 
     public func pack() -> Data {
         var data = Data()
-        print(query)
+
         data.append(query.longStringData)
         data.append(consistency.rawValue.data)
         data.append(flags.rawValue.data)

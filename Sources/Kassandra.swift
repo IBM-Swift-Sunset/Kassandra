@@ -75,31 +75,35 @@ public class Kassandra {
         oncompletion(nil)
     }
     
-    public func execute(_ query: String, oncompletion: ((Result) -> Void)) throws {
+    public func execute(_ query: String, oncompletion: ((Result) -> Void)) {
         let request = Request.query(using: Raw(query: query))
-        try executeHandler(request, oncompletion: oncompletion)
+        executeHandler(request, oncompletion: oncompletion)
     }
 
-    public func execute(_ request: Request, oncompletion: ((Result) -> Void)) throws {
-        try executeHandler(request, oncompletion: oncompletion)
+    public func execute(_ request: Request, oncompletion: ((Result) -> Void)) {
+        executeHandler(request, oncompletion: oncompletion)
     }
 
-    private func executeHandler(_ request: Request, oncompletion: ((Result) -> Void)? = nil) throws {
+    public func execute(_ query: Query, oncompletion: ((Result) -> Void)) {
+        executeHandler(.query(using: query), oncompletion: oncompletion)
+    }
+
+    private func executeHandler(_ request: Request, oncompletion: ((Result) -> Void)) {
         guard let sock = socket else {
-            throw ErrorType.GenericError("Could not create a socket")
-            
+            oncompletion(Result.error(ErrorType.GenericError("Socket Not Connected")))
+            return
         }
         writeQueue.async {
             do {
                 
                 let id = UInt16.random
                 
-                if let oncomp = oncompletion { self.map[id] = oncomp }
+                self.map[id] = oncompletion
 
                 try request.write(id: id, writer: sock)
                 
             } catch {
-                if let oncomp = oncompletion { oncomp(.error(ErrorType.ConnectionError)) }
+                oncompletion(.error(ErrorType.ConnectionError))
             }
         }
     }

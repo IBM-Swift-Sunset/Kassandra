@@ -20,6 +20,5 @@ let package = Package(
     name: "Kassandra",
     dependencies: [   
 	.Package(url: "https://github.com/IBM-Swift/BlueSSLService.git", majorVersion: 0, minor: 9),
-	.Package(url: "https://github.com/IBM-Swift/Swift-Kuery.git", majorVersion: 0, minor: 100)
     ]
 )
