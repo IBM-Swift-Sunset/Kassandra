@@ -42,76 +42,35 @@ public extension Model {
         return mirrors[hashValue]!
     }
 
-    public func save() -> Promise<Self> {
-        let p = Promise<Self>.deferred()
-        
+    public func save() -> Insert {
         let values: [String: Any] = mirror.children.reduce([:]) { acc, child in
             var ret = acc
             ret[child.label!] = child.value
             return ret
         }
-        Insert(values, into: Self.tableName).execute()
-            .then {
-                (table: TableObj) in
-                
-                p.resolve()( self )
-            
-            }
-            .fail {
-                error in
-                p.reject(dueTo: error)
-            }
-        
-        return p
+        return Insert(values, into: Self.tableName)
     }
     
-    public func delete() -> Promise<Self> {
-        let p = Promise<Self>.deferred()
-
-        Delete(from: Self.tableName, where: "id" == key!).execute()
-            .then {
-                (table: TableObj) in
-
-                p.resolve()( self )
-                
-            }.fail {
-                error in
-                p.reject(dueTo: error)
-        }
-        return p
+    public func delete() -> Delete {
+        return Delete(from: Self.tableName, where: "id" == key!)
     }
     
-    public func create() throws {
+    public func create(oncompletion: ((Result)->Void)) throws {
 
         let vals = packColumnData(key: String(describing: Self.primaryKey), mirror: mirror)
 
-        Raw(query: "CREATE TABLE \(Self.tableName)(\(vals));").execute()
-            .then {
-                (state: Status) in
-                switch state {
-                case .success: print("Table Created")
-                case .failure(let error): print(error)
-                }
-            }
-            .fail {
-                error in
-                
-            }
+        Raw(query: "CREATE TABLE \(Self.tableName)(\(vals));").execute(oncompletion: oncompletion)
     }
-    
-    public static func fetch(_ fields: [Field] = []) -> Promise<[Self]> {
-        let p = Promise<[Self]>.deferred()
-
-        Select(fields.map{ String(describing: $0) }, from: tableName).execute()
-            .then {
-                table in
-                    p.resolve()( table.rows.map { Self.init(row: $0) } )
-
-            }.fail {
-                error in
-                p.reject(dueTo: error)
+    public static func fetch(_ fields: [Field] = [], oncompletion: (([Self]?, Error?)->Void)) {
+        
+        Select(fields.map{ String(describing: $0) }, from: tableName).execute() {
+            result in
+            
+            if let err = result.asError { oncompletion(nil, err)}
+            if let rows = result.asRows {
+                oncompletion(rows.map { Self.init(row: $0) }, nil)
             }
-        return p
+        }
     }
 }
 

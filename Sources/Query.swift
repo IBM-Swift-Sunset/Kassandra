@@ -26,20 +26,12 @@ public protocol Query {
     func packQuery() -> Data
     func packParameters() -> Data
 }
-public enum Status {
-    case success
-    case failure(Error)
-}
 
 extension Array where Element: Query {
     func execute(with type: BatchType, consis: Consistency, oncompletion: ((Result)->Void)) {
         do {
             let request: Request = Request.batch(queries: self, type: type, flags: 0x00, consistency: .any)
-            try config.connection?.execute(request) {
-                result in
-                
-                oncompletion(result)
-            }
+            try config.connection?.execute(request, oncompletion: oncompletion)
         } catch {
             oncompletion(Result.error(ErrorType.IOError))
         }
@@ -47,82 +39,20 @@ extension Array where Element: Query {
 }
 
 extension Query {
-    public func prepare() -> Promise<[Byte]> {
-        let p = Promise<[Byte]>.deferred()
-        
-        let request: Request = .prepare(query: self)
-        
+    public func prepare(oncompletion: ((Result)->Void)) {
         do {
-            try config.connection?.execute(request) {
-                result in
-                
-                switch result {
-                case .error(let error): p.reject(dueTo: error)
-                case .kind(let res):
-                    switch res {
-                    case Kind.prepared(let id, _,_) : p.resolve()(id)
-                    default                         : break
-                    }
-                default: p.reject(dueTo: ErrorType.IOError)
-                }
-            }
+            try config.connection?.execute(.prepare(query: self), oncompletion: oncompletion)
         } catch {
-            p.reject(dueTo: error)
-            
+            oncompletion(Result.error(ErrorType.IOError))
         }
-        
-        return p
     
     }
-    public func execute() -> Promise<Status> {
-        let p = Promise<Status>.deferred()
-        
-        let request: Request = .query(using: self)
-        
+    public func execute(oncompletion: ((Result)->Void)) {
         do {
-            try config.connection?.execute(request) {
-                result in
-                
-                switch result {
-                case .error(let error): p.reject(dueTo: error)
-                case .void: p.resolve()(Status.success)
-                default : p.reject(dueTo: ErrorType.IOError)
-                }
-                
-            }
+            try config.connection?.execute(.query(using: self), oncompletion: oncompletion)
         } catch {
-            p.reject(dueTo: error)
-            
+            oncompletion(Result.error(ErrorType.IOError))
         }
-        
-        return p
-    }
-
-    public func execute() -> Promise<TableObj> {
-        let p = Promise<TableObj>.deferred()
-    
-        let request: Request = .query(using: self)
-        
-        do {
-            try config.connection?.execute(request) {
-                result in
-                
-                switch result {
-                case .error(let error): p.reject(dueTo: error)
-                case .kind(let res):
-                    switch res {
-                    case Kind.rows(_, let r): p.resolve()(TableObj(rows: r))
-                    default: p.resolve()(TableObj(rows: []))
-                    }
-                default: p.reject(dueTo: ErrorType.NoDataError)
-                }
-            }
-        } catch {
-            p.reject(dueTo: error)
-
-        }
-
-        return p
     }
 }
 
