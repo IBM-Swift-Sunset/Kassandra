@@ -225,7 +225,10 @@ extension Data {
     
     var decodeDecimal: Decimal {
         mutating get {
-            return Decimal(floatLiteral: 1.0)
+            let scaled = UInt64(decodeUInt32)
+            let unscaled = UInt64(decodeVarInt, radix: 16)!
+            let test = Double(unscaled) * pow(10, (-1 * Double(scaled)))
+            return Decimal(floatLiteral: test)
         }
     }
     

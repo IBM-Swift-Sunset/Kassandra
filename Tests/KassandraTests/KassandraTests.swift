@@ -303,7 +303,7 @@ class KassandraTests: XCTestCase {
             sleep(1)
             let _ = client["test"]
             
-            let query: Query = Raw(query: "INSERT INTO breadshop (userID, type, name, cost, rate, time) VALUES (60780342-90fe-11e2-8823-0026c650d722, 'Sandwich', 'roller', 2.90, 9.99, '2013-03-07 11:17:38');")
+            let query: Query = Raw(query: "INSERT INTO breadshop (userID, type, name, cost, rate, time) VALUES (60780342-90fe-11e2-8823-0026c650d722, 'Sandwich', 'roller', 2.1, 9.1, '2013-03-07 11:17:38');")
             try client.execute(.query(using: query)) {
                 result in
                 
@@ -376,7 +376,7 @@ class KassandraTests: XCTestCase {
             sleep(1)
             let _ = client["test"]
 
-            let query: Query = Raw(query: "INSERT INTO testscore (userID, commit, score, subject, time, userip) VALUES ('admin', textAsBlob('bdb14fbe076f6b94444c660e36a400151f26fc6f'), 1.44, 'Calculus', toTimestamp(now()), '127.0.0.1');")
+            let query: Query = Raw(query: "INSERT INTO testscore (userID, commit, score, subject, time, userip) VALUES ('admin', textAsBlob('bdb14fbe076f6b94444c660e36a400151f26fc6f'), 3.141 , 'Calculus', toTimestamp(now()), '127.0.0.1');")
             try client.execute(.query(using: query)) {
                 result in
 
