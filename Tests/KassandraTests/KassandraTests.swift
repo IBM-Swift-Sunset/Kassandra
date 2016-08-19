@@ -75,11 +75,12 @@ class KassandraTests: XCTestCase {
         
         try connection.connect() { result in
             
-            if result == nil {
-                self.connection.execute("CREATE KEYSPACE IF NOT EXISTS test WITH replication = {'class':'SimpleStrategy', 'replication_factor': 1};") {
-                        result in
-
-                        if result.success { expectation1.fulfill() }
+            if( result == nil) {
+                let query: Query = Raw(query: "CREATE KEYSPACE IF NOT EXISTS test WITH replication = {'class':'SimpleStrategy', 'replication_factor': 1};")
+                try self.connection.execute(.query(using: query)) {
+                    result in
+                    
+                    if result.success { expectation1.fulfill() }
                 }
             }
         }
@@ -90,42 +91,45 @@ class KassandraTests: XCTestCase {
         
         let expectation1 = expectation(description: "Create a table in the keyspace or table exist in the keyspace")
         
-        try connection.connect() { result in
-            
-            if result == nil {
-                let _ = self.connection["test"]
-
-                self.connection.execute(query: "CREATE TABLE IF NOT EXISTS todoitem(userID int primary key, type text, title text, pos int, completed boolean);") {
-                    result in
-
-                    if result.success { expectation1.fulfill() }
-                }
+        do {
+            try connection.connect() { result in
+                XCTAssertNil(result)
             }
+            let _ = self.connection["test"]
+            let query: Query = Raw(query: "CREATE TABLE IF NOT EXISTS todoitem(userID int primary key, type text, title text, pos int, completed boolean);")
+            try self.connection.execute(.query(using: query)) {
+                result in
+                
+                if result.success { expectation1.fulfill() }
+            }
+        } catch {
+            throw error
         }
         waitForExpectations(timeout: 5, handler: { error in XCTAssertNil(error, "Timeout") })
     }
     
     
-/*    func testKeyspaceWithCreateABreadShopTable() throws {
+    func testKeyspaceWithCreateABreadShopTable() throws {
         
         let expectation1 = expectation(description: "Create a table in the keyspace or table exist in the keyspace")
-        
-        try connection.connect() { result in
-            
-            if result == nil {
-                let _ = self.connection["test"]
-                
-                self.connection.execute(query: "CREATE TABLE IF NOT EXISTS breadshop (userID uuid primary key, type text, breadname text, cost float, rate double, time timestamp);") {
-                    result in
-                    
-                    if result.success { expectation1.fulfill() }
-                }
+        do {
+            try connection.connect() { result in
+                XCTAssertNil(result)
             }
+            let _ = self.connection["test"]
+            
+            try self.connection.execute("CREATE TABLE IF NOT EXISTS breadshop (userID uuid primary key, type text, breadname text, cost float, rate double, time timestamp);") {
+                result in
+                
+                if result.success { expectation1.fulfill() }
+            }
+        } catch {
+            throw error
         }
         waitForExpectations(timeout: 5, handler: { error in XCTAssertNil(error, "Timeout") })
     }
     
-    func testKeyspaceWithCreateABreadShopTableInsertAndSelect() throws {
+   /* func testKeyspaceWithCreateABreadShopTableInsertAndSelect() throws {
         
         let expectation1 = expectation(description: "Insert and select the row")
         
@@ -146,28 +150,30 @@ class KassandraTests: XCTestCase {
         }
         waitForExpectations(timeout: 5, handler: { error in XCTAssertNil(error, "Timeout") })
         
-    }
+    }*/
     
     func testKeyspaceWithCreateATestScoreTable() throws {
         
         let expectation1 = expectation(description: "Create a table in the keyspace or table exist in the keyspace")
         
-        try connection.connect() { result in
-            
-            if result == nil {
-                let _ = self.connection["test"]
-                
-                self.connection.execute(query: "CREATE TABLE IF NOT EXISTS testscore (userID ascii primary key, commit blob, score decimal, subject text, time timestamp, userip inet);") {
-                    result in
-                    
-                    if result.success { expectation1.fulfill() }
-                }
+        do {
+            try connection.connect() { result in
+                XCTAssertNil(result)
             }
+            let _ = self.connection["test"]
+            
+            try self.connection.execute("CREATE TABLE IF NOT EXISTS testscore (userID ascii primary key, commit blob, score decimal, subject text, time timestamp, userip inet);") {
+                result in
+                
+                if result.success { expectation1.fulfill() }
+            }
+        } catch {
+            throw error
         }
         waitForExpectations(timeout: 5, handler: { error in XCTAssertNil(error, "Timeout") })
     }
     
-    func testKeyspaceWithCreateATestScoreTableInsertAndSelect() throws {
+    /*func testKeyspaceWithCreateATestScoreTableInsertAndSelect() throws {
         
         let expectation1 = expectation(description: "Insert and select the row")
         
