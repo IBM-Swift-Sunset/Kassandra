@@ -67,10 +67,7 @@ public enum BatchType: Byte {
     case unlogged   = 0x01
     case counter    = 0x02
 }
-public enum Order: String {
-    case ASC = "ASC"
-    case DESC = "DESC"
-}
+
 public enum Flags: Byte {
     case none = 0x00
     case compression = 0x01
@@ -119,12 +116,16 @@ public struct Select: Query {
     
     let fields: [String]
     
-    var order: [String: Order]? = nil
+    var orderBy: String? = nil
     
     var conditions: Predicate? = nil
 
     var limitResultCount: Int? = nil
-    
+
+    var distinct = false
+
+    var having : Having?
+
     var sqlfunction: SQLFunction<String>? = nil
     
     var consistency: Consistency
@@ -139,13 +140,23 @@ public struct Select: Query {
         self.consistency = consistency
     }
     
-    private mutating func order(by predicate: [String: Order]) {
-        order = predicate
+    private mutating func order(by clause: [Order]) {
+        orderBy = clause.map { $0.description }.joined(separator: ", ")
     }
 
-    public func ordered(by predicate: [String: Order]) -> Select {
+    public func ordered(by clause: Order...) -> Select {
         var new = self
-        new.order(by: predicate)
+        new.order(by: clause)
+        return new
+    }
+
+    private mutating func has(_ clause: Having) {
+        having = clause
+    }
+    
+    public func having(_ clause: Having) -> Select {
+        var new = self
+        new.has(clause)
         return new
     }
 
@@ -159,13 +170,13 @@ public struct Select: Query {
         return new
     }
 
-    public mutating func filtered(by conditions: Predicate) {
+    public mutating func filter(by conditions: Predicate) {
         self.conditions = conditions
     }
 
-    public func filter(by conditions: Predicate) -> Select {
+    public func filtered(by conditions: Predicate) -> Select {
         var new = self
-        new.filtered(by: conditions)
+        new.filter(by: conditions)
         return new
     }
     
@@ -181,27 +192,30 @@ public struct Select: Query {
     }
 
     public func packQuery() -> Data {
-        var str = "SELECT "
+        var result = distinct ? "SELECT DISTINCT" : "SELECT "
         
         if let function = sqlfunction?.pack() {
-            fields.count == 0 ? (str += "\(function) FROM \(table)") :
-                (str += "\(function), \(fields.joined(separator: " ")) FROM \(table)")
+            fields.count == 0 ? (result += "\(function) FROM \(table)") :
+                (result += "\(function), \(fields.joined(separator: " ")) FROM \(table)")
         } else {
-            fields.count == 0 ? (str += "* FROM \(table)") :
-                (str += "\(fields.joined(separator: " ")) FROM \(table)")
+            fields.count == 0 ? (result += "* FROM \(table)") :
+                (result += "\(fields.joined(separator: " ")) FROM \(table)")
         }
         
         if let cond = conditions {
-            str += " WHERE " + cond.str
+            result += " WHERE " + cond.str
         }
-        if let order = order {
-            str += " ORDER BY " + order.map {key, val in "\(key) \(val.rawValue)" }.joined(separator: ", ")
+        if let order = orderBy {
+            result += " ORDER BY \(order)"
+        }
+        if let havingClause = having {
+            result += " HAVING \(havingClause.clause)"
         }
         if let limit = limitResultCount {
-            str += " LIMIT \(limit)"
+            result += " LIMIT \(limit)"
         }
-        
-        return (str + ";").longStringData
+
+        return (result + ";").longStringData
     }
 
     public func packParameters() -> Data {

@@ -18,6 +18,52 @@ public protocol Convertible {
     
 }
 
+public enum Order {
+    case ASCD(Convertible)
+    case DESC(Convertible)
+    
+    var description: String {
+        switch self {
+        case .ASCD(let field ) : return "\(field) ASCD"
+        case .DESC(let field ) : return "\(field) DESC"
+        }
+    }
+}
+
+public struct Having: Convertible {
+    var clause: String
+    
+    public init(_ clause: String) {
+        self.clause = clause
+    }
+}
+
+public func == (lhs: String, rhs: Convertible) -> Having {
+    return Having("\(lhs) == \(String(describing: rhs))")
+}
+public func != (lhs: String, rhs: Convertible) -> Having {
+    return Having("\(lhs) != \(String(describing: rhs))")
+}
+public func > (lhs: String, rhs: Convertible) -> Having {
+    return Having("\(lhs) > \(String(describing: rhs))")
+}
+public func >= (lhs: String, rhs: Convertible) -> Having {
+    return Having("\(lhs) >= \(String(describing: rhs))")
+}
+public func < (lhs: String, rhs: Convertible) -> Having {
+    return Having("\(lhs) < \(String(describing: rhs))")
+}
+public func <= (lhs: String, rhs: Convertible) -> Having {
+    return Having("\(lhs) <= \(String(describing: rhs))")
+}
+
+public func && (lhs: Having, rhs: Having) -> Having {
+    return Having("\(lhs.clause), \(rhs.clause)")
+}
+public func || (lhs: Having, rhs: Having) -> Having {
+    return Having("\(lhs.clause), \(rhs.clause)")
+}
+
 public enum WhereConvertible {
     case notEqual(String, Convertible)
     case equal(String, Convertible)
@@ -35,23 +81,16 @@ public struct Predicate: Convertible  {
     
     init(_ expession: WhereConvertible) {
         switch expession {
-        case .notEqual(let lhs, let rhs)             : str = "\(lhs) != \(convert(rhs))"
-        case .equal(let lhs, let rhs)                : str = "\(lhs) = \(convert(rhs))"
-        case .greaterThan(let lhs, let rhs)          : str = "\(lhs) > \(convert(rhs))"
-        case .greaterThanOrEqual(let lhs, let rhs)   : str = "\(lhs) >= \(convert(rhs))"
-        case .lessThan(let lhs, let rhs)             : str = "\(lhs) < \(convert(rhs))"
-        case .lessThanOrEqual(let lhs, let rhs)      : str = "\(lhs) <= \(convert(rhs))"
+        case .notEqual(let lhs, let rhs)             : str = "\(lhs) != \(packType((rhs)))"
+        case .equal(let lhs, let rhs)                : str = "\(lhs) = \(packType(rhs))"
+        case .greaterThan(let lhs, let rhs)          : str = "\(lhs) > \(packType(rhs))"
+        case .greaterThanOrEqual(let lhs, let rhs)   : str = "\(lhs) >= \(packType(rhs))"
+        case .lessThan(let lhs, let rhs)             : str = "\(lhs) < \(packType(rhs))"
+        case .lessThanOrEqual(let lhs, let rhs)      : str = "\(lhs) <= \(packType(rhs))"
         case .and(let lhs, let rhs)                  : str = "\(lhs.str) AND \(rhs.str)"
         case .or(let lhs, let rhs)                   : str = "\(lhs.str) OR \(rhs.str)"
-        case .inOp(let lhs, let rhs)                 : str = "\(lhs) IN (\(rhs.map { convert($0) }.joined(separator: ", ")))"
+        case .inOp(let lhs, let rhs)                 : str = "\(lhs) IN (\(rhs.map { packType($0) }.joined(separator: ", ")))"
         }
-    }
-}
-
-public func convert(_ item: Convertible) -> String{
-    switch item {
-    case is String  : return "'\(item)'"
-    default: return "\(item)"
     }
 }
 

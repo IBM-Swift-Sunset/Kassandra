@@ -210,7 +210,7 @@ func packType(_ item: Any) -> String {
     case let val as [String: Any]   : return "{ \(val.map { key, value in "\(packType(key)) : \(packType(value))" }.joined(separator: ", ")) }"
     case let val as String          : return "'\(val)'"
     case let val as Date            : return String(describing: UInt64(val.timeIntervalSince1970) * 1000)
-    case let val as UUID            : return String(describing: val.uuidString)
+    case let val as NSUUID            : return String(describing: val.uuidString)
     default                         : return String(describing: item)
     }
 }
@@ -231,7 +231,7 @@ func packColumnData(key: String, mirror: Mirror) -> String {
         case is Bool         : str += child.label! + " bool "
         
         case is Date         : str += child.label! + " timestamp "
-        case is UUID         : str += child.label! + " uuid "
+        case is NSUUID       : str += child.label! + " uuid "
         case is [Any]        : str += child.label! + " list "
         case is [String: Any]: str += child.label! + " map "
         default: break
