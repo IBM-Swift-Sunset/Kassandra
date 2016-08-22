@@ -67,59 +67,11 @@ public class BreadShop: Table {
         case type = "type"
         case userID = "userID"
         case time = "time"
-        case name = "name"
+        case bread = "bread"
         case cost = "cost"
         case rate = "rate"
     }
     
     public static var tableName: String = "breadshop"
     
-}
-
-public class TestScore: Table {
-    public enum Field: String {
-        case commit = "commit"
-        case score = "score"
-        case userID = "userID"
-        case subject = "subject"
-        case time = "time"
-        case userip = "userip"
-    }
-    
-    public static var tableName: String = "testscore"
-    
-}
-
-public class IceCream: Table {
-    public enum Field: String {
-        case id = "id"
-        case calories = "calories"
-        case name = "name"
-        case price = "price"
-        case flavors = "flavors"
-    }
-    
-    public static var tableName: String = "icecream"
-    
-}
-
-public class BookCollection: Table {
-    public enum Field: String {
-        case id = "id"
-        case name = "name"
-        case price = "price"
-        case series = "series"
-        case emails = "emails"
-    }
-    
-    public static var tableName: String = "bookcollection"
-}
-
-public class CollectRanData: Table {
-    public enum Field: String {
-        case id = "id"
-        case numbers = "numbers"
-    }
-    
-    public static var tableName: String = "collectrandata"
 }

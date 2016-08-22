@@ -32,28 +32,19 @@ class KassandraTests: XCTestCase {
 
     var tokens = [String]()
     
+    public let createKeyspace: String = "CREATE KEYSPACE IF NOT EXISTS test WITH replication = {'class':'SimpleStrategy', 'replication_factor': 1};"
+    public let useKeyspace: String = "USE test;"
+    
     static var allTests: [(String, (KassandraTests) -> () throws -> Void)] {
         return [
             ("testConnect", testConnect),
-            ("testCreateKeyspace", testCreateKeyspace),
-            ("testKeyspaceWithCreateATable", testKeyspaceWithCreateATable)
-            /*("testKeyspaceWithCreateABookCollectionTable", testKeyspaceWithCreateABookCollectionTable),
-            ("testKeyspaceWithCreateABookCollectionTableInsertAndSelect", testKeyspaceWithCreateABookCollectionTableInsertAndSelect),
             ("testKeyspaceWithCreateABreadShopTable", testKeyspaceWithCreateABreadShopTable),
             ("testKeyspaceWithCreateABreadShopTableInsertAndSelect", testKeyspaceWithCreateABreadShopTableInsertAndSelect),
-            ("testKeyspaceWithCreateACollectRanDataTable", testKeyspaceWithCreateACollectRanDataTable),
-            ("testKeyspaceWithCreateACollectRanDataTableInsertAndSelect",testKeyspaceWithCreateACollectRanDataTableInsertAndSelect),
-            ("testKeyspaceWithCreateAIceCreamTable", testKeyspaceWithCreateAIceCreamTable),
-            ("testKeyspaceWithCreateAIceCreamTableInsertAndSelect", testKeyspaceWithCreateAIceCreamTableInsertAndSelect),
-            ("testKeyspaceWithCreateATestScoreTable", testKeyspaceWithCreateATestScoreTable),
-            ("testKeyspaceWithCreateATestScoreTableInsertAndSelect",testKeyspaceWithCreateATestScoreTableInsertAndSelect),*/
-            //("testKeyspaceWithFetchCompletedTodoItems", testKeyspaceWithFetchCompletedTodoItems),
-            /*("testOptions",testOptions),
+            ("testKeyspaceWithCreateATable", testKeyspaceWithCreateATable),
+            ("testKeyspaceWithFetchCompletedTodoItems", testKeyspaceWithFetchCompletedTodoItems),
             ("testPreparedQuery", testPreparedQuery),
-            ("testTruncateTable",testTruncateTable),
             ("testZBatch", testZBatch),
-            ("testZDropTableAndDeleteKeyspace", testZDropTableAndDeleteKeyspace),*/
-            //("testMaxTodoitemID", testMaxTodoitemID),
+            ("testZDropTableAndDeleteKeyspace", testZDropTableAndDeleteKeyspace)
         ]
     }
     
@@ -66,63 +57,26 @@ class KassandraTests: XCTestCase {
     
     func testConnect() throws {
         
-        try connection.connect() { result in //XCTAssertNil(result) 
-            print(result)
-        }
-    }
-    
-    func testCreateKeyspace() throws {
-        
-        let expectation1 = expectation(description: "Created a keyspace or Keyspace exist")
-        
         try connection.connect() { result in
-            self.connection.execute("CREATE KEYSPACE IF NOT EXISTS test WITH replication = {'class':'SimpleStrategy', 'replication_factor': 1};") {
-                result in
-                print(result)
-                if result.success { expectation1.fulfill() }
-            }
-
         }
-        waitForExpectations(timeout: 5, handler: { error in XCTAssertNil(error, "Timeout") })
     }
-    
-    func testKeyspaceWithCreateATable() throws {
-        
-        let expectation1 = expectation(description: "Create a table in the keyspace or table exist in the keyspace")
-        
-        try connection.connect() { result in
-            //XCTAssertNil(result)
-        
-            self.connection.execute("USE test") { result in
-
-                let query: Query = Raw(query: "CREATE TABLE IF NOT EXISTS todoitem(userID int primary key, type text, title text, pos int, completed boolean);")
-                self.connection.execute(query) { result in
-                    
-                    if result.success { expectation1.fulfill() }
-                }
-            }
-        }
-        waitForExpectations(timeout: 5, handler: { error in XCTAssertNil(error, "Timeout") })
-    }
-    
     
     func testKeyspaceWithCreateABreadShopTable() throws {
         
         let expectation1 = expectation(description: "Create a table in the keyspace or table exist in the keyspace")
-
-        try connection.connect() { result in
-            //XCTAssertNil(result)
         
-            self.connection.execute("USE test") { result in
-                print(result)
-                self.connection.execute("CREATE TABLE IF NOT EXISTS breadshop (userID uuid primary key, type text, breadname text, cost float, rate double, time timestamp);") {
-                    result in
-                    
-                    if result.success { expectation1.fulfill() }
+        try connection.connect() { result in
+            
+            self.connection.execute(self.createKeyspace) { result in
+                self.connection.execute(self.useKeyspace) { result in
+                    self.connection.execute("CREATE TABLE IF NOT EXISTS breadshop (userID uuid primary key, type text, bread map<text, int>, cost float, rate double, time timestamp);") {
+                        result in
+                        
+                        if result.success { expectation1.fulfill() }
+                    }
                 }
             }
         }
-        
         waitForExpectations(timeout: 5, handler: { error in XCTAssertNil(error, "Timeout") })
     }
     
@@ -130,19 +84,17 @@ class KassandraTests: XCTestCase {
         
         let expectation1 = expectation(description: "Insert and select the row")
         
-        let bread: [BreadShop.Field: Any] = [.userID: NSUUID(), .type: "Sandwich", .cost: 2.1, .rate: 9.1, .time : Date()]
+        let bread: [BreadShop.Field: Any] = [.userID: NSUUID(), .type: "Sandwich", .bread: ["Chicken Roller": 3, "Steak Roller": 7, "Spicy Chicken Roller": 9], .cost: 2.1, .rate: 9.1, .time : Date()]
         
         try connection.connect() { result in
-            //XCTAssertNil(result)
             
-            let _ = self.connection["test"] ; sleep(1)
-            
-            BreadShop.insert(bread).execute() { result in
-print(result)
-                BreadShop.select().execute() {
-                    result in
-                    print(result)
-                    if result.asRows != nil { expectation1.fulfill() }
+            self.connection.execute(self.useKeyspace) { result in
+                BreadShop.insert(bread).execute() { result in
+                    BreadShop.select().execute() {
+                        result in
+                        
+                        if result.asRows != nil { expectation1.fulfill() }
+                    }
                 }
             }
         }
@@ -150,204 +102,69 @@ print(result)
         
     }
     
-    func testKeyspaceWithCreateATestScoreTable() throws {
+    func testKeyspaceWithCreateATable() throws {
         
         let expectation1 = expectation(description: "Create a table in the keyspace or table exist in the keyspace")
         
         try connection.connect() { result in
-            
-            //XCTAssertNil(result)
-            
-            let _ = self.connection["test"]
-            
-            self.connection.execute("CREATE TABLE IF NOT EXISTS testscore (userID ascii primary key, commit blob, score decimal, subject text, time timestamp, userip inet);") {
-                result in
-                
-                if result.success { expectation1.fulfill() }
-            }
-        }
-        waitForExpectations(timeout: 5, handler: { error in XCTAssertNil(error, "Timeout") })
-    }
-    
-    /*func testKeyspaceWithCreateATestScoreTableInsertAndSelect() throws {
         
-        let expectation1 = expectation(description: "Insert and select the row")
-        
-        let test: [Field: Any] = [TestScore.userid: "admin", TestScore.commit: "textAsBlob('bdb14fbe076f6b94444c660e36a400151f26fc6f')", TestScore.score: 3.141, TestScore.subject: "Calculus", TestScore.time: "toTimestamp(now())", TestScore.userip : "127.0.0.1"]
-        
-        try connection.connect() { result in
-            XCTAssertNil(result)
-            
-            let _ = self.connection["test"]
-            
-            TestScore.insert(values: test).execute(self.connection) { result in
-                TestScore.select().execute(self.connection) {
-                    result in
-                    
-                    if result.asRows != nil { expectation1.fulfill() }
-                }
-            }
-        }
-        waitForExpectations(timeout: 5, handler: { error in XCTAssertNil(error, "Timeout") })
-        
-    }
-    
-    func testKeyspaceWithCreateACollectRanDataTable() throws {
-        
-        let expectation1 = expectation(description: "Create a table in the keyspace or table exist in the keyspace")
-        
-        try connection.connect() { result in
-            
-            if result == nil {
-                let _ = self.connection["test"]
-                
-                self.connection.execute(query: "CREATE TABLE IF NOT EXISTS collectrandata (id int primary key, numbers tuple<int, text, float>);") {
-                    result in
-                    
-                    if result.success { expectation1.fulfill() }
+            self.connection.execute(self.createKeyspace) { result in
+                self.connection.execute(self.useKeyspace) { result in
+                    self.connection.execute("CREATE TABLE IF NOT EXISTS todoitem(userID uuid primary key, type text, title text, pos int, completed boolean);") { result in
+                        
+                        if result.success { expectation1.fulfill() }
+                    }
                 }
             }
         }
         waitForExpectations(timeout: 5, handler: { error in XCTAssertNil(error, "Timeout") })
     }
     
-    func testKeyspaceWithCreateACollectRanDataTableInsertAndSelect() throws {
-        
-        let expectation1 = expectation(description: "Insert and select the row")
-
-        let random: [Field: Any] = [CollectRanData.id: 1, CollectRanData.numbers: "(3, 'bar', 2.20)"]
-        
-        try connection.connect() { result in
-            XCTAssertNil(result)
-            
-            let _ = self.connection["test"]
-            
-            CollectRanData.insert(values: random).execute(self.connection) { result in
-                CollectRanData.select().execute(self.connection) {
-                    result in
-                    
-                    if result.asRows != nil { expectation1.fulfill() }
-                }
-            }
-        }
-        waitForExpectations(timeout: 5, handler: { error in XCTAssertNil(error, "Timeout") })
-    }
     
-    func testKeyspaceWithCreateABookCollectionTable() throws {
+    func testKeyspaceWithFetchCompletedTodoItems() throws {
         
-        let expectation1 = expectation(description: "Create a table in the keyspace or table exist in the keyspace")
+        let expectation1 = expectation(description: "Select first two completed item and check their row count")
+        let expectation2 = expectation(description: "Truncate the table to get 0 completed items")
         
-        try connection.connect() { result in
-            
-            if result == nil {
-                let _ = self.connection["test"]
-                
-                self.connection.execute(query: "CREATE TABLE IF NOT EXISTS bookcollection (id uuid primary key, bookname text, price float, series map<text,text>, emails set<text>);") {
-                    result in
-                    
-                    if result.success { expectation1.fulfill() }
-                }
-            }
-        }
-        waitForExpectations(timeout: 5, handler: { error in XCTAssertNil(error, "Timeout") })
-    }
-    
-    func testKeyspaceWithCreateABookCollectionTableInsertAndSelect() throws {
-        
-        let expectation1 = expectation(description: "Insert and select the row")
-
-        let books: [Field: Any] = [BookCollection.id: "uuid()", BookCollection.bookname: "Harry Potter", BookCollection.price: 89.99, BookCollection.series: "{'Volume 1' : 'Harry Potter and the Philosophers Stone', 'Volume 2' : 'Harry Potter and the Chamber of Secrets', 'Volume 3':'Harry Potter and the Prisoner of Azkaban', 'Volume 4':'Harry Potter and the Goblet of Fire', 'Volume 5':'Harry Potter and the Order of the Phoenix', 'Volume 6':'Harry Potter and the Half-Blood Prince', 'Volume 7':'Harry Potter and the Deathly Hallows'}", BookCollection.emails: "{'harrypotter@gmail.com', 'hermionegranger@gmail.com', 'ronweasley@gmail.com', 'harrypotterfan@gmail.com','ronweasley@gmail.com'}"]
+        let god: [TodoItem.Field: Any] = [.type: "todo", .userID: NSUUID(), .title: "God Among God", .pos: 1, .completed: true]
+        let ares: [TodoItem.Field: Any] = [.type: "todo", .userID: NSUUID(), .title: "Ares", .pos: 2, .completed: true]
+        let thor: [TodoItem.Field: Any] = [.type: "todo", .userID: NSUUID(), .title: "Thor", .pos: 3, .completed: true]
+        let apollo: [TodoItem.Field: Any] = [.type: "todo", .userID: NSUUID(), .title: "Apollo", .pos: 4, .completed: true]
+        let cass: [TodoItem.Field: Any] = [.type: "todo", .userID: NSUUID(), .title: "Cassandra", .pos: 5, .completed: true]
+        let hades: [TodoItem.Field: Any] = [.type: "todo", .userID: NSUUID(), .title: "Hades", .pos: 6, .completed: true]
+        let athena: [TodoItem.Field: Any] =  [.type: "todo", .userID: NSUUID(), .title: "Athena", .pos: 7, .completed: true]
         
         try connection.connect() { result in
-            XCTAssertNil(result)
-            
-            let _ = self.connection["test"]
-            
-            BookCollection.insert(values: books).execute(self.connection) { result in
-                BookCollection.select().execute(self.connection) {
-                    result in
-                    
-                    if result.asRows != nil { expectation1.fulfill() }
-                }
-            }
-        }
-        waitForExpectations(timeout: 5, handler: { error in XCTAssertNil(error, "Timeout") })
-    }
-    
-    func testKeyspaceWithCreateAIceCreamTable() throws {
         
-        let expectation1 = expectation(description: "Create a table in the keyspace or table exist in the keyspace")
-        
-        try connection.connect() { result in
-            
-            if result == nil {
-                let _ = self.connection["test"]
-                
-                self.connection.execute(query: "CREATE TABLE IF NOT EXISTS icecream (id uuid primary key, icecreamname text, price float, flavors list<text>, calories varint);") {
-                    result in
-                    
-                    if result.success { expectation1.fulfill() }
-                }
-            }
-        }
-        waitForExpectations(timeout: 5, handler: { error in XCTAssertNil(error, "Timeout") })
-    }
-    
-    func testKeyspaceWithCreateAIceCreamTableInsertAndSelect() throws {
-        
-        let expectation1 = expectation(description: "Insert and select the row")
-
-        let iceCreamPack: [Field: Any] = [IceCream.id: "uuid()", IceCream.icecreamname: "Xtreme Cookie n Cream", IceCream.price: 5.99, IceCream.flavors: "['Cookies', 'Strawberry Milk', 'Chocolate']", IceCream.calories: 1080]
-        
-        try connection.connect() { result in
-            XCTAssertNil(result)
-            
-            let _ = self.connection["test"]
-            
-            IceCream.insert(values: iceCreamPack).execute(self.connection) { result in
-                IceCream.select().execute(self.connection) {
-                    result in
-                    
-                    if result.asRows != nil { expectation1.fulfill() }
-                }
-            }
-        }
-        waitForExpectations(timeout: 5, handler: { error in XCTAssertNil(error, "Timeout") })
-    }*/
-    
-    /*func testKeyspaceWithFetchCompletedTodoItems() throws {
-        
-        let expectation1 = expectation(description: "Filter out todoitems that are done and update one of the todoitems")
-        
-        let god: [Field: Any] = [TodoItem.type: "todo", TodoItem.userID: 1, TodoItem.title: "God Among God", TodoItem.pos: 1, TodoItem.completed: true]
-        let ares: [Field: Any] = [TodoItem.type: "todo", TodoItem.userID: 2, TodoItem.title: "Ares", TodoItem.pos: 2, TodoItem.completed: true]
-        let thor: [Field: Any] = [TodoItem.type: "todo", TodoItem.userID: 3, TodoItem.title: "Thor", TodoItem.pos: 3, TodoItem.completed: true]
-        let apollo: [Field: Any] = [TodoItem.type: "todo", TodoItem.userID: 4, TodoItem.title: "Apollo", TodoItem.pos: 4, TodoItem.completed: true]
-        let cass: [Field: Any] = [TodoItem.type: "todo", TodoItem.userID: 5, TodoItem.title: "Cassandra", TodoItem.pos: 5, TodoItem.completed: true]
-        let hades: [Field: Any] = [TodoItem.type: "todo", TodoItem.userID: 6, TodoItem.title: "Hades", TodoItem.pos: 6, TodoItem.completed: true]
-        let athena: [Field: Any] =  [TodoItem.type: "todo", TodoItem.userID: 7, TodoItem.title: "Athena", TodoItem.pos: 7, TodoItem.completed: true]
-            
-        try connection.connect() { result in
-            XCTAssertNil(result)
-        
-            let _ = self.connection["test"]
-        
-            TodoItem.insert(values: god).execute(self.connection) { result in
-                TodoItem.insert(values: ares).execute(self.connection) { result in
-                    TodoItem.insert(values: thor).execute(self.connection) { result in
-                        TodoItem.insert(values: apollo).execute(self.connection) { result in
-                            TodoItem.insert(values: cass).execute(self.connection) { result in
-                                TodoItem.insert(values: hades).execute(self.connection) { result in
-                                    TodoItem.insert(values: athena).execute(self.connection) { result in
-                                        TodoItem.update(values: [TodoItem.title: "Zeus"], cond: TodoItem.userID == 1).execute {
-                                            result in
-
-                                            XCTAssertNil(result)
-
-                                            TodoItem.select().limited(to: 3).execute(self.connection) {
-                                                result in
-                                                
-                                                if result.asRows != nil { expectation1.fulfill() }
+            self.connection.execute(self.createKeyspace) { result in
+                self.connection.execute(self.useKeyspace) { result in
+                    TodoItem.insert(god).execute() { result in
+                        TodoItem.insert(ares).execute() { result in
+                            TodoItem.insert(thor).execute() { result in
+                                TodoItem.insert(apollo).execute() { result in
+                                    TodoItem.insert(cass).execute() { result in
+                                        TodoItem.insert(hades).execute() { result in
+                                            TodoItem.insert(athena).execute() { result in
+                                                TodoItem.update([.title: "Zeus"], conditions: "userID" == 1).execute {
+                                                    result in
+                                                    
+                                                    TodoItem.select().limited(to: 2).execute() {
+                                                        result in
+                                                        if let rows = result.asRows {
+                                                            
+                                                            if rows.count == 2 { expectation1.fulfill() }
+                                                        }
+                                                    }
+                                                    
+                                                    TodoItem.truncate().execute() { result in
+                                                        
+                                                        TodoItem.count(TodoItem.Field.type).execute() { result in
+                                                            print(result)
+                                                            print(result.asRows![0]["system.count(type)"] as! Int64)
+                                                            if (result.asRows![0]["system.count(type)"] as! Int64) == 0 { expectation2.fulfill() }
+                                                        }
+                                                    }
+                                                }
                                             }
                                         }
                                     }
@@ -358,113 +175,19 @@ print(result)
                 }
             }
         }
-        
         waitForExpectations(timeout: 5, handler: { error in XCTAssertNil(error, "Timeout") })
-
     }
     
-   
-   func testTruncateTable() throws {
-        
-        let expectation1 = expectation(description: "Truncate table")
-        
-        try connection.connect() { result in XCTAssertNil(result)
-            if result == nil {
-                let _ = self.connection["test"]
-                
-                let hera: [Field: Any] = [TodoItem.type: "todo", TodoItem.userID: 10, TodoItem.title: "Hera", TodoItem.pos: 10, TodoItem.completed: true]
-                let aphrodite: [Field: Any] = [TodoItem.type: "todo", TodoItem.userID: 11, TodoItem.title: "Aphrodite", TodoItem.pos: 11, TodoItem.completed: true]
-                let poseidon: [Field: Any] = [TodoItem.type: "todo", TodoItem.userID: 12, TodoItem.title: "Poseidon", TodoItem.pos: 12, TodoItem.completed: true]
-
-                TodoItem.insert(values: hera).execute(self.connection) {
-                    result in
-                    
-                    TodoItem.insert(values: aphrodite).execute(self.connection) {
-                        result in
-                        
-                        TodoItem.insert(values: poseidon).execute(self.connection) {
-                            result in
-                            
-                            TodoItem.select(count(TodoItem.type)).execute(self.connection) {
-                                result in
-
-                                XCTAssertEqual((result.asRows![0]["system.count(type)"] as! Int64), 10)
-                                
-                                TodoItem.truncate().execute(self.connection) { result in
-                                    
-                                    TodoItem.select(count(TodoItem.type)).execute(self.connection) { result in
-                                        
-                                        if (result.asRows![0]["system.count(type)"] as! Int64) == 0 { expectation1.fulfill() }
-                                    }
-                                }
-                            }
-                            
-                        }
-                    }
-                }
-            }
-        }
-
-        waitForExpectations(timeout: 10, handler: { error in XCTAssertNil(error, "Timeout") })
-    }
-    
-    func testOptions() throws {
-        
-        let expectation1 = expectation(description: "Showing options")
-
-        try connection.connect() { result in
-            if result == nil {
-                
-                let _ = self.connection["test"]
-
-                sleep(1)
-
-                self.connection.options() { result in if result.success { expectation1.fulfill() } }
-            }
-        }
-        waitForExpectations(timeout: 5, handler: { error in XCTAssertNil(error, "Timeout") })
-        
-    }
     
     func testZDropTableAndDeleteKeyspace() throws {
         
         let expectation1 = expectation(description: "Drop the table and delete the keyspace")
         
         try connection.connect() { result in
-
-             XCTAssertNil(result)
-        
-            let _ = self.connection["test"]
             
-            TodoItem.truncate().execute() { result in
-                self.connection.execute(query: "DROP KEYSPACE test;") { result in
-                    
-                    if result.success { expectation1.fulfill() }
-                }
-            }
-        }
-        waitForExpectations(timeout: 5, handler: { error in XCTAssertNil(error, "Timeout") })
-        
-    }
-    
-    /*func testPreparedQuery() throws {
-     
-        let expectation1 = expectation(description: "Execute a prepared query")
-
-        var query: Query = Raw(query: "SELECT userID FROM todoitem WHERE completed = true allow filtering;")
-
-        try connection.connect() { result in
-            
-            XCTAssertNil(result)
-            
-            let _ = self.connection["test"]
-            
-            query.prepare() { result in
-                if let id = result.asPrepared {
-                    
-                    query.preparedID = id
-                    
-                    query.execute() { result in
+            self.connection.execute(self.useKeyspace) { result in
+                TodoItem.truncate().execute() { result in
+                    self.connection.execute("DROP KEYSPACE test;") { result in
                         
                         if result.success { expectation1.fulfill() }
                     }
@@ -472,32 +195,55 @@ print(result)
             }
         }
         waitForExpectations(timeout: 5, handler: { error in XCTAssertNil(error, "Timeout") })
-     }*/
+    }
     
-    public func testZBatch() throws {
-        let expectation1 = expectation(description: "Execute a batch query")
+    func testPreparedQuery() throws {
         
-        var insert1 = TodoItem.insert(values: [TodoItem.type: "todo", TodoItem.userID: 99, TodoItem.title: "Water Plants", TodoItem.pos: 15, TodoItem.completed: false])
-        let insert2 = TodoItem.insert(values: [TodoItem.type: "todo", TodoItem.userID: 98,TodoItem.title: "Make Dinner", TodoItem.pos: 14, TodoItem.completed: true])
-        let insert3 = TodoItem.insert(values: [TodoItem.type: "todo", TodoItem.userID: 97,TodoItem.title: "Excercise", TodoItem.pos: 13, TodoItem.completed: true])
-        let insert4 = TodoItem.insert(values: [TodoItem.type: "todo", TodoItem.userID: 96,TodoItem.title: "Sprint Plannning", TodoItem.pos: 12, TodoItem.completed: false])
+        let expectation1 = expectation(description: "Execute a prepared query")
+        
+        var query: Query = Raw(query: "SELECT userID FROM todoitem WHERE completed = true allow filtering;")
         
         try connection.connect() { result in
             
-            XCTAssertNil(result)
-            
-            let _ = self.connection["test"]
-    
-            insert1.execute(self.connection) { result in
-            
-                [insert1,insert2,insert3,insert4].execute(with: .logged, consis: .any) { result in
-
-                    if result.success { expectation1.fulfill() }
-                    
+            self.connection.execute(self.useKeyspace) { result in
+                query.prepare() { result in
+                    if let id = result.asPrepared {
+                        
+                        query.preparedID = id
+                        
+                        query.execute() { result in
+                            
+                            if result.success { expectation1.fulfill() }
+                        }
+                    }
                 }
             }
         }
         waitForExpectations(timeout: 5, handler: { error in XCTAssertNil(error, "Timeout") })
-    }*/
+    }
+    
+    public func testZBatch() throws {
+        let expectation1 = expectation(description: "Execute a batch query")
+        
+        let insert1 = TodoItem.insert([.type: "todo", .userID: 99, .title: "Water Plants", .pos: 15, .completed: false])
+        let insert2 = TodoItem.insert([.type: "todo", .userID: 98,.title: "Make Dinner", .pos: 14, .completed: true])
+        let insert3 = TodoItem.insert([.type: "todo", .userID: 97,.title: "Excercise", .pos: 13, .completed: true])
+        let insert4 = TodoItem.insert([.type: "todo", .userID: 96,.title: "Sprint Plannning", .pos: 12, .completed: false])
+        
+        try connection.connect() { result in
+            
+            self.connection.execute(self.useKeyspace) { result in
+                insert1.execute() { result in
+                    
+                    [insert1,insert2,insert3,insert4].execute(with: .logged, consis: .any) { result in
+                        
+                        if result.success { expectation1.fulfill() }
+                        
+                    }
+                }
+            }
+        }
+        waitForExpectations(timeout: 5, handler: { error in XCTAssertNil(error, "Timeout") })
+    }
 }
 
