@@ -81,6 +81,17 @@ public enum Result {
     }
 }
 
+/// Return Code Errore
+public enum ErrorType: Error {
+    case ReadError
+    case WriteError
+    case SerializeError
+    case ConnectionError
+    case NoDataError
+    case GenericError(String)
+    case IOError
+    case CassandraError(Int, String)
+}
 
 public enum ResponseOpcodes: UInt8 {
     case error          = 0x00
@@ -160,19 +171,6 @@ public indirect enum DataType {
     case tuple(types: [DataType])
 }
 
-
-/// Return Code Errore
-public enum ErrorType: Error {
-    case ReadError
-    case WriteError
-    case SerializeError
-    case ConnectionError
-    case NoDataError
-    case GenericError(String)
-    case IOError
-    case CassandraError(Int, String)
-}
-
 public struct CqlColMetadata {
     public var keyspace: String
     public var table: String
@@ -206,39 +204,56 @@ public struct Metadata {
     }
 }
 
-public struct TableObj: CustomStringConvertible, Sequence {
-    
-    var rows: [Row]
-    
-    public var description: String {
-        var body = ""
-        var len = 0
-        for row in rows {
-            body += row.description + "\n"
-            if row.description.characters.count > len { len = row.description.characters.count }
-        }
-        body += String(repeating: "-", count: len)
-        var rStr = String(repeating: "-", count: len)
-        rStr += body
-        return rStr
-    }
-
-    init(rows: [Row]){
-        self.rows = rows
-    }
-    
-    public func makeIterator() -> Generator<Row> {
-        return Generator<Row>(array: rows)
+func packType(_ item: Any) -> String {
+    switch item {
+    case let val as [Any]           : return String(describing: val.map { packType($0) } )
+    case let val as [String: Any]   : return "{ \(val.map { key, value in "\(packType(key)) : \(packType(value))" }.joined(separator: ", ")) }"
+    case let val as String          : return "'\(val)'"
+    case let val as Date            : return String(describing: UInt64(val.timeIntervalSince1970) * 1000)
+    case let val as UUID            : return String(describing: val.uuidString)
+    default                         : return String(describing: item)
     }
 }
-
-public struct Generator<T> : IteratorProtocol {
-    var array: Array<T>
+func packColumnData(key: String, mirror: Mirror) -> String {
     
-    mutating public func next() -> T? {
-        if array.isEmpty { return .none }
-        let element = array[0]
-        array = Array(array[1..<array.count])
-        return element
+    var str = ""
+    for child in mirror.children {
+        switch child.value {
+        case is UInt8        : str += child.label! + " int "
+        case is UInt16       : str += child.label! + " int "
+        case is UInt32       : str += child.label! + " int "
+        case is UInt64       : str += child.label! + " bigInt "
+        case is Int          : str += child.label! + " int "
+        case is String       : str += child.label! + " text "
+        case is Float        : str += child.label! + " float "
+        case is Double       : str += child.label! + " double "
+        case is Decimal      : str += child.label! + " decimal "
+        case is Bool         : str += child.label! + " bool "
+        
+        case is Date         : str += child.label! + " timestamp "
+        case is UUID         : str += child.label! + " uuid "
+        case is [Any]        : str += child.label! + " list "
+        case is [String: Any]: str += child.label! + " map "
+        default: break
+        }
+        
+        child.label! == key ? (str += "PRIMARY KEY,") : (str += ",")
     }
+    return str
+}
+
+func packPairs(_ pairs: [String: Any], mirror: Mirror? = nil) -> String {
+    return pairs.map{key,val in  key + "=" + packType(val) }.joined(separator: ", ")
+}
+func packKeys(_ dict: [String: Any]) -> String {
+    return dict.map {key, value in key }.joined(separator: ", ")
+}
+func packKeys(_ mirror: Mirror) -> String {
+    return mirror.children.map { $0.label! }.joined(separator: ", ")
+}
+func packValues(_ dict: [String: Any]) -> String {
+    return dict.map {key, value in packType(value) }.joined(separator: ", ")
+}
+func packValues(_ mirror: Mirror) -> String {
+    return mirror.children.map{ packType($0.value) }.joined(separator: ", ")
 }

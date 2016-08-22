@@ -37,14 +37,19 @@ public enum Request {
         
         switch self {
         case .options                        : break
-        case .query(let query)               : body.append(query.pack())
+        case .query(let query)               : body.append(query.packQuery()) ; body.append(query.packParameters())
         case .prepare(let query)             : body.append(query.packQuery())
         case .authResponse(let token)        : body.append(token.data)
-        case .execute(let qid, let query)   :
+        case .execute(let query)   :
             
-            body.append(UInt16(qid.count).data)
-            body.append(Data(bytes: qid, count: qid.count))
-            body.append(query.packParameters())
+            if let id = query.preparedID {
+                body.append(UInt16(id.count).data)
+                body.append(Data(bytes: id, count: id.count))
+                body.append(query.packParameters())
+            } else {
+                throw ErrorType.GenericError("Query does not have a prepared ID")
+            }
+            
 
         case .startup(var options)           :
             options["CQL_VERSION"] = "3.0.0"
@@ -111,20 +116,79 @@ public enum Request {
         try writer.write(from: header)
         
     }
-    
+
+
+    // Startup Request Packet
+    //
+    //  Parameters:
+    //      - Options: String dictionary containing startup options
+    //
+    // Returns a Ready Response
     case startup(options: [String: String])
-    
+
+
+    // Options Request Packet
+    //
+    // Returns a Supported Response denoting the startup options
     case options
+
     
+    // Query Request Packet
+    //
+    //  Parameters:
+    //      - using: Query Object to be executed
+    //
+    // Returns a Result Response
     case query(using: Query)
-    
+
+
+    // Prepare Request Packet
+    //
+    //  Parameters:
+    //      - query: Query Object to be prepared
+    //
+    // Returns a Result Response
     case prepare(query: Query)
+
+
+    // Exeucte Request Packet
+    //
+    //  Parameters:
+    //      - query: Already Prepared Query Object to be Executed
+    //
+    //
+    // Returns a Result Response
+    case execute(query: Query)
+
     
-    case execute(id: [Byte], parameters: Query)
-    
+    // Register Request Packet
+    //
+    //  Parameters:
+    //      - events: [String] of events to register for
+    //
+    //
+    // Returns a Result Response
     case register(events: [String])
-    
+
+
+    // Batch Request Packet
+    //
+    //  Parameters:
+    //      - queries:      [Query] of prepared/unprepared queries to execute
+    //      - type:         BatchType of the execution
+    //      - flags:        Flags of the execution
+    //      - consistency   Consistency for the execution
+    //
+    // Returns a Result Response
     case batch(queries: [Query], type: BatchType, flags: Byte, consistency: Consistency)
-    
+
+
+    // AuthResponse Request Packet
+    //
+    //  Parameters:
+    //      - token: Int representing authorization token
+    //
+    //
+    // Returns a AuthSucces or AuthChallenge Response
     case authResponse(token: Int)
 }

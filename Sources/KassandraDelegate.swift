@@ -14,6 +14,8 @@
  limitations under the License.
  */
 
+// Protocol used to receive event notifications as Kassandra Delegate
+//
 public protocol KassandraDelegate {
     
     func didReceiveEvent(event: Event)

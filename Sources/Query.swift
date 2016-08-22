@@ -16,46 +16,57 @@
 
 import Foundation
 
-public protocol Query {
-    
-    var preparedID: [Byte]? { get set }
-
-    func build() -> String
-
-    func pack() -> Data
-    func packQuery() -> Data
-    func packParameters() -> Data
-}
-
 extension Array where Element: Query {
-    func execute(with type: BatchType, consis: Consistency, oncompletion: ((Result)->Void)) {
-        do {
-            let request: Request = Request.batch(queries: self, type: type, flags: 0x00, consistency: .any)
-            try config.connection?.execute(request, oncompletion: oncompletion)
-        } catch {
-            oncompletion(Result.error(ErrorType.IOError))
-        }
+    
+    /**
+        Convienence Function to excute batch queries from arrays
+     
+        Parameters:
+            - type:         Batch Type of the operation
+            - consis:       Consistency for the operation
+            - oncompletion: Callback Closure
+
+        Returns a Result type through the given callback
+    */
+    func execute(with type: BatchType, consis: Consistency, oncompletion: @escaping ((Result)->Void)) {
+        let request: Request = Request.batch(queries: self, type: type, flags: 0x00, consistency: .any)
+        config.connection?.execute(request, oncompletion: oncompletion)
     }
 }
 
 extension Query {
-    public func prepare(oncompletion: ((Result)->Void)) {
-        do {
-            try config.connection?.execute(.prepare(query: self), oncompletion: oncompletion)
-        } catch {
-            oncompletion(Result.error(ErrorType.IOError))
-        }
-    
+
+    /**
+         Convienence Function to prepare queries
+         
+         Parameters:
+            - oncompletion: Callback Closure
+         
+         Returns a Result type through the given callback
+     */
+    public func prepare(oncompletion: @escaping ((Result)->Void)) {
+        config.connection?.execute(.prepare(query: self), oncompletion: oncompletion)
     }
-    public func execute(oncompletion: ((Result)->Void)) {
-        do {
-            try config.connection?.execute(.query(using: self), oncompletion: oncompletion)
-        } catch {
-            oncompletion(Result.error(ErrorType.IOError))
-        }
+
+
+    /**
+         Convienence Function to execute non-prepared queries
+         
+         Parameters:
+            - oncompletion: Callback Closure
+         
+         Returns a Result type through the given callback
+     */
+    public func execute(oncompletion: @escaping ((Result)->Void)) {
+        config.connection?.execute(.query(using: self), oncompletion: oncompletion)
     }
 }
 
+public enum BatchType: Byte {
+    case logged     = 0x00
+    case unlogged   = 0x01
+    case counter    = 0x02
+}
 public enum Order: String {
     case ASC = "ASC"
     case DESC = "DESC"
@@ -92,6 +103,14 @@ public enum SQLFunction<T> {
         case .count(let args)   : return args.count == 0 ? "COUNT(*)" : "COUNT(\(args.map{ String(describing: $0) }.joined(separator: ", ")))"
         }
     }
+}
+
+public protocol Query {
+    
+    var preparedID: [Byte]? { get set }
+    
+    func packQuery() -> Data
+    func packParameters() -> Data
 }
 
 public struct Select: Query {
@@ -161,30 +180,7 @@ public struct Select: Query {
         return new
     }
 
-    public func pack() -> Data {
-        var data = Data()
-        
-        data.append(build().longStringData)
-        data.append(consistency.rawValue.data)
-        data.append(flags.rawValue.data)
-        
-        return data
-    }
-
     public func packQuery() -> Data {
-        return build().longStringData
-    }
-
-    public func packParameters() -> Data {
-        var data = Data()
-
-        data.append(consistency.rawValue.data)
-        data.append(flags.rawValue.data)
-        
-        return data
-    }
-
-    public func build() -> String {
         var str = "SELECT "
         
         if let function = sqlfunction?.pack() {
@@ -205,10 +201,19 @@ public struct Select: Query {
             str += " LIMIT \(limit)"
         }
         
-        return str + ";"
+        return (str + ";").longStringData
+    }
+
+    public func packParameters() -> Data {
+        var data = Data()
+
+        data.append(consistency.rawValue.data)
+        data.append(flags.rawValue.data)
         
+        return data
     }
 }
+
 public struct Update: Query {
     
     let tableName: String
@@ -245,25 +250,6 @@ public struct Update: Query {
         return new
     }
 
-    public func build() -> String {
-        let vals  = packPairs(newValues)
-        let conds = conditions.str
-        
-        return "UPDATE \(tableName) SET \(vals) WHERE \(conds);"
-    }
-
-    public func pack() -> Data {
-        var data = Data()
-
-        data.append(build().longStringData)
-        
-
-        data.append(consistency.rawValue.data)
-        data.append(flags.rawValue.data)
-        
-        return data
-    }
-
     public func packQuery() -> Data {
         
         let vals  = packPairs(newValues)
@@ -281,6 +267,7 @@ public struct Update: Query {
         return data
     }
 }
+
 public struct Delete: Query {
 
     let tableName: String
@@ -310,20 +297,6 @@ public struct Delete: Query {
         return new
     }
 
-    public func build() -> String {
-        return "DELETE FROM \(tableName) WHERE \(conditions.str);"
-    }
-
-    public func pack() -> Data {
-        var data = Data()
-
-        data.append(build().longStringData)
-        data.append(consistency.rawValue.data)
-        data.append(flags.rawValue.data)
-        
-        return data
-    }
-
     public func packQuery() -> Data {
         return ("DELETE FROM \(tableName) WHERE \(conditions.str);").longStringData
     }
@@ -337,6 +310,7 @@ public struct Delete: Query {
         return data
     }
 }
+
 public struct Insert: Query {
     
     let tableName: String
@@ -366,26 +340,10 @@ public struct Insert: Query {
         return new
     }
 
-    public func build() -> String {
-        let keys = packKeys(fields)
-        let vals = packValues(fields)
-        
-        return "INSERT INTO \(tableName) (\(keys)) VALUES(\(vals));"
-    }
-
-    public func pack() -> Data {
-        var data = Data()
-        
-        data.append(build().longStringData)
-        data.append(consistency.rawValue.data)
-        data.append(flags.rawValue.data)
-        
-        return data
-    }
-
     public func packQuery() -> Data {
         let keys = packKeys(fields)
         let vals = packValues(fields)
+
         return ("INSERT INTO \(tableName) (\(keys)) VALUES(\(vals));").longStringData
     }
 
@@ -398,6 +356,7 @@ public struct Insert: Query {
         return data
     }
 }
+
 public struct Raw: Query {
 
     let query: String
@@ -424,20 +383,6 @@ public struct Raw: Query {
         return new
     }
 
-    public func build() -> String {
-        return query
-    }
-
-    public func pack() -> Data {
-        var data = Data()
-
-        data.append(query.longStringData)
-        data.append(consistency.rawValue.data)
-        data.append(flags.rawValue.data)
-        
-        return data
-    }
-
     public func packQuery() -> Data {
         return query.longStringData
     }
@@ -450,11 +395,5 @@ public struct Raw: Query {
         
         return data
     }
-}
-
-public enum BatchType: Byte {
-    case logged     = 0x00
-    case unlogged   = 0x01
-    case counter    = 0x02
 }
 
