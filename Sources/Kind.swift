@@ -28,7 +28,7 @@ public enum Kind {
         }
     }
 
-    public init(body: Data) {
+    internal init(body: Data) {
         var body = body
         
         let type = body.decodeInt
@@ -52,6 +52,44 @@ public enum Kind {
 
     case prepared(id: [Byte], metadata: Metadata?, resMetadata: Metadata?)
 
+}
+
+public enum Event: CustomStringConvertible {
+    
+    public var description: String {
+        switch self {
+        case .topologyChange(let type, let inet) :
+            return "Topology Change with Type: \(type) and Inet \(inet)"
+        case .statusChange(let type, let inet)   :
+            return "Status Change with Type: \(type) and Inet \(inet)"
+        case .schemaChange(let type, let target, let changes):
+            return "Schema Change: Type - \(type), Target - \(target): Changes: \(changes)"
+        case .error: return ""
+        }
+    }
+    
+    case topologyChange(type: String, inet: (String, Int))
+    
+    case statusChange(type: String, inet: (String, Int))
+    
+    case schemaChange(type: String, target: String, changes: SchemaChange)
+    
+    case error
+}
+
+public enum SchemaChange: CustomStringConvertible {
+    
+    public var description: String {
+        switch self{
+        case .options(let options): return "\(options)"
+        case .keyspace(let name, let objName): return "\(name) \(objName)"
+            
+        }
+    }
+    
+    case options(with: String)
+    
+    case keyspace(to: String, withObjName: String)
 }
 
 public struct HeaderKey: Hashable {

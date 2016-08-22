@@ -314,7 +314,7 @@ extension Data {
         }
     }
 
-    var decodeEventResponse: Response {
+    var decodeEventResponse: Result {
         mutating get {
             switch self.decodeSString {
             case "TOPOLOGY_CHANGE":

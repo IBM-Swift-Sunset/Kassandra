@@ -24,7 +24,7 @@ import XCTest
     import Glibc
 #endif
 
-class KassandraTests: XCTestCase {
+class KassandraTests: XCTestCase, KassandraDelegate {
     
     private var connection: Kassandra!
     
@@ -37,25 +37,28 @@ class KassandraTests: XCTestCase {
     
     static var allTests: [(String, (KassandraTests) -> () throws -> Void)] {
         return [
-            /*("testConnect", testConnect),
+            ("testConnect", testConnect),
             ("testKeyspaceWithCreateABreadShopTable", testKeyspaceWithCreateABreadShopTable),
             ("testKeyspaceWithCreateABreadShopTableInsertAndSelect", testKeyspaceWithCreateABreadShopTableInsertAndSelect),
             ("testKeyspaceWithCreateATable", testKeyspaceWithCreateATable),
             ("testKeyspaceWithFetchCompletedTodoItems", testKeyspaceWithFetchCompletedTodoItems),
-            ("testPreparedQuery", testPreparedQuery),*/
+            ("testPreparedQuery", testPreparedQuery),
             ("testZBatch", testZBatch),
-            //("testZDropTableAndDeleteKeyspace", testZDropTableAndDeleteKeyspace)
+            ("testZDropTableAndDeleteKeyspace", testZDropTableAndDeleteKeyspace)
         ]
     }
-    
+    func didReceiveEvent(event: Event) {
+        print("received event")
+    }
     override func setUp() {
         super.setUp()
         // Put setup code here. This method is called before the invocation of each test method in the class.
         connection = Kassandra()
+        connection.delegate = self
         t = TodoItem()
     }
     
-    /*func testConnect() throws {
+    func testConnect() throws {
         
         try connection.connect() { result in
         }
@@ -159,8 +162,7 @@ class KassandraTests: XCTestCase {
                                                     TodoItem.truncate().execute() { result in
                                                         
                                                         TodoItem.count(TodoItem.Field.type).execute() { result in
-                                                            print(result)
-                                                            print(result.asRows![0]["system.count(type)"] as! Int64)
+
                                                             if (result.asRows![0]["system.count(type)"] as! Int64) == 0 { expectation2.fulfill() }
                                                         }
                                                     }
@@ -220,7 +222,7 @@ class KassandraTests: XCTestCase {
             }
         }
         waitForExpectations(timeout: 5, handler: { error in XCTAssertNil(error, "Timeout") })
-    }*/
+    }
     
     public func testZBatch() throws {
         let expectation1 = expectation(description: "Execute a batch query")
@@ -235,7 +237,7 @@ class KassandraTests: XCTestCase {
             self.connection.execute(self.useKeyspace) { result in
                 insert1.execute() { result in
                     [insert1,insert2,insert3,insert4].execute(with: .logged, consis: .any) { result in
-                        print(result)
+
                         if result.success { expectation1.fulfill() }
                         
                     }

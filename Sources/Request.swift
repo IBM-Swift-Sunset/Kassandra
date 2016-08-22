@@ -94,7 +94,7 @@ public enum Request {
     case authResponse(token: Int)
 
 
-    var opcode: Byte {
+    public var opcode: Byte {
         switch self {
         case .startup        : return 0x01
         case .options        : return 0x05
@@ -107,7 +107,7 @@ public enum Request {
         }
     }
     
-    func write(id: UInt16, writer: SocketWriter) throws {
+    internal func write(id: UInt16, writer: SocketWriter) throws {
         var body = Data()
         
         switch self {
@@ -160,7 +160,6 @@ public enum Request {
                 }
                 
                 body.append(UInt16(0).data)
-                print(body.count)
             }
 
             body.append(consistency.rawValue.data)

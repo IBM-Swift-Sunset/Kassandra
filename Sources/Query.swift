@@ -29,7 +29,7 @@ import Foundation
  */
 extension Array where Element: Query {
 
-    func execute(with type: BatchType, consis: Consistency, oncompletion: @escaping ((Result)->Void)) {
+    public func execute(with type: BatchType, consis: Consistency, oncompletion: @escaping ((Result)->Void)) {
         let request: Request = Request.batch(queries: self, type: type, flags: 0x00, consistency: .any)
         config.connection?.execute(request, oncompletion: oncompletion)
     }

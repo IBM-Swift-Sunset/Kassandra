@@ -95,7 +95,7 @@ public class Kassandra {
         read()
 
     }
- 
+
 
     /**
          Executes a String Representation of a CSQL Query
@@ -162,6 +162,71 @@ public class Kassandra {
 
 extension Kassandra {
     
+    /**
+     Initialize a configuration using a `CA Certificate` directory.
+     
+     *Note:* `caCertificateDirPath` - All certificates in the specified directory **must** be hashed using the `OpenSSL Certificate Tool`.
+     
+     - Parameters:
+     - caCertificateDirPath:		Path to a directory containing CA certificates. *(see note above)*
+     - certificateFilePath:		Path to the PEM formatted certificate file. If nil, `certificateFilePath` will be used.
+     - keyFilePath:				Path to the PEM formatted key file (optional). If nil, `certificateFilePath` is used.
+     - selfSigned:				True if certs are `self-signed`, false otherwise. Defaults to true.
+     
+     */
+    
+    public func setSSL(certPath: String? = nil, keyPath: String? = nil) throws {
+        
+        let SSLConfig = SSLService.Configuration(withCACertificateDirectory: nil, usingCertificateFile: certPath, withKeyFile: keyPath)
+        
+        config.SSLConfig = SSLConfig
+        
+        socket?.delegate = try SSLService(usingConfiguration: SSLConfig)
+    }
+    
+    /**
+     Initialize a configuration using a `Certificate Chain File`.
+     
+     *Note:* If using a certificate chain file, the certificates must be in PEM format and must be sorted starting with the subject's certificate (actual client or server certificate), followed by intermediate CA certificates if applicable, and ending at the highest level (root) CA.
+     
+     - Parameters:
+     - chainFilePath:			Path to the certificate chain file (optional). *(see note above)*
+     - selfSigned:				True if certs are `self-signed`, false otherwise. Defaults to true.
+     
+     */
+    public func setSSL(with ChainFilePath: String, usingSelfSignedCert: Bool) throws {
+        
+        let SSLConfig = SSLService.Configuration(withChainFilePath: ChainFilePath, usingSelfSignedCerts: usingSelfSignedCert)
+        
+        config.SSLConfig = SSLConfig
+        
+        socket?.delegate = try SSLService(usingConfiguration: SSLConfig)
+    }
+    
+    /**
+     Initialize a configuration using a `CA Certificate` file.
+     
+     - Parameters:
+     - caCertificateFilePath:	Path to the PEM formatted CA certificate file.
+     - certificateFilePath:		Path to the PEM formatted certificate file.
+     - keyFilePath:				Path to the PEM formatted key file. If nil, `certificateFilePath` will be used.
+     - selfSigned:				True if certs are `self-signed`, false otherwise. Defaults to true.
+     
+     */
+    public func setSSL(with CACertificatePath: String?, using CertificateFile: String?, with KeyFile: String?, selfSignedCerts: Bool) throws {
+        
+        let SSLConfig = SSLService.Configuration(withCACertificateFilePath: CACertificatePath,
+                                                 usingCertificateFile: CertificateFile,
+                                                 withKeyFile: KeyFile,
+                                                 usingSelfSignedCerts: selfSignedCerts)
+        config.SSLConfig = SSLConfig
+        
+        socket?.delegate = try SSLService(usingConfiguration: SSLConfig)
+    }
+}
+
+extension Kassandra {
+    
     internal func read() {
         
         guard let sock = socket else {
@@ -213,86 +278,17 @@ extension Kassandra {
 
             buffer = buffer.subdata(in: Range(9 + bodyLength..<buffer.count))
 
-            do { try handle(id: streamID, flags: flags, Response(opcode: opcode, body: body)) } catch {}
+            do { try handle(id: streamID, flags: flags, Result(opcode: opcode, body: body)) } catch {}
         
         }
     }
-    private func handle(id: UInt16, flags: Byte, _ response: Response) throws {
+    private func handle(id: UInt16, flags: Byte, _ response: Result) throws {
         switch response {
-        case .ready                         : map[id]?(.void)
-        case .authSuccess                   : map[id]?(.void)
         case .event(let event)              : delegate?.didReceiveEvent(event: event)
-        case .supported(let options)        : map[id]?(.generic(options))
         case .authenticate(_)               : try Request.authResponse(token: 1).write(id: 1, writer: socket as! SocketWriter)
         case .authChallenge(let token)      : try Request.authResponse(token: token).write(id: 1, writer: socket as! SocketWriter)
-        case .error(let code, let message)  : map[id]?(.error(ErrorType.CassandraError(Int(code), message)))
-        case .result(let resultKind)        : map[id]?(.kind(resultKind))
+        default                             : map[id]?(response)
         }
-    }
-}
-
-extension Kassandra {
-
-    /**
-         Initialize a configuration using a `CA Certificate` directory.
-
-         *Note:* `caCertificateDirPath` - All certificates in the specified directory **must** be hashed using the `OpenSSL Certificate Tool`.
-
-         - Parameters:
-            - caCertificateDirPath:		Path to a directory containing CA certificates. *(see note above)*
-            - certificateFilePath:		Path to the PEM formatted certificate file. If nil, `certificateFilePath` will be used.
-            - keyFilePath:				Path to the PEM formatted key file (optional). If nil, `certificateFilePath` is used.
-            - selfSigned:				True if certs are `self-signed`, false otherwise. Defaults to true.
-
-     */
-
-    public func setSSL(certPath: String? = nil, keyPath: String? = nil) throws {
-        
-        let SSLConfig = SSLService.Configuration(withCACertificateDirectory: nil, usingCertificateFile: certPath, withKeyFile: keyPath)
-        
-        config.SSLConfig = SSLConfig
-
-        socket?.delegate = try SSLService(usingConfiguration: SSLConfig)
-    }
-
-    /**
-         Initialize a configuration using a `Certificate Chain File`.
-
-         *Note:* If using a certificate chain file, the certificates must be in PEM format and must be sorted starting with the subject's certificate (actual client or server certificate), followed by intermediate CA certificates if applicable, and ending at the highest level (root) CA.
-
-         - Parameters:
-            - chainFilePath:			Path to the certificate chain file (optional). *(see note above)*
-            - selfSigned:				True if certs are `self-signed`, false otherwise. Defaults to true.
-
-     */
-    public func setSSL(with ChainFilePath: String, usingSelfSignedCert: Bool) throws {
-        
-        let SSLConfig = SSLService.Configuration(withChainFilePath: ChainFilePath, usingSelfSignedCerts: usingSelfSignedCert)
-        
-        config.SSLConfig = SSLConfig
-
-        socket?.delegate = try SSLService(usingConfiguration: SSLConfig)
-    }
-
-    /**
-         Initialize a configuration using a `CA Certificate` file.
-         
-         - Parameters:
-            - caCertificateFilePath:	Path to the PEM formatted CA certificate file.
-            - certificateFilePath:		Path to the PEM formatted certificate file.
-            - keyFilePath:				Path to the PEM formatted key file. If nil, `certificateFilePath` will be used.
-            - selfSigned:				True if certs are `self-signed`, false otherwise. Defaults to true.
-
-     */
-    public func setSSL(with CACertificatePath: String?, using CertificateFile: String?, with KeyFile: String?, selfSignedCerts: Bool) throws {
-        
-        let SSLConfig = SSLService.Configuration(withCACertificateFilePath: CACertificatePath,
-                                                 usingCertificateFile: CertificateFile,
-                                                 withKeyFile: KeyFile,
-                                                 usingSelfSignedCerts: selfSignedCerts)
-        config.SSLConfig = SSLConfig
-
-        socket?.delegate = try SSLService(usingConfiguration: SSLConfig)
     }
 }
 

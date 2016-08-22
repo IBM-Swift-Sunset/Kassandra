@@ -110,7 +110,7 @@ public extension Model {
 internal var mirrors = [Int: Mirror]()
 
 internal extension Model {
-    public var hashValue: Int {
+    internal var hashValue: Int {
         return key ?? -1
     }
     
