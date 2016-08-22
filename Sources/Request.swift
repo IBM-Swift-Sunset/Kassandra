@@ -19,6 +19,81 @@ import Foundation
 
 public enum Request {
     
+    // Startup Request Packet
+    //
+    //  Parameters:
+    //      - Options: String dictionary containing startup options
+    //
+    // Returns a Ready Response
+    case startup(options: [String: String])
+    
+    
+    // Options Request Packet
+    //
+    // Returns a Supported Response denoting the startup options
+    case options
+    
+    
+    // Query Request Packet
+    //
+    //  Parameters:
+    //      - using: Query Object to be executed
+    //
+    // Returns a Result Response
+    case query(using: Query)
+    
+    
+    // Prepare Request Packet
+    //
+    //  Parameters:
+    //      - query: Query Object to be prepared
+    //
+    // Returns a Result Response
+    case prepare(query: Query)
+    
+    
+    // Exeucte Request Packet
+    //
+    //  Parameters:
+    //      - query: Already Prepared Query Object to be Executed
+    //
+    //
+    // Returns a Result Response
+    case execute(query: Query)
+    
+    
+    // Register Request Packet
+    //
+    //  Parameters:
+    //      - events: [String] of events to register for
+    //
+    //
+    // Returns a Result Response
+    case register(events: [String])
+    
+    
+    // Batch Request Packet
+    //
+    //  Parameters:
+    //      - queries:      [Query] of prepared/unprepared queries to execute
+    //      - type:         BatchType of the execution
+    //      - flags:        Flags of the execution
+    //      - consistency   Consistency for the execution
+    //
+    // Returns a Result Response
+    case batch(queries: [Query], type: BatchType, flags: Byte, consistency: Consistency)
+    
+    
+    // AuthResponse Request Packet
+    //
+    //  Parameters:
+    //      - token: Int representing authorization token
+    //
+    //
+    // Returns a AuthSucces or AuthChallenge Response
+    case authResponse(token: Int)
+
+
     var opcode: Byte {
         switch self {
         case .startup        : return 0x01
@@ -37,8 +112,8 @@ public enum Request {
         
         switch self {
         case .options                        : break
-        case .query(let query)               : body.append(query.packQuery()) ; body.append(query.packParameters())
-        case .prepare(let query)             : body.append(query.packQuery())
+        case .query(let query)               : body.append(query.build().longStringData) ; body.append(query.packParameters())
+        case .prepare(let query)             : body.append(query.build().longStringData)
         case .authResponse(let token)        : body.append(token.data)
         case .execute(let query)   :
             
@@ -71,25 +146,21 @@ public enum Request {
             
         case .batch(let queries, let type, let flags, let consistency):
 
-            switch type {
-            case .logged    : body.append(0x00.data)
-            case .unlogged  : body.append(0x01.data)
-            case .counter   : body.append(0x02.data)
-            }
-            
+            body.append(type.rawValue.data)
             body.append(UInt16(queries.count).data)
 
             for query in queries {
                 if let id = query.preparedID {
-                    body.append(0x01.data)
+                    body.append(UInt8(0x01).data)
                     body.append(UInt16(id.count).data)
                     body.append(Data(bytes: id, count: id.count))
                 } else {
-                    body.append(0x00.data)
-                    body.append(query.packParameters())
+                    body.append(UInt8(0x00).data)
+                    body.append(query.build().longStringData)
                 }
                 
                 body.append(UInt16(0).data)
+                print(body.count)
             }
 
             body.append(consistency.rawValue.data)
@@ -116,79 +187,4 @@ public enum Request {
         try writer.write(from: header)
         
     }
-
-
-    // Startup Request Packet
-    //
-    //  Parameters:
-    //      - Options: String dictionary containing startup options
-    //
-    // Returns a Ready Response
-    case startup(options: [String: String])
-
-
-    // Options Request Packet
-    //
-    // Returns a Supported Response denoting the startup options
-    case options
-
-    
-    // Query Request Packet
-    //
-    //  Parameters:
-    //      - using: Query Object to be executed
-    //
-    // Returns a Result Response
-    case query(using: Query)
-
-
-    // Prepare Request Packet
-    //
-    //  Parameters:
-    //      - query: Query Object to be prepared
-    //
-    // Returns a Result Response
-    case prepare(query: Query)
-
-
-    // Exeucte Request Packet
-    //
-    //  Parameters:
-    //      - query: Already Prepared Query Object to be Executed
-    //
-    //
-    // Returns a Result Response
-    case execute(query: Query)
-
-    
-    // Register Request Packet
-    //
-    //  Parameters:
-    //      - events: [String] of events to register for
-    //
-    //
-    // Returns a Result Response
-    case register(events: [String])
-
-
-    // Batch Request Packet
-    //
-    //  Parameters:
-    //      - queries:      [Query] of prepared/unprepared queries to execute
-    //      - type:         BatchType of the execution
-    //      - flags:        Flags of the execution
-    //      - consistency   Consistency for the execution
-    //
-    // Returns a Result Response
-    case batch(queries: [Query], type: BatchType, flags: Byte, consistency: Consistency)
-
-
-    // AuthResponse Request Packet
-    //
-    //  Parameters:
-    //      - token: Int representing authorization token
-    //
-    //
-    // Returns a AuthSucces or AuthChallenge Response
-    case authResponse(token: Int)
 }
