@@ -267,7 +267,12 @@ extension Data {
         mutating get {
             let data = UnsafeMutablePointer<UInt8>.allocate(capacity: 16)
             subdata(with: 16).copyBytes(to: data, count: 16)
-            return NSUUID(uuidBytes: data)
+            #if os(Linux)
+                return NSUUID(UUIDBytes: data)
+            #else
+                return NSUUID(uuidBytes: data)
+            #endif
+            
         }
     }
     
