@@ -205,7 +205,7 @@ class KassandraTests: XCTestCase, KassandraDelegate {
                 //TodoItem.drop().execute() { result in
                     //self.connection.execute("DROP KEYSPACE test;") { result in
                         //print(result.success)
-                        //if result.success { expectation1.fulfill() }
+                        if result.success { expectation1.fulfill() }
                     //}
                 //}
             //}
@@ -229,7 +229,7 @@ class KassandraTests: XCTestCase, KassandraDelegate {
                         query.preparedID = id
                         
                         query.execute() { result in
-                            
+                            print("details: ",result.asRows)
                             if result.success { expectation1.fulfill() }
                         }
                     }
