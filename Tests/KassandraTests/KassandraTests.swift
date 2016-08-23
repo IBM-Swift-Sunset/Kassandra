@@ -187,14 +187,14 @@ class KassandraTests: XCTestCase, KassandraDelegate {
         
         try connection.connect() { result in
             
-            self.connection.execute(self.useKeyspace) { result in
-                TodoItem.truncate().execute() { result in
+            //self.connection.execute(self.useKeyspace) { result in
+                //TodoItem.drop().execute() { result in
                     self.connection.execute("DROP KEYSPACE test;") { result in
                         
                         if result.success { expectation1.fulfill() }
                     }
-                }
-            }
+                //}
+            //}
         }
         waitForExpectations(timeout: 5, handler: { error in XCTAssertNil(error, "Timeout") })
     }
