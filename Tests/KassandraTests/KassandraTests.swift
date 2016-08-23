@@ -60,7 +60,7 @@ class KassandraTests: XCTestCase, KassandraDelegate {
     
     func testConnect() throws {
         
-        try connection.connect() { result in
+        try connection.connect() { result in XCTAssertTrue(result.success, "Connected to Cassandra")
         }
     }
     
@@ -69,12 +69,18 @@ class KassandraTests: XCTestCase, KassandraDelegate {
         let expectation1 = expectation(description: "Create a table in the keyspace or table exist in the keyspace")
         
         try connection.connect() { result in
+            XCTAssert(result.success, "Connected to Cassandra")
             
             self.connection.execute(self.createKeyspace) { result in
+                XCTAssertTrue(result.success)
+                
                 self.connection.execute(self.useKeyspace) { result in
+                    XCTAssertTrue(result.success)
+                    
                     self.connection.execute("CREATE TABLE IF NOT EXISTS breadshop (userID uuid primary key, type text, bread map<text, int>, cost float, rate double, time timestamp);") {
                         result in
                         
+                        XCTAssertTrue(result.success, "Created Table \(BreadShop.tableName)")
                         if result.success { expectation1.fulfill() }
                     }
                 }
@@ -90,12 +96,14 @@ class KassandraTests: XCTestCase, KassandraDelegate {
         let bread: [BreadShop.Field: Any] = [.userID: NSUUID(), .type: "Sandwich", .bread: ["Chicken Roller": 3, "Steak Roller": 7, "Spicy Chicken Roller": 9], .cost: 2.1, .rate: 9.1, .time : Date()]
         
         try connection.connect() { result in
+            XCTAssertTrue(result.success, "Connected to Cassandra")
             
             self.connection.execute(self.useKeyspace) { result in
                 BreadShop.insert(bread).execute() { result in
                     BreadShop.select().execute() {
                         result in
-                        
+
+                        XCTAssertTrue(result.success)
                         if result.asRows != nil { expectation1.fulfill() }
                     }
                 }
@@ -110,11 +118,13 @@ class KassandraTests: XCTestCase, KassandraDelegate {
         let expectation1 = expectation(description: "Create a table in the keyspace or table exist in the keyspace")
         
         try connection.connect() { result in
-        
+            XCTAssertTrue(result.success, "Connected to Cassandra")
+            
             self.connection.execute(self.createKeyspace) { result in
                 self.connection.execute(self.useKeyspace) { result in
                     self.connection.execute("CREATE TABLE IF NOT EXISTS todoitem(userID uuid primary key, type text, title text, pos int, completed boolean);") { result in
                         
+                        XCTAssertTrue(result.success, "Created Table \(TodoItem.tableName)")
                         if result.success { expectation1.fulfill() }
                     }
                 }
@@ -129,7 +139,8 @@ class KassandraTests: XCTestCase, KassandraDelegate {
         let expectation1 = expectation(description: "Select first two completed item and check their row count")
         let expectation2 = expectation(description: "Truncate the table to get 0 completed items")
         
-        let god: [TodoItem.Field: Any] = [.type: "todo", .userID: NSUUID(), .title: "God Among God", .pos: 1, .completed: true]
+        let userID1 = NSUUID()
+        let god: [TodoItem.Field: Any] = [.type: "todo", .userID: userID1, .title: "God Among God", .pos: 1, .completed: true]
         let ares: [TodoItem.Field: Any] = [.type: "todo", .userID: NSUUID(), .title: "Ares", .pos: 2, .completed: true]
         let thor: [TodoItem.Field: Any] = [.type: "todo", .userID: NSUUID(), .title: "Thor", .pos: 3, .completed: true]
         let apollo: [TodoItem.Field: Any] = [.type: "todo", .userID: NSUUID(), .title: "Apollo", .pos: 4, .completed: true]
@@ -138,7 +149,8 @@ class KassandraTests: XCTestCase, KassandraDelegate {
         let athena: [TodoItem.Field: Any] =  [.type: "todo", .userID: NSUUID(), .title: "Athena", .pos: 7, .completed: true]
         
         try connection.connect() { result in
-        
+            XCTAssertTrue(result.success, "Connected to Cassandra")
+            
             self.connection.execute(self.createKeyspace) { result in
                 self.connection.execute(self.useKeyspace) { result in
                     TodoItem.insert(god).execute() { result in
@@ -148,22 +160,23 @@ class KassandraTests: XCTestCase, KassandraDelegate {
                                     TodoItem.insert(cass).execute() { result in
                                         TodoItem.insert(hades).execute() { result in
                                             TodoItem.insert(athena).execute() { result in
-                                                TodoItem.update([.title: "Zeus"], conditions: "userID" == 1).execute {
+                                                TodoItem.update([.title: "Zeus"], conditions: "userID" == userID1).execute {
                                                     result in
                                                     
-                                                    TodoItem.select().limited(to: 2).execute() {
+                                                    TodoItem.select().limited(to: 2).filtered(by: "userID" == userID1).execute() {
                                                         result in
+                                                        
                                                         if let rows = result.asRows {
-                                                            
-                                                            if rows.count == 2 { expectation1.fulfill() }
+                                                            XCTAssertEqual(rows[0]["title"] as! String, "Zeus")
+                                                            if rows.count == 1 { expectation1.fulfill() }
                                                         }
                                                     }
                                                     
                                                     TodoItem.truncate().execute() { result in
                                                         
                                                         TodoItem.count(TodoItem.Field.type).execute() { result in
-
-                                                            if (result.asRows![0]["system.count(type)"] as! Int64) == 0 { expectation2.fulfill() }
+                                                            XCTAssertEqual(result.asRows![0]["system.count(type)"] as! Int64, 0)
+                                                            expectation2.fulfill()
                                                         }
                                                     }
                                                 }
@@ -186,13 +199,14 @@ class KassandraTests: XCTestCase, KassandraDelegate {
         let expectation1 = expectation(description: "Drop the table and delete the keyspace")
         
         try connection.connect() { result in
+            XCTAssertTrue(result.success, "Connected to Cassandra")
             
             //self.connection.execute(self.useKeyspace) { result in
                 //TodoItem.drop().execute() { result in
-                    self.connection.execute("DROP KEYSPACE test;") { result in
-                        
-                        if result.success { expectation1.fulfill() }
-                    }
+                    //self.connection.execute("DROP KEYSPACE test;") { result in
+                        //print(result.success)
+                        //if result.success { expectation1.fulfill() }
+                    //}
                 //}
             //}
         }
@@ -206,6 +220,7 @@ class KassandraTests: XCTestCase, KassandraDelegate {
         var query: Query = Raw(query: "SELECT userID FROM todoitem WHERE completed = true allow filtering;")
         
         try connection.connect() { result in
+            XCTAssertTrue(result.success, "Connected to Cassandra")
             
             self.connection.execute(self.useKeyspace) { result in
                 query.prepare() { result in
@@ -233,6 +248,7 @@ class KassandraTests: XCTestCase, KassandraDelegate {
         let insert4 = TodoItem.insert([.type: "todo", .userID: NSUUID(),.title: "Sprint Plannning", .pos: 12, .completed: false])
         
         try connection.connect() { result in
+            XCTAssertTrue(result.success, "Connected to Cassandra")
             
             self.connection.execute(self.useKeyspace) { result in
                 insert1.execute() { result in

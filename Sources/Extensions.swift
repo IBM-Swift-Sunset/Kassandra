@@ -99,7 +99,7 @@ extension UInt16: Convertible {
         return [UInt8((self & 0xFF00) >> 8), UInt8(self & 0x00ff)]
     }
 }
-
+extension NSUUID: Convertible {}
 extension Double: Convertible {}
 extension Float: Convertible {}
 extension UInt32 {
