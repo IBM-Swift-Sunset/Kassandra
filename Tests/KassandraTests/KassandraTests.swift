@@ -16,7 +16,7 @@
 
 import XCTest
 @testable import Kassandra
-
+import Foundation
 
 #if os(OSX) || os(iOS)
     import Darwin

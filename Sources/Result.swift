@@ -16,37 +16,44 @@
 import Foundation
 
 public enum Result: CustomStringConvertible {
-    
+
+
     // Error Result
     //
     case error(Error)
-    
+
+
     // Ready Response due to Connect
     //
     case ready
+
 
     // Response received on startup denoting the type of authentication required
     //
     case authenticate(with: String)
 
+
     // Supported Response denonting startup options
     //
     case supported(by: [String: [String]])
-   
+
+    
     // Result Response of Kind type
-    // - Options Include:
-    //    - void      - keyspace      - schema
-    //    - rows      - prepared
+    // - Kinds: - void      - keyspace      - schema
+    //          - rows      - prepared
     //
     case result(of: Kind)
-   
-    // Response received from a Auth_response request
-    //
-    case authSuccess
-   
+
+
     // Response received on authentication success
     //
+    case authSuccess
+
+
+    // Response Denotes an Event Notification
+    //
     case event(of: Event)
+
 
     // Response received from a Auth_Response request
     //  - A server authentication challenge
