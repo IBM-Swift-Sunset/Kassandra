@@ -16,6 +16,17 @@
 
 import Foundation
 
+/**
+    Defines a Model Instance
+ 
+    - Requirements
+        - Field:            Associated Type for table Fields -> Use an Enum
+        - tableName:        Name of the table being modelled
+        - primaryKey:       Primary key of the table
+        - key:              Getter and Setter of the table key
+        - init(row: Row):   Initializer for the model given a Row object
+ 
+ */
 public protocol Model: Table {
     associatedtype Field: Hashable
     
@@ -27,148 +38,86 @@ public protocol Model: Table {
     init(row: Row)
 }
 
-internal var mirrors = [Int: Mirror]()
-
 public extension Model {
 
-    public var hashValue: Int {
-        return key ?? -1
-    }
-
-    private var mirror: Mirror {
-        if mirrors[hashValue] == nil {
-            mirrors[hashValue] = Mirror(reflecting: self)
-        }
-        return mirrors[hashValue]!
-    }
-
-    public func save() -> Promise<Self> {
-        let p = Promise<Self>.deferred()
-        
+    
+    /**
+        Creates an Insert Query representing field values in the Model as a Row
+         
+        Returns the Insert Query
+     
+     */
+    public func save() -> Insert {
         let values: [String: Any] = mirror.children.reduce([:]) { acc, child in
             var ret = acc
             ret[child.label!] = child.value
             return ret
         }
-        Insert(values, into: Self.tableName).execute()
-            .then {
-                (table: TableObj) in
-                
-                p.resolve()( self )
-            
-            }
-            .fail {
-                error in
-                p.reject(dueTo: error)
-            }
-        
-        return p
+        return Insert(values, into: Self.tableName)
     }
+
     
-    public func delete() -> Promise<Self> {
-        let p = Promise<Self>.deferred()
-
-        Delete(from: Self.tableName, where: "id" == key!).execute()
-            .then {
-                (table: TableObj) in
-
-                p.resolve()( self )
-                
-            }.fail {
-                error in
-                p.reject(dueTo: error)
-        }
-        return p
+    /**
+        Creates a Delete Query to the row being modelled
+     
+        Returns the Delete Query
+     
+     */
+    public func delete() -> Delete {
+        return Delete(from: Self.tableName, where: "id" == key!)
     }
+
     
-    public func create() throws {
+    /**
+        Creates the table represesented by the Model
+     
+        - Parameters:
+            - onCompeletion:    Closure for Result Callback
+
+        Returns the result of the query through the given callback
+     
+     */
+    public func create(oncompletion: @escaping ((Result)->Void)) throws {
 
         let vals = packColumnData(key: String(describing: Self.primaryKey), mirror: mirror)
 
-        Raw(query: "CREATE TABLE \(Self.tableName)(\(vals));").execute()
-            .then {
-                (state: Status) in
-                switch state {
-                case .success: print("Table Created")
-                case .failure(let error): print(error)
-                }
-            }
-            .fail {
-                error in
-                
-            }
+        Raw(query: "CREATE TABLE \(Self.tableName)(\(vals));").execute(oncompletion: oncompletion)
     }
+
     
-    public static func fetch(_ fields: [Field] = []) -> Promise<[Self]> {
-        let p = Promise<[Self]>.deferred()
-
-        Select(fields.map{ String(describing: $0) }, from: tableName).execute()
-            .then {
-                table in
-                    p.resolve()( table.rows.map { Self.init(row: $0) } )
-
-            }.fail {
-                error in
-                p.reject(dueTo: error)
+    /**
+         Fetches the Rows of the Modelled Table
+         
+         - Parameters:
+            - fields:           Array representing the fields to be selected
+            - onCompeletion:    Closure for Result Callback
+         
+         Returns the result as an optional array of the model and optional error through the given callback
+     */
+    public static func fetch(_ fields: [Field] = [], oncompletion: @escaping (([Self]?, Error?)->Void)) {
+        
+        Select(fields.map{ String(describing: $0) }, from: tableName).execute() {
+            result in
+            
+            if let err = result.asError { oncompletion(nil, err)}
+            if let rows = result.asRows {
+                oncompletion(rows.map { Self.init(row: $0) }, nil)
             }
-        return p
-    }
-}
-
-func getType(_ item: Any ) -> DataType? {
-
-    switch item {
-    case _ as Int     : return .int
-    case _ as String  : return .text
-    case _ as Float   : return .float
-    case _ as Double  : return .double
-    case _ as Decimal : return .decimal
-    default: return nil
-    }
-}
-
-func packType(_ item: Any) -> String? {
-    switch item {
-    case let val as Int     : return String(describing: val)
-    case let val as String  : return "'\(val)'"
-    case let val as Float   : return String(describing: val)
-    case let val as Double  : return String(describing: val)
-    case let val as Decimal : return String(describing: val)
-    case let val as Bool    : return String(describing: val)
-    default: return nil
-    }
-}
-func packColumnData(key: String, mirror: Mirror) -> String {
-    
-    var str = ""
-    for child in mirror.children {
-        switch child.value {
-        case is Int     : str += child.label! + " int "
-        case is String  : str += child.label! + " text "
-        case is Float   : str += child.label! + " float "
-        case is Double  : str += child.label! + " double "
-        case is Decimal : str += child.label! + " decimal "
-        case is Bool    : str += child.label! + " bool "
-        default: break
         }
-
-        child.label! == key ? (str += "PRIMARY KEY,") : (str += ",")
     }
-    return str
 }
 
-func packPairs(_ pairs: [String: Any], mirror: Mirror? = nil) -> String {
-    return pairs.map{key,val in  key + "=" + packType(val)! }.joined(separator: ", ")
-}
-func packKeys(_ dict: [String: Any]) -> String {
-    return dict.map {key, value in key }.joined(separator: ", ")
-}
-func packKeys(_ mirror: Mirror) -> String {
-    return mirror.children.map { $0.label! }.joined(separator: ", ")
-}
-func packValues(_ dict: [String: Any]) -> String {
-    return dict.map {key, value in packType(value)! }.joined(separator: ", ")
-}
-func packValues(_ mirror: Mirror) -> String {
-    return mirror.children.map{ packType($0.value)! }.joined(separator: ", ")
+internal var mirrors = [Int: Mirror]()
+
+internal extension Model {
+    internal var hashValue: Int {
+        return key ?? -1
+    }
+    
+    internal var mirror: Mirror {
+        if mirrors[hashValue] == nil {
+            mirrors[hashValue] = Mirror(reflecting: self)
+        }
+        return mirrors[hashValue]!
+    }
 }

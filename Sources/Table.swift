@@ -18,16 +18,37 @@ import Foundation
 
 private let connection = config.connection
 
+/**
+    Defines a Model Instance
+ 
+     - Requirements
+         - Field:            Associated Type for table Fields -> Use an Enum
+         - tableName:        Name of the table being modelled
+ 
+*/
 public protocol Table {
+
     associatedtype Field: Hashable
+
     static var tableName: String { get }
 
 }
 
 public extension Table {
 
+
     public typealias Document = [Field: Any]
-    
+
+
+    /**
+        Creates a Select Query representing to count rows specified by the Table
+        
+        - Parameters:
+            - fields:   Enum Fields representing tables fields to be counted
+
+        Returns the Select Query
+     
+     */
     public static func count(_ fields: Field...) -> Select {
         
         let fields = fields.map{ String(describing: $0) }
@@ -38,35 +59,85 @@ public extension Table {
 
         return query
     }
+
+
+    /**
+        Creates a Select Query representing for the given fields
+     
+        - Parameters:
+            - fields:   Enum Fields representing tables fields to be selected
+     
+        Returns the Select Query
+     
+     */
     public static func select(_ fields: Field ...) -> Select {
         return Select(fields.map{ String(describing: $0) }, from: Self.tableName)
     }
-    
+ 
+
+    /**
+         Creates an Insert Query for the given Document
+         
+         - Parameters:
+            - values:   [Field: Any] Document representing the key value pairs to be inserted
+         
+         Returns the Insert Query
+     
+     */
     public static func insert(_ values: Document) -> Insert {
         return Insert(changeDictType(dict: values), into: Self.tableName)
     }
+  
     
+    /**
+         Creates an Update Query for the given Document and Conditions
+         
+         - Parameters:
+            - values:   [Field: Any] Document representing the updated key value pairs
+            - conditions:  Predicate representing the Where condition
+         
+         Returns the Update Query
+     
+     */
     public static func update(_ values: Document, conditions: Predicate) -> Update {
         
         let vals = changeDictType(dict: values)
         
         return Update(to: vals, in: Self.tableName, where: conditions)
     }
-    
+ 
+    /**
+         Creates a Delete Query for the given condition
+         
+         - Parameters:
+            - conditions:  Predicate representing the Where condition
+         
+         Returns the Delete Query
+     
+     */
     public static func delete(where conditions: Predicate) -> Delete {
         
         return Delete(from: tableName, where: conditions)
     }
-    
+
+    /**
+         Creates a Raw Query representing a Truncate table query
+
+         Returns the Raw Query
+     
+     */
     public static func truncate() -> Raw {
         return Raw(query: "TRUNCATE TABLE \(Self.tableName)")
     }
 
+
+    /**
+         Creates a Raw Query representing a Drop table query
+
+         Returns the Raw Query
+     
+     */
     public static func drop() -> Raw {
         return Raw(query: "DROP TABLE \(Self.tableName)")
-    }
-    
-    public static func created() -> Raw {
-        return Raw(query: "CREATE TABLE \(Self.tableName)() VALUES()")
     }
 }
