@@ -19,13 +19,13 @@ public protocol Convertible {
 }
 
 public enum Order {
-    case ASCD(Convertible)
-    case DESC(Convertible)
+    case ascending(Convertible)
+    case descending(Convertible)
     
     var description: String {
         switch self {
-        case .ASCD(let field ) : return "\(field) ASCD"
-        case .DESC(let field ) : return "\(field) DESC"
+        case .ascending(let field ) : return "\(field) ASCD"
+        case .descending(let field ) : return "\(field) DESC"
         }
     }
 }

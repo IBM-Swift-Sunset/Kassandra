@@ -55,17 +55,16 @@ public class Kassandra {
         writeQueue = DispatchQueue(label: "write queue", attributes: DispatchQueue.Attributes.concurrent)
     }
  
-
     /**
          Connects to a Kassandra Server
          
          - Parameters
             - onCompletion: Callback function for on completion
          
-         Returns a Optional Error through the given callback
+         Returns a Result through the given callback
      
      */
-    public func connect(oncompletion: @escaping (Result) -> Void) throws {
+    public func connect(with keyspace: String? = nil, oncompletion: @escaping (Result) -> Void) throws {
         
         if socket == nil {
             socket = try! Socket.create(family: .inet6, type: .stream, proto: .tcp)
@@ -81,8 +80,15 @@ public class Kassandra {
             
             let id = UInt16.random
             
-            self.map[id] = oncompletion
-
+                self.map[id] =  { result in
+                    
+                    if let space = keyspace {
+                        result.success ? self.execute("USE \(space)", oncompletion: oncompletion) : oncompletion(Result.error(ErrorType.ConnectionError))
+                    } else {
+                        oncompletion(result)
+                    }
+                }
+            
             try Request.startup(options: [:]).write(id: id, writer: sock)
             
             config.connection = self
@@ -95,8 +101,26 @@ public class Kassandra {
         read()
 
     }
+    /**
+        Executes a Create Index Query
+     
+        - Parameters
+            - table         : Name of the table to place index on
+            - field         : Name of the field to place index on
+            - onCompletion  : Callback function for on completion
+     
+        Returns a Result Enum through the given callback
 
-
+    */
+    public func create(in table: String, on field: String, oncompletion: @escaping ((Result) -> Void)) {
+        self.execute("CREATE INDEX ON \(table)(\(field))", oncompletion: oncompletion)
+    }
+    /**
+     */
+    public func create(keyspace: String, with strategy: ReplicationStrategy, isDurable: Bool = true, ifNotExists: Bool = false, oncompletion: @escaping ((Result) -> Void)) {
+        self.execute("CREATE KEYSPACE \(ifNotExists ? "IF NOT EXISTS" : "") \(keyspace) WITH \(strategy) AND DURABLE_WRITES = \(isDurable);", oncompletion: oncompletion)
+    }
+    
     /**
          Executes a String Representation of a CSQL Query
          
@@ -104,7 +128,7 @@ public class Kassandra {
             - query:        String Representation of a CSQL Query to be executed
             - onCompletion: Callback function for on completion
          
-         Returns a QueryResult Enum through the given callback
+         Returns a Result Enum through the given callback
      */
     public func execute(_ query: String, oncompletion: @escaping ((Result) -> Void)) {
         let request = Request.query(using: Raw(query: query))
@@ -119,7 +143,7 @@ public class Kassandra {
             - query:        String Representation of a CSQL Query to be executed
             - onCompletion: Callback function for on completion
          
-         Returns a QueryResult Enum through the given callback
+         Returns a Result Enum through the given callback
      */
     public func execute(_ request: Request, oncompletion: @escaping ((Result) -> Void)) {
         executeHandler(request, oncompletion: oncompletion)
@@ -133,7 +157,7 @@ public class Kassandra {
             - query:        String Representation of a CSQL Query to be executed
             - onCompletion: Callback function for on completion
          
-         Returns a QueryResult Enum through the given callback
+         Returns a Result Enum through the given callback
      */
     public func execute(_ query: Query, oncompletion: @escaping ((Result) -> Void)) {
         executeHandler(.query(using: query), oncompletion: oncompletion)
@@ -163,15 +187,15 @@ public class Kassandra {
 extension Kassandra {
     
     /**
-     Initialize a configuration using a `CA Certificate` directory.
-     
-     *Note:* `caCertificateDirPath` - All certificates in the specified directory **must** be hashed using the `OpenSSL Certificate Tool`.
-     
-     - Parameters:
-     - caCertificateDirPath:		Path to a directory containing CA certificates. *(see note above)*
-     - certificateFilePath:		Path to the PEM formatted certificate file. If nil, `certificateFilePath` will be used.
-     - keyFilePath:				Path to the PEM formatted key file (optional). If nil, `certificateFilePath` is used.
-     - selfSigned:				True if certs are `self-signed`, false otherwise. Defaults to true.
+         Initialize a configuration using a `CA Certificate` directory.
+         
+         *Note:* `caCertificateDirPath` - All certificates in the specified directory **must** be hashed using the `OpenSSL Certificate Tool`.
+         
+         - Parameters:
+             - caCertificateDirPath:		Path to a directory containing CA certificates. *(see note above)*
+             - certificateFilePath:		Path to the PEM formatted certificate file. If nil, `certificateFilePath` will be used.
+             - keyFilePath:				Path to the PEM formatted key file (optional). If nil, `certificateFilePath` is used.
+             - selfSigned:				True if certs are `self-signed`, false otherwise. Defaults to true.
      
      */
     
@@ -185,13 +209,13 @@ extension Kassandra {
     }
     
     /**
-     Initialize a configuration using a `Certificate Chain File`.
-     
-     *Note:* If using a certificate chain file, the certificates must be in PEM format and must be sorted starting with the subject's certificate (actual client or server certificate), followed by intermediate CA certificates if applicable, and ending at the highest level (root) CA.
-     
-     - Parameters:
-     - chainFilePath:			Path to the certificate chain file (optional). *(see note above)*
-     - selfSigned:				True if certs are `self-signed`, false otherwise. Defaults to true.
+         Initialize a configuration using a `Certificate Chain File`.
+         
+         *Note:* If using a certificate chain file, the certificates must be in PEM format and must be sorted starting with the subject's certificate (actual client or server certificate), followed by intermediate CA certificates if applicable, and ending at the highest level (root) CA.
+         
+         - Parameters:
+             - chainFilePath:			Path to the certificate chain file (optional). *(see note above)*
+             - selfSigned:				True if certs are `self-signed`, false otherwise. Defaults to true.
      
      */
     public func setSSL(with ChainFilePath: String, usingSelfSignedCert: Bool) throws {
@@ -204,13 +228,13 @@ extension Kassandra {
     }
     
     /**
-     Initialize a configuration using a `CA Certificate` file.
-     
-     - Parameters:
-     - caCertificateFilePath:	Path to the PEM formatted CA certificate file.
-     - certificateFilePath:		Path to the PEM formatted certificate file.
-     - keyFilePath:				Path to the PEM formatted key file. If nil, `certificateFilePath` will be used.
-     - selfSigned:				True if certs are `self-signed`, false otherwise. Defaults to true.
+         Initialize a configuration using a `CA Certificate` file.
+         
+         - Parameters:
+             - caCertificateFilePath:	Path to the PEM formatted CA certificate file.
+             - certificateFilePath:		Path to the PEM formatted certificate file.
+             - keyFilePath:				Path to the PEM formatted key file. If nil, `certificateFilePath` will be used.
+             - selfSigned:				True if certs are `self-signed`, false otherwise. Defaults to true.
      
      */
     public func setSSL(with CACertificatePath: String?, using CertificateFile: String?, with KeyFile: String?, selfSignedCerts: Bool) throws {
