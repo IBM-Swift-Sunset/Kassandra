@@ -195,12 +195,11 @@ class KassandraTests: XCTestCase {
             XCTAssertTrue(result.success, "Connected to Cassandra")
             
             self.connection.execute(self.useKeyspace) { result in
-                print(result)
                 TodoItem.drop().execute() { result in
-                    print(result)
                     self.connection.execute("DROP KEYSPACE test") { result in
-                        print(result.success)
-                        if result.success { expectation1.fulfill() }
+                        
+                        XCTAssertTrue(result.success)
+                        expectation1.fulfill()
                     }
                 }
             }
