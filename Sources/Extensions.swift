@@ -99,7 +99,7 @@ extension UInt16: Convertible {
         return [UInt8((self & 0xFF00) >> 8), UInt8(self & 0x00ff)]
     }
 }
-extension NSUUID: Convertible {}
+extension UUID: Convertible {}
 extension Double: Convertible {}
 extension Float: Convertible {}
 extension UInt32 {
@@ -263,15 +263,15 @@ extension Data {
         }
     }
 
-    var decodeUUID: NSUUID {
+    var decodeUUID: UUID {
         mutating get {
             let data = UnsafeMutablePointer<UInt8>.allocate(capacity: 16)
             subdata(with: 16).copyBytes(to: data, count: 16)
-                return NSUUID(uuidBytes: data)
+            return UUID(uuidString: NSUUID(uuidBytes: data).uuidString)!
         }
     }
     
-    var decodeTimeUUID: NSUUID {
+    var decodeTimeUUID: UUID {
         mutating get {
             return self.decodeUUID
         }
@@ -358,8 +358,7 @@ extension Data {
             let columnCount = self.decodeInt
             var globalKeySpace: String? = nil
             var globalTableName: String? = nil
-            
-            var pagingState = Data()
+            var _ = Data() // paging state
 
             if flags & 0x0001 == 0x0001 {
                 globalKeySpace = self.decodeSString
@@ -367,11 +366,8 @@ extension Data {
             }
 
             if flags & 0x0002 == 0x0002 {
-                pagingState = self.subdata(with: self.decodeInt)
+                let _ = self.subdata(with: self.decodeInt)
             }
-
-            // To remove warning
-            let _ = pagingState
 
             return flags & 0x0004 == 0x0004 ? Metadata(flags: flags) :
                 Metadata(flags: flags, count: columnCount, keyspace: globalKeySpace, table: globalTableName, rowMetadata: nil)
@@ -404,9 +400,9 @@ extension Data {
             case 0x0030:
                 let keyspace = self.decodeSString
                 let UDTname = self.decodeSString
-                var headers = [HeaderKey]()
+                var headers = [Header]()
                 for _ in 0..<self.decodeUInt16 {
-                    headers.append(HeaderKey(field: self.decodeSString, type: self.decodeType!))
+                    headers.append(Header(field: self.decodeSString, type: self.decodeType!))
                 }
 
                 return DataType.UDT(keyspace: keyspace, name: UDTname,headers: headers)
@@ -427,7 +423,7 @@ extension Data {
         mutating get {
             let metadata = self.decodeMetadata
             
-            var headers = [HeaderKey]()
+            var headers = [Header]()
             var rowVals = [[Any]]()
             
             for _ in 0..<metadata.columnCount {
@@ -435,7 +431,7 @@ extension Data {
                     let _ = self.decodeSString //ksname
                     let _ = self.decodeSString //tablename
                 }
-                headers.append(HeaderKey(field: self.decodeSString, type: self.decodeType!))
+                headers.append(Header(field: self.decodeSString, type: self.decodeType!))
             }
             
             // Parse Row Content
@@ -455,8 +451,7 @@ extension Data {
                 }
                 rowVals.append(values)
             }
-            
-            return .rows(metadata: metadata, rows: rowVals.map { Row(header: headers, fields: $0) })
+            return .rows(metadata: metadata, rows: rowVals.map { dict(keys: headers, values: $0) })
         }
     }
 }
@@ -569,7 +564,7 @@ private func decodeTuple(types: [DataType], data: Data) -> [Any] {
     return arr
 }
 
-private func decodeUDT(headers: [HeaderKey], data: Data) -> [String: Any] {
+private func decodeUDT(headers: [Header], data: Data) -> [String: Any] {
 
     var data = data
     var obj = [String: Any]()
@@ -590,7 +585,7 @@ public func AnyToKey(_ val: Any) -> AnyKey? {
     case let k as Int       : return AnyKey(k)
     case let k as String    : return AnyKey(k)
     case let k as Date      : return AnyKey(k)
-    case let k as NSUUID    : return AnyKey(k)
+    case let k as UUID    : return AnyKey(k)
     default: return nil
     }
 }
@@ -613,18 +608,19 @@ private func toHex(data: Data) -> String {
     
     return String(bytesNoCopy: ptr, length: data.count*2, encoding: String.Encoding.utf8, freeWhenDone: true)!
 }
-extension Dictionary {
 
-    public init(keys: [Key], values: [Value]) {
-        precondition(keys.count == values.count)
-        
-        self.init()
-        
-        for (index, key) in keys.enumerated() {
-            self[key] = values[index]
-        }
+public func dict(keys: [Header], values: [Any]) -> [String:Any] {
+    precondition(keys.count == values.count)
+    
+    var ret = [String: Any]()
+    
+    for (index, key) in keys.enumerated() {
+        ret[key.field] = values[index]
     }
+    
+    return ret
 }
+
 public func changeDictType<T>(dict: [T: Any]) -> [String: Any] {
     var cond = [String: Any]()
     

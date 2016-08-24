@@ -17,41 +17,37 @@
 import Foundation
 
 public struct Update: Query {
-    
+
     let tableName: String
-    
+
     let newValues: [String: Any]
-    
+
     var conditions: Predicate
-    
+
     var consistency: Consistency
-    
+
     var flags: Flags = .none
-    
+
     public var preparedID: [Byte]? = nil
-    
+
     public init(to newValues: [String: Any], in tableName: String, where predicate: Predicate, consistency: Consistency = .any) {
         self.newValues = newValues
         self.tableName = tableName
         self.conditions = predicate
         self.consistency = consistency
     }
-    
-    public mutating func filter(by predicate: Predicate){
-        conditions = predicate
-    }
-    
+
     public mutating func set(consistency: Consistency = .any, flags: Flags = .none) {
         self.flags = flags
         self.consistency = consistency
     }
-    
+
     public func with(consistency: Consistency = .any, flags: Flags = .none) -> Update {
         var new = self
         new.set(consistency: consistency, flags: flags)
         return new
     }
-    
+
     public func build() -> String {
         
         let vals  = packPairs(newValues)
@@ -59,7 +55,7 @@ public struct Update: Query {
         
         return ("UPDATE \(tableName) SET \(vals) WHERE \(conds);")
     }
-    
+
     public func packParameters() -> Data {
         var data = Data()
         

@@ -92,31 +92,15 @@ public enum SchemaChange: CustomStringConvertible {
     case keyspace(to: String, withObjName: String)
 }
 
-public struct HeaderKey: Hashable {
+public struct Header: Hashable {
     let field: String
     let type: DataType?
 
     public var hashValue: Int {
-        return field.hashValue
+        return field.hashValue * Int(type?.opcode ?? 1)
     }
 }
-public func ==(lhs: HeaderKey, rhs: HeaderKey) -> Bool {
+public func ==(lhs: Header, rhs: Header) -> Bool {
     return lhs.hashValue == rhs.hashValue
 }
 
-public struct Row: CustomStringConvertible {
-    
-    let dict: [HeaderKey : Any]
-    
-    public var description: String {
-        return dict.map{key, val in "\(key.field):\(String(describing: val))" }.joined(separator: ", ")
-    }
-
-    public init(header: [HeaderKey], fields: [Any]){
-        dict = Dictionary(keys: header, values: fields)
-    }
-    
-    public subscript(_ field: String) -> Any {
-        return dict[HeaderKey(field: field, type: nil)] ?? "NULL"
-    }
-}

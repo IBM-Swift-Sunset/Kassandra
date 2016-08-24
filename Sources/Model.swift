@@ -16,6 +16,7 @@
 
 import Foundation
 
+public typealias Row = [String: Any]
 /**
     Defines a Model Instance
  
@@ -24,7 +25,7 @@ import Foundation
         - tableName:        Name of the table being modelled
         - primaryKey:       Primary key of the table
         - key:              Getter and Setter of the table key
-        - init(row: Row):   Initializer for the model given a Row object
+        - init(row: Row):   Initializer for the model given a [String, Any]
  
  */
 public protocol Model: Table {
@@ -33,7 +34,7 @@ public protocol Model: Table {
     static var tableName: String { get }
     static var primaryKey: Field { get }
 
-    var key: Int? { get set }
+    var key: UUID? { get set }
 
     init(row: Row)
 }
@@ -47,13 +48,18 @@ public extension Model {
         Returns the Insert Query
      
      */
-    public func save() -> Insert {
-        let values: [String: Any] = mirror.children.reduce([:]) { acc, child in
+    public func save() {
+        let values: [String: Any] =  Mirror(reflecting: self).children.reduce([:]) { acc, child in
             var ret = acc
             ret[child.label!] = child.value
             return ret
         }
-        return Insert(values, into: Self.tableName)
+        
+        Insert(values, into: Self.tableName).execute() {
+            result in
+            
+            print(result)
+        }
     }
 
     
@@ -63,8 +69,8 @@ public extension Model {
         Returns the Delete Query
      
      */
-    public func delete() -> Delete {
-        return Delete(from: Self.tableName, where: "id" == key!)
+    public func delete() {
+        Delete(from: Self.tableName, where: "id" == key!)
     }
 
     
@@ -77,11 +83,11 @@ public extension Model {
         Returns the result of the query through the given callback
      
      */
-    public func create(oncompletion: @escaping ((Result)->Void)) throws {
+    public func create(ifNotExists: Bool = false, oncompletion: @escaping ((Result)->Void)) throws {
 
-        let vals = packColumnData(key: String(describing: Self.primaryKey), mirror: mirror)
+        let vals = packColumnData(key: String(describing: Self.primaryKey), mirror: Mirror(reflecting: self))
 
-        Raw(query: "CREATE TABLE \(Self.tableName)(\(vals));").execute(oncompletion: oncompletion)
+        Raw(query: "CREATE TABLE \(ifNotExists ? "IF NOT EXISTS" : "") \(Self.tableName)(\(vals));").execute(oncompletion: oncompletion)
     }
 
     
@@ -104,20 +110,5 @@ public extension Model {
                 oncompletion(rows.map { Self.init(row: $0) }, nil)
             }
         }
-    }
-}
-
-internal var mirrors = [Int: Mirror]()
-
-internal extension Model {
-    internal var hashValue: Int {
-        return key ?? -1
-    }
-    
-    internal var mirror: Mirror {
-        if mirrors[hashValue] == nil {
-            mirrors[hashValue] = Mirror(reflecting: self)
-        }
-        return mirrors[hashValue]!
     }
 }

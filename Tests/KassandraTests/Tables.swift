@@ -10,11 +10,11 @@ import Foundation
 import Kassandra
 
 public final class Student {
-    var id: Int?
+    var id: UUID?
     var name: String
     var school: String
     
-    init(id: Int?, name: String, school: String) {
+    init(id: UUID?, name: String, school: String) {
         self.id = id
         self.name = name
         self.school = school
@@ -35,13 +35,13 @@ extension Student: Model, CustomStringConvertible {
     
     public static var primaryKey: Field = Field.id
     
-    public var key: Int? {
-        get { return id }
+    public var key: UUID? {
+        get { return self.id }
         set { id = newValue }
     }
     
     public convenience init(row: Row) {
-        let id = row["id"] as? Int
+        let id = row["id"] as? UUID
         let name = row["name"] as! String
         let school = row["school"] as! String
         

@@ -46,9 +46,9 @@ public struct Select: Query {
         self.consistency = consistency
     }
     
-    public func ordered(by clause: Order...) -> Select {
+    public func order(by clause: Order...) -> Select {
         var new = self
-        new.order(by: clause)
+        new.ordered(by: clause)
         return new
     }
     
@@ -58,15 +58,15 @@ public struct Select: Query {
         return new
     }
     
-    public func limited(to newLimit: Int) -> Select {
+    public func limit(to newLimit: Int) -> Select {
         var new = self
-        new.limit(to: newLimit)
+        new.limited(to: newLimit)
         return new
     }
     
-    public func filtered(by conditions: Predicate) -> Select {
+    public func filter(by conditions: Predicate) -> Select {
         var new = self
-        new.filter(by: conditions)
+        new.filtered(by: conditions)
         return new
     }
     
@@ -76,7 +76,7 @@ public struct Select: Query {
         return new
     }
     
-    private mutating func order(by clause: [Order]) {
+    private mutating func ordered(by clause: [Order]) {
         orderBy = clause.map { $0.description }.joined(separator: ", ")
     }
     
@@ -84,11 +84,11 @@ public struct Select: Query {
         having = clause
     }
     
-    private mutating func limit(to newLimit: Int) {
+    private mutating func limited(to newLimit: Int) {
         limitResultCount = newLimit
     }
     
-    private mutating func filter(by conditions: Predicate) {
+    private mutating func filtered(by conditions: Predicate) {
         self.conditions = conditions
     }
     

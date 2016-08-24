@@ -93,7 +93,7 @@ class KassandraTests: XCTestCase, KassandraDelegate {
         
         let expectation1 = expectation(description: "Insert and select the row")
         
-        let bread: [BreadShop.Field: Any] = [.userID: NSUUID(), .type: "Sandwich", .bread: ["Chicken Roller": 3, "Steak Roller": 7, "Spicy Chicken Roller": 9], .cost: 2.1, .rate: 9.1, .time : Date()]
+        let bread: [BreadShop.Field: Any] = [.userID: UUID(), .type: "Sandwich", .bread: ["Chicken Roller": 3, "Steak Roller": 7, "Spicy Chicken Roller": 9], .cost: 2.1, .rate: 9.1, .time : Date()]
         
         try connection.connect() { result in
             XCTAssertTrue(result.success, "Connected to Cassandra")
@@ -139,14 +139,14 @@ class KassandraTests: XCTestCase, KassandraDelegate {
         let expectation1 = expectation(description: "Select first two completed item and check their row count")
         let expectation2 = expectation(description: "Truncate the table to get 0 completed items")
         
-        let userID1 = NSUUID()
+        let userID1 = UUID()
         let god: [TodoItem.Field: Any] = [.type: "todo", .userID: userID1, .title: "God Among God", .pos: 1, .completed: true]
-        let ares: [TodoItem.Field: Any] = [.type: "todo", .userID: NSUUID(), .title: "Ares", .pos: 2, .completed: true]
-        let thor: [TodoItem.Field: Any] = [.type: "todo", .userID: NSUUID(), .title: "Thor", .pos: 3, .completed: true]
-        let apollo: [TodoItem.Field: Any] = [.type: "todo", .userID: NSUUID(), .title: "Apollo", .pos: 4, .completed: true]
-        let cass: [TodoItem.Field: Any] = [.type: "todo", .userID: NSUUID(), .title: "Cassandra", .pos: 5, .completed: true]
-        let hades: [TodoItem.Field: Any] = [.type: "todo", .userID: NSUUID(), .title: "Hades", .pos: 6, .completed: true]
-        let athena: [TodoItem.Field: Any] =  [.type: "todo", .userID: NSUUID(), .title: "Athena", .pos: 7, .completed: true]
+        let ares: [TodoItem.Field: Any] = [.type: "todo", .userID: UUID(), .title: "Ares", .pos: 2, .completed: true]
+        let thor: [TodoItem.Field: Any] = [.type: "todo", .userID: UUID(), .title: "Thor", .pos: 3, .completed: true]
+        let apollo: [TodoItem.Field: Any] = [.type: "todo", .userID: UUID(), .title: "Apollo", .pos: 4, .completed: true]
+        let cass: [TodoItem.Field: Any] = [.type: "todo", .userID: UUID(), .title: "Cassandra", .pos: 5, .completed: true]
+        let hades: [TodoItem.Field: Any] = [.type: "todo", .userID: UUID(), .title: "Hades", .pos: 6, .completed: true]
+        let athena: [TodoItem.Field: Any] =  [.type: "todo", .userID: UUID(), .title: "Athena", .pos: 7, .completed: true]
         
         try connection.connect() { result in
             XCTAssertTrue(result.success, "Connected to Cassandra")
@@ -163,7 +163,7 @@ class KassandraTests: XCTestCase, KassandraDelegate {
                                                 TodoItem.update([.title: "Zeus"], conditions: "userID" == userID1).execute {
                                                     result in
                                                     
-                                                    TodoItem.select().limited(to: 2).filtered(by: "userID" == userID1).execute() {
+                                                    TodoItem.select().limit(to: 2).filter(by: "userID" == userID1).execute() {
                                                         result in
                                                         
                                                         if let rows = result.asRows {
