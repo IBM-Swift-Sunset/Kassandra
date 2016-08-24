@@ -194,14 +194,15 @@ class KassandraTests: XCTestCase {
         try connection.connect() { result in
             XCTAssertTrue(result.success, "Connected to Cassandra")
             
-            //self.connection.execute(self.useKeyspace) { result in
-            //TodoItem.drop().execute() { result in
-            //self.connection.execute("DROP KEYSPACE test;") { result in
-            //print(result.success)
-            if result.success { expectation1.fulfill() }
-            //}
-            //}
-            //}
+            self.connection.execute(self.useKeyspace) { result in
+                TodoItem.drop().execute() { result in
+                    self.connection.execute("DROP KEYSPACE test") { result in
+                        
+                        XCTAssertTrue(result.success)
+                        expectation1.fulfill()
+                    }
+                }
+            }
         }
         waitForExpectations(timeout: 5, handler: { error in XCTAssertNil(error, "Timeout") })
     }
