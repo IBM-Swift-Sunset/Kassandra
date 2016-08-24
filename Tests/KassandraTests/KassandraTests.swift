@@ -24,12 +24,12 @@ import Foundation
     import Glibc
 #endif
 
-class KassandraTests: XCTestCase, KassandraDelegate {
+class KassandraTests: XCTestCase {
     
     private var connection: Kassandra!
     
     public var t: TodoItem!
-
+    
     var tokens = [String]()
     
     public let createKeyspace: String = "CREATE KEYSPACE IF NOT EXISTS test WITH replication = {'class':'SimpleStrategy', 'replication_factor': 1};"
@@ -47,14 +47,11 @@ class KassandraTests: XCTestCase, KassandraDelegate {
             ("testZDropTableAndDeleteKeyspace", testZDropTableAndDeleteKeyspace)
         ]
     }
-    func didReceiveEvent(event: Event) {
-        print("received event")
-    }
+    
     override func setUp() {
         super.setUp()
         // Put setup code here. This method is called before the invocation of each test method in the class.
         connection = Kassandra()
-        connection.delegate = self
         t = TodoItem()
     }
     
@@ -72,15 +69,11 @@ class KassandraTests: XCTestCase, KassandraDelegate {
             XCTAssert(result.success, "Connected to Cassandra")
             
             self.connection.execute(self.createKeyspace) { result in
-                XCTAssertTrue(result.success)
-                
                 self.connection.execute(self.useKeyspace) { result in
-                    XCTAssertTrue(result.success)
-                    
                     self.connection.execute("CREATE TABLE IF NOT EXISTS breadshop (userID uuid primary key, type text, bread map<text, int>, cost float, rate double, time timestamp);") {
                         result in
                         
-                        XCTAssertTrue(result.success, "Created Table \(BreadShop.tableName)")
+                        XCTAssertEqual(result.asSchema!.type, "CREATED", "Created Table \(BreadShop.tableName)")
                         if result.success { expectation1.fulfill() }
                     }
                 }
@@ -102,8 +95,8 @@ class KassandraTests: XCTestCase, KassandraDelegate {
                 BreadShop.insert(bread).execute() { result in
                     BreadShop.select().execute() {
                         result in
-
-                        XCTAssertTrue(result.success)
+                        
+                        XCTAssertEqual(result.asRows?.count, 1)
                         if result.asRows != nil { expectation1.fulfill() }
                     }
                 }
@@ -124,7 +117,7 @@ class KassandraTests: XCTestCase, KassandraDelegate {
                 self.connection.execute(self.useKeyspace) { result in
                     self.connection.execute("CREATE TABLE IF NOT EXISTS todoitem(userID uuid primary key, type text, title text, pos int, completed boolean);") { result in
                         
-                        XCTAssertTrue(result.success, "Created Table \(TodoItem.tableName)")
+                        XCTAssertEqual(result.asSchema!.type, "CREATED", "Created Table \(TodoItem.tableName)")
                         if result.success { expectation1.fulfill() }
                     }
                 }
@@ -202,12 +195,12 @@ class KassandraTests: XCTestCase, KassandraDelegate {
             XCTAssertTrue(result.success, "Connected to Cassandra")
             
             //self.connection.execute(self.useKeyspace) { result in
-                //TodoItem.drop().execute() { result in
-                    //self.connection.execute("DROP KEYSPACE test;") { result in
-                        //print(result.success)
-                        if result.success { expectation1.fulfill() }
-                    //}
-                //}
+            //TodoItem.drop().execute() { result in
+            //self.connection.execute("DROP KEYSPACE test;") { result in
+            //print(result.success)
+            if result.success { expectation1.fulfill() }
+            //}
+            //}
             //}
         }
         waitForExpectations(timeout: 5, handler: { error in XCTAssertNil(error, "Timeout") })
@@ -229,7 +222,8 @@ class KassandraTests: XCTestCase, KassandraDelegate {
                         query.preparedID = id
                         
                         query.execute() { result in
-                            print("details: ",result.asRows)
+                            
+                            XCTAssertEqual(result.asRows?.count, 0)
                             if result.success { expectation1.fulfill() }
                         }
                     }
@@ -253,9 +247,11 @@ class KassandraTests: XCTestCase, KassandraDelegate {
             self.connection.execute(self.useKeyspace) { result in
                 insert1.execute() { result in
                     [insert1,insert2,insert3,insert4].execute(with: .logged, consis: .any) { result in
-
-                        if result.success { expectation1.fulfill() }
-                        
+                        TodoItem.select().execute() { result in
+                            
+                            XCTAssertEqual(result.asRows?.count, 4)
+                            if result.success { expectation1.fulfill() }
+                        }
                     }
                 }
             }
