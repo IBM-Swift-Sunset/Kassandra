@@ -42,6 +42,7 @@ class KassandraTests: XCTestCase {
             ("testKeyspaceWithCreateABreadShopTableInsertAndSelect", testKeyspaceWithCreateABreadShopTableInsertAndSelect),
             ("testKeyspaceWithCreateATable", testKeyspaceWithCreateATable),
             ("testKeyspaceWithFetchCompletedTodoItems", testKeyspaceWithFetchCompletedTodoItems),
+            ("testModel", testModel),
             ("testPreparedQuery", testPreparedQuery),
             ("testZBatch", testZBatch),
             ("testZDropTableAndDeleteKeyspace", testZDropTableAndDeleteKeyspace)
@@ -201,6 +202,7 @@ class KassandraTests: XCTestCase {
                         XCTAssertTrue(result.success)
                         expectation1.fulfill()
                     }
+                    expectation1.fulfill()
                 }
             }
         }
@@ -254,6 +256,34 @@ class KassandraTests: XCTestCase {
                             if result.success { expectation1.fulfill() }
                         }
                     }
+                }
+            }
+        }
+        waitForExpectations(timeout: 5, handler: { error in XCTAssertNil(error, "Timeout") })
+    }
+    
+    func testModel() throws {
+        
+        let expectation1 = expectation(description: "Execute a prepared query")
+
+        try connection.connect() { result in
+            XCTAssertTrue(result.success, "Connected to Cassandra")
+            
+            self.connection.execute(self.useKeyspace) { result in
+                do {
+                    try Student.create(ifNotExists: true) { result in
+                        
+                        let s = Student(id: UUID(), name: "Chia", school: "UC")
+
+                        s.save { _ in
+                            
+                            s.delete { result in
+                                expectation1.fulfill()
+                            }
+                        }
+                    }
+                } catch {
+                    XCTFail()
                 }
             }
         }
