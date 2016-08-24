@@ -149,30 +149,36 @@ func packType(_ item: Any) -> String {
     default                         : return String(describing: item)
     }
 }
-func packColumnData(key: String, mirror: Mirror) -> String {
+func packColumnData(key: String, columns: [String: DataType]) -> String {
     
     var str = ""
-    for child in mirror.children {
-        switch child.value {
-        case is UInt8        : str += child.label! + " int "
-        case is UInt16       : str += child.label! + " int "
-        case is UInt32       : str += child.label! + " int "
-        case is UInt64       : str += child.label! + " bigInt "
-        case is Int          : str += child.label! + " int "
-        case is String       : str += child.label! + " text "
-        case is Float        : str += child.label! + " float "
-        case is Double       : str += child.label! + " double "
-        case is Decimal      : str += child.label! + " decimal "
-        case is Bool         : str += child.label! + " bool "
-        
-        case is Date         : str += child.label! + " timestamp "
-        case is UUID       : str += child.label! + " uuid "
-        case is [Any]        : str += child.label! + " list "
-        case is [String: Any]: str += child.label! + " map "
-        default: break
+    for (name, type) in columns {
+        switch type {
+        case .custom    : str += name + " custom "
+        case .ASCII     : str += name + " ASCII "
+        case .bigInt    : str += name + " bigInt "
+        case .blob      : str += name + " blob "
+        case .boolean   : str += name + " boolean "
+        case .counter   : str += name + " counter "
+        case .decimal   : str += name + " decimal "
+        case .double    : str += name + " double "
+        case .float     : str += name + " float "
+        case .int       : str += name + " int "
+        case .text      : str += name + " text "
+        case .timestamp : str += name + " timestamp "
+        case .uuid      : str += name + " uuid "
+        case .varChar   : str += name + " text "
+        case .varInt    : str += name + " varInt "
+        case .timeUUID  : str += name + " timeUUID "
+        case .inet      : str += name + " inet "
+        case .list      : str += name + " list "
+        case .map       : str += name + " map "
+        case .set       : str += name + " set "
+        case .UDT       : str += name + " UDT "
+        case .tuple     : str += name + " tuple "
         }
         
-        child.label! == key ? (str += "PRIMARY KEY,") : (str += ",")
+        name == key ? (str += "PRIMARY KEY,") : (str += ",")
     }
     return str
 }

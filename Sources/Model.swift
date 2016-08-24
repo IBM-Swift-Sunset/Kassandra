@@ -34,6 +34,8 @@ public protocol Model: Table {
     static var tableName: String { get }
     static var primaryKey: Field { get }
 
+    static var fieldTypes: [Field: DataType] { get }
+
     var key: UUID? { get set }
 
     init(row: Row)
@@ -44,33 +46,40 @@ public extension Model {
     
     /**
         Creates an Insert Query representing field values in the Model as a Row
-         
+        
+        - Parameters:
+            - onCompeletion:    Closure for Result Callback
+
         Returns the Insert Query
      
      */
-    public func save() {
+    public func save(onCompletion: @escaping ((Result))->Void) {
         let values: [String: Any] =  Mirror(reflecting: self).children.reduce([:]) { acc, child in
             var ret = acc
             ret[child.label!] = child.value
             return ret
         }
         
-        Insert(values, into: Self.tableName).execute() {
-            result in
-            
-            print(result)
-        }
+        Insert(values, into: Self.tableName).execute(oncompletion: onCompletion)
     }
 
     
     /**
         Creates a Delete Query to the row being modelled
      
+        - Parameters:
+            - onCompeletion:    Closure for Result Callback
+     
         Returns the Delete Query
      
      */
-    public func delete() {
-        Delete(from: Self.tableName, where: "id" == key!)
+    public func delete(onCompletion: @escaping ((Result))->Void) {
+        if let k = key {
+            Delete(from: Self.tableName, where: "id" == k).execute(oncompletion: onCompletion)
+        } else {
+            onCompletion(.error(ErrorType.GenericError("Missing Key")))
+        }
+        
     }
 
     
@@ -83,11 +92,11 @@ public extension Model {
         Returns the result of the query through the given callback
      
      */
-    public func create(ifNotExists: Bool = false, oncompletion: @escaping ((Result)->Void)) throws {
+    public static func create(ifNotExists: Bool = false, onCompletion: @escaping ((Result)->Void)) throws {
 
-        let vals = packColumnData(key: String(describing: Self.primaryKey), mirror: Mirror(reflecting: self))
+        let vals = packColumnData(key: String(describing: Self.primaryKey), columns: changeDictType2(dict: Self.fieldTypes))
 
-        Raw(query: "CREATE TABLE \(ifNotExists ? "IF NOT EXISTS" : "") \(Self.tableName)(\(vals));").execute(oncompletion: oncompletion)
+        Raw(query: "CREATE TABLE \(ifNotExists ? "IF NOT EXISTS" : "") \(Self.tableName)(\(vals));").execute(oncompletion: onCompletion)
     }
 
     
@@ -100,14 +109,14 @@ public extension Model {
          
          Returns the result as an optional array of the model and optional error through the given callback
      */
-    public static func fetch(_ fields: [Field] = [], oncompletion: @escaping (([Self]?, Error?)->Void)) {
+    public static func fetch(_ fields: [Field] = [], onCompletion: @escaping (([Self]?, Error?)->Void)) {
         
         Select(fields.map{ String(describing: $0) }, from: tableName).execute() {
             result in
             
-            if let err = result.asError { oncompletion(nil, err)}
+            if let err = result.asError { onCompletion(nil, err)}
             if let rows = result.asRows {
-                oncompletion(rows.map { Self.init(row: $0) }, nil)
+                onCompletion(rows.map { Self.init(row: $0) }, nil)
             }
         }
     }

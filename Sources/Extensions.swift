@@ -630,3 +630,12 @@ public func changeDictType<T>(dict: [T: Any]) -> [String: Any] {
     
     return cond
 }
+public func changeDictType2<T,S>(dict: [T: S]) -> [String: S] {
+    var cond = [String: S]()
+    
+    for (key, value) in dict {
+        cond[String(describing: key)] = value
+    }
+    
+    return cond
+}

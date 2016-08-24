@@ -72,8 +72,8 @@ class KassandraTests: XCTestCase {
                 self.connection.execute(self.useKeyspace) { result in
                     self.connection.execute("CREATE TABLE IF NOT EXISTS breadshop (userID uuid primary key, type text, bread map<text, int>, cost float, rate double, time timestamp);") {
                         result in
-                        
-                        XCTAssertEqual(result.asSchema!.type, "CREATED", "Created Table \(BreadShop.tableName)")
+
+                        XCTAssertEqual(result.asSchema?.type, "CREATED", "Created Table \(BreadShop.tableName)")
                         if result.success { expectation1.fulfill() }
                     }
                 }
@@ -95,7 +95,7 @@ class KassandraTests: XCTestCase {
                 BreadShop.insert(bread).execute() { result in
                     BreadShop.select().execute() {
                         result in
-                        
+
                         XCTAssertEqual(result.asRows?.count, 1)
                         if result.asRows != nil { expectation1.fulfill() }
                     }
@@ -116,8 +116,8 @@ class KassandraTests: XCTestCase {
             self.connection.execute(self.createKeyspace) { result in
                 self.connection.execute(self.useKeyspace) { result in
                     self.connection.execute("CREATE TABLE IF NOT EXISTS todoitem(userID uuid primary key, type text, title text, pos int, completed boolean);") { result in
-                        
-                        XCTAssertEqual(result.asSchema!.type, "CREATED", "Created Table \(TodoItem.tableName)")
+
+                        XCTAssertEqual(result.asSchema?.type, "CREATED", "Created Table \(TodoItem.tableName)")
                         if result.success { expectation1.fulfill() }
                     }
                 }

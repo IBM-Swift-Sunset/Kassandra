@@ -23,11 +23,17 @@ public final class Student {
 extension Student: Model, CustomStringConvertible {
     
     public enum Field : String {
-        case id
-        case name
-        case school
+        case id     = "id"
+        case name   = "name"
+        case school = "school"
     }
     
+    public static var fieldTypes: [Field: DataType] {
+        return [.id     : .uuid,
+                .name   : .text,
+                .school : .text ]
+    }
+
     public var description: String {
         return "id: \(id!), name: \(name), school: \(school)"
     }
