@@ -16,55 +16,61 @@
 
 import SSLService
 
-public typealias Byte = UInt8
+internal var config = Config.sharedInstance
 
-public var config = Config.sharedInstance
+internal final class Config {
+    
+    internal var host: String = "localhost"
+    
+    internal var port: Int32 = 9042
 
-public enum CompressionType {
-    
-}
+    internal let _version: Byte = 0x03
 
-public struct Config {
-    
-    public var host: String = "localhost"
-    public var port: Int32 = 9042
+    internal var connection: Kassandra? = nil
 
-    public let CQL_MAX_SUPPORTED_VERSION: UInt8 = 0x03
-    public let version: Byte = 0x03
-    public var connection: Kassandra? = nil
-    
-    public var flags: Byte = 0x00
-    
-    public var compressFlag: Bool {
-        return (flags & 0x01) == 0x01 ? true : false
+    internal var SSLConfig: SSLService.Configuration? = nil
+
+    internal var flags: Byte = 0x00
+
+    internal var _compression: CompressionType = .none
+
+    // Vesioning number of Cassandra
+    //
+    public var version: Int {
+        return Int(_version)
+    }
+
+    // Getter and Setter for compression type to use
+    //
+    public var compression: CompressionType {
+        get {
+            return _compression
+        }
+        set {
+            _compression = newValue
+            flags = flags | 0x01
+        }
     }
     
-    public var tracingFlag: Bool {
-        return (flags & 0x02) == 0x02 ? true : false
+    // Getter and Setter for tracing option
+    //
+    public var tracing: Bool  {
+        get {
+            return (flags & 0x02) == 0x02 ? true : false
+        }
+        set {
+            flags = flags | 0x02
+        }
     }
-    
-    public var compression: CompressionType? = nil
-    
-    
-    public var SSLConfig: SSLService.Configuration? = nil
 
-    public static var sharedInstance = Config()
-
-
-    public mutating func setHostAndPort(host: String, port: Int32){
+    // Method to set cassandra's host and port
+    //
+    public func setHostAndPort(host: String, port: Int32){
         self.host = host
         self.port = port
     }
 
-    public mutating func setCompression(_ type: CompressionType) {
-        compression = type
-        flags = flags | 0x01
-    }
-
-    public mutating func setTracing() {
-        flags = flags | 0x02
-
-    }
+    internal static var sharedInstance = Config()
     
     private init(){}
 }

@@ -16,12 +16,22 @@
 
 import Foundation
 
+/**
+    Result of a Query Request
+ 
+    - Void      : Successful Operation
+    - Rows      : Result of a Select Query Containing [String: Any] Dictionary
+    - Schema    : Result of a Schema Change Denoting Type of Change, Table Target, Options
+    - Keyspace  : Result of a Keyspace change Denoting the in-use keyspace
+    - Prepared  : Result of a Prepared Query Containing its [Bytes] ID
+ 
+ */
 public enum Kind {
     
     public var description: String {
         switch self {
         case .void                           : return "Void"
-        case .rows(_,_)                      : return "Rows"
+        case .rows                           : return "Rows"
         case .schema(let t, let ta, let o)   : return "Scheme type: \(t), target: \(ta), options: \(o)"
         case .keyspace(let name)             : return "KeySpace: \(name)"
         case .prepared                       : return "Prepared"
@@ -44,53 +54,16 @@ public enum Kind {
 
     case void
 
-    case rows(metadata: Metadata, rows: [Row])
+    case rows(rows: [Row])
 
     case schema(type: String, target: String, options: String)
 
     case keyspace(name: String)
 
-    case prepared(id: [Byte], metadata: Metadata?, resMetadata: Metadata?)
+    case prepared(id: [Byte])
 
 }
 
-public enum Event: CustomStringConvertible {
-    
-    public var description: String {
-        switch self {
-        case .topologyChange(let type, let inet) :
-            return "Topology Change with Type: \(type) and Inet \(inet)"
-        case .statusChange(let type, let inet)   :
-            return "Status Change with Type: \(type) and Inet \(inet)"
-        case .schemaChange(let type, let target, let changes):
-            return "Schema Change: Type - \(type), Target - \(target): Changes: \(changes)"
-        case .error: return ""
-        }
-    }
-    
-    case topologyChange(type: String, inet: (String, Int))
-    
-    case statusChange(type: String, inet: (String, Int))
-    
-    case schemaChange(type: String, target: String, changes: SchemaChange)
-    
-    case error
-}
-
-public enum SchemaChange: CustomStringConvertible {
-    
-    public var description: String {
-        switch self{
-        case .options(let options): return "\(options)"
-        case .keyspace(let name, let objName): return "\(name) \(objName)"
-            
-        }
-    }
-    
-    case options(with: String)
-    
-    case keyspace(to: String, withObjName: String)
-}
 
 public struct Header: Hashable {
     let field: String

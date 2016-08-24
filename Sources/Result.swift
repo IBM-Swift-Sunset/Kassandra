@@ -13,6 +13,7 @@
  See the License for the specific language governing permissions and
  limitations under the License.
  */
+
 import Foundation
 
 public enum Result: CustomStringConvertible {
@@ -82,7 +83,7 @@ public enum Result: CustomStringConvertible {
         switch self {
         case .result(let kind) :
             switch kind {
-            case .rows(_, let rows) : return rows
+            case .rows(let rows) : return rows
             default                 : return nil
             }
         default: return nil
@@ -100,7 +101,7 @@ public enum Result: CustomStringConvertible {
         switch self {
         case .result(let kind) :
             switch kind {
-            case .prepared(let id, _, _) : return id
+            case .prepared(let id) : return id
             default                      : return nil
             }
         default: return nil

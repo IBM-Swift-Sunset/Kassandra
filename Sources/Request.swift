@@ -175,7 +175,7 @@ public enum Request {
         }
 
         var header = Data()
-        header.append(config.version.data)
+        header.append(config._version.data)
         header.append(config.flags.data)
         header.append(id.bigEndian.data)
         header.append(opcode.data)

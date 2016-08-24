@@ -335,7 +335,7 @@ extension Data {
                                                 target: target,
                                                 changes:
                             .keyspace(to: self.decodeSString, withObjName: self.decodeSString)))
-            default: return .event(of: .error)
+            default: return .event(of: .error(ErrorType.GenericError("Couldn't Parse Data")))
             }
         }
     }
@@ -344,11 +344,11 @@ extension Data {
         mutating get {
             let id = self.decodeShortBytes
 
-            let meta = self.decodeMetadata
+            let _ = self.decodeMetadata
 
-            let resMeta = self.decodeMetadata
+            let _ = self.decodeMetadata
 
-            return Kind.prepared(id: id, metadata: meta, resMetadata: resMeta)
+            return Kind.prepared(id: id)
         }
     }
 
@@ -451,7 +451,7 @@ extension Data {
                 }
                 rowVals.append(values)
             }
-            return .rows(metadata: metadata, rows: rowVals.map { dict(keys: headers, values: $0) })
+            return .rows(rows: rowVals.map { dict(keys: headers, values: $0) })
         }
     }
 }

@@ -92,7 +92,7 @@ public extension Model {
         Returns the result of the query through the given callback
      
      */
-    public static func create(ifNotExists: Bool = false, onCompletion: @escaping ((Result)->Void)) throws {
+    public static func create(ifNotExists: Bool = false, onCompletion: @escaping ((Result)->Void)) {
 
         let vals = packColumnData(key: String(describing: Self.primaryKey), columns: changeDictType2(dict: Self.fieldTypes))
 

@@ -33,11 +33,11 @@ class KassandraTests: XCTestCase {
     var tokens = [String]()
     
     public let createKeyspace: String = "CREATE KEYSPACE IF NOT EXISTS test WITH replication = {'class':'SimpleStrategy', 'replication_factor': 1};"
-    public let useKeyspace: String = "USE test;"
+    public let useKeyspace: String = "test;"
     
     static var allTests: [(String, (KassandraTests) -> () throws -> Void)] {
         return [
-            ("testConnect", testConnect),
+            ("testConnectAndCreateKeyspace", testConnectAndCreateKeyspace),
             ("testKeyspaceWithCreateABreadShopTable", testKeyspaceWithCreateABreadShopTable),
             ("testKeyspaceWithCreateABreadShopTableInsertAndSelect", testKeyspaceWithCreateABreadShopTableInsertAndSelect),
             ("testKeyspaceWithCreateATable", testKeyspaceWithCreateATable),
@@ -56,28 +56,41 @@ class KassandraTests: XCTestCase {
         t = TodoItem()
     }
     
-    func testConnect() throws {
+    func testConnectAndCreateKeyspace() throws {
+        let expectation1 = expectation(description: "Keyspace Created")
+        let expectation2 = expectation(description: "Keyspace Not Created")
         
-        try connection.connect() { result in XCTAssertTrue(result.success, "Connected to Cassandra")
+        try connection.connect() { result in
+
+            XCTAssertTrue(result.success, "Connected to Cassandra")
+
+            self.connection.create(keyspace: "test", with: .simple(numberOfReplicas: 3), ifNotExists: true) {
+                result in
+                
+                if result.success { expectation1.fulfill() }
+                
+                self.connection.create(keyspace: "test", with: .simple(numberOfReplicas: 3), ifNotExists: false) {
+                    result in
+                    
+                    if result.asError != nil { expectation2.fulfill() }
+                    
+                }
+            }
+            
         }
+        waitForExpectations(timeout: 5, handler: { error in XCTAssertNil(error, "Timeout") })
     }
     
     func testKeyspaceWithCreateABreadShopTable() throws {
         
         let expectation1 = expectation(description: "Create a table in the keyspace or table exist in the keyspace")
         
-        try connection.connect() { result in
-            XCTAssert(result.success, "Connected to Cassandra")
-            
-            self.connection.execute(self.createKeyspace) { result in
-                self.connection.execute(self.useKeyspace) { result in
-                    self.connection.execute("CREATE TABLE IF NOT EXISTS breadshop (userID uuid primary key, type text, bread map<text, int>, cost float, rate double, time timestamp);") {
-                        result in
-
-                        XCTAssertEqual(result.asSchema?.type, "CREATED", "Created Table \(BreadShop.tableName)")
-                        if result.success { expectation1.fulfill() }
-                    }
-                }
+        try connection.connect(with: self.useKeyspace) { result in
+            XCTAssertTrue(result.success, "Connected to Cassandra")
+            self.connection.execute("CREATE TABLE IF NOT EXISTS breadshop (userID uuid primary key, type text, bread map<text, int>, cost float, rate double, time timestamp);") {
+                result in
+                XCTAssertEqual(result.asSchema?.type, "CREATED", "Created Table \(BreadShop.tableName)")
+                if result.success { expectation1.fulfill() }
             }
         }
         waitForExpectations(timeout: 5, handler: { error in XCTAssertNil(error, "Timeout") })
@@ -89,17 +102,15 @@ class KassandraTests: XCTestCase {
         
         let bread: [BreadShop.Field: Any] = [.userID: UUID(), .type: "Sandwich", .bread: ["Chicken Roller": 3, "Steak Roller": 7, "Spicy Chicken Roller": 9], .cost: 2.1, .rate: 9.1, .time : Date()]
         
-        try connection.connect() { result in
+        try connection.connect(with: self.useKeyspace) { result in
             XCTAssertTrue(result.success, "Connected to Cassandra")
             
-            self.connection.execute(self.useKeyspace) { result in
-                BreadShop.insert(bread).execute() { result in
-                    BreadShop.select().execute() {
-                        result in
+            BreadShop.insert(bread).execute() { result in
+                BreadShop.select().execute() {
+                    result in
 
-                        XCTAssertEqual(result.asRows?.count, 1)
-                        if result.asRows != nil { expectation1.fulfill() }
-                    }
+                    XCTAssertEqual(result.asRows?.count, 1)
+                    if result.asRows != nil { expectation1.fulfill() }
                 }
             }
         }
@@ -111,17 +122,13 @@ class KassandraTests: XCTestCase {
         
         let expectation1 = expectation(description: "Create a table in the keyspace or table exist in the keyspace")
         
-        try connection.connect() { result in
+        try connection.connect(with: self.useKeyspace) { result in
             XCTAssertTrue(result.success, "Connected to Cassandra")
             
-            self.connection.execute(self.createKeyspace) { result in
-                self.connection.execute(self.useKeyspace) { result in
-                    self.connection.execute("CREATE TABLE IF NOT EXISTS todoitem(userID uuid primary key, type text, title text, pos int, completed boolean);") { result in
+            self.connection.execute("CREATE TABLE IF NOT EXISTS todoitem(userID uuid primary key, type text, title text, pos int, completed boolean);") { result in
 
-                        XCTAssertEqual(result.asSchema?.type, "CREATED", "Created Table \(TodoItem.tableName)")
-                        if result.success { expectation1.fulfill() }
-                    }
-                }
+                XCTAssertEqual(result.asSchema?.type, "CREATED", "Created Table \(TodoItem.tableName)")
+                if result.success { expectation1.fulfill() }
             }
         }
         waitForExpectations(timeout: 5, handler: { error in XCTAssertNil(error, "Timeout") })
@@ -142,37 +149,33 @@ class KassandraTests: XCTestCase {
         let hades: [TodoItem.Field: Any] = [.type: "todo", .userID: UUID(), .title: "Hades", .pos: 6, .completed: true]
         let athena: [TodoItem.Field: Any] =  [.type: "todo", .userID: UUID(), .title: "Athena", .pos: 7, .completed: true]
         
-        try connection.connect() { result in
+        try connection.connect(with: self.useKeyspace) { result in
             XCTAssertTrue(result.success, "Connected to Cassandra")
             
-            self.connection.execute(self.createKeyspace) { result in
-                self.connection.execute(self.useKeyspace) { result in
-                    TodoItem.insert(god).execute() { result in
-                        TodoItem.insert(ares).execute() { result in
-                            TodoItem.insert(thor).execute() { result in
-                                TodoItem.insert(apollo).execute() { result in
-                                    TodoItem.insert(cass).execute() { result in
-                                        TodoItem.insert(hades).execute() { result in
-                                            TodoItem.insert(athena).execute() { result in
-                                                TodoItem.update([.title: "Zeus"], conditions: "userID" == userID1).execute {
-                                                    result in
-                                                    
-                                                    TodoItem.select().limit(to: 2).filter(by: "userID" == userID1).execute() {
-                                                        result in
-                                                        
-                                                        if let rows = result.asRows {
-                                                            XCTAssertEqual(rows[0]["title"] as! String, "Zeus")
-                                                            if rows.count == 1 { expectation1.fulfill() }
-                                                        }
-                                                    }
-                                                    
-                                                    TodoItem.truncate().execute() { result in
-                                                        
-                                                        TodoItem.count(TodoItem.Field.type).execute() { result in
-                                                            XCTAssertEqual(result.asRows![0]["system.count(type)"] as! Int64, 0)
-                                                            expectation2.fulfill()
-                                                        }
-                                                    }
+            TodoItem.insert(god).execute() { result in
+                TodoItem.insert(ares).execute() { result in
+                    TodoItem.insert(thor).execute() { result in
+                        TodoItem.insert(apollo).execute() { result in
+                            TodoItem.insert(cass).execute() { result in
+                                TodoItem.insert(hades).execute() { result in
+                                    TodoItem.insert(athena).execute() { result in
+                                        TodoItem.update([.title: "Zeus"], conditions: "userID" == userID1).execute {
+                                            result in
+                                            
+                                            TodoItem.select().limit(to: 2).filter(by: "userID" == userID1).execute() {
+                                                result in
+                                                
+                                                if let rows = result.asRows {
+                                                    XCTAssertEqual(rows[0]["title"] as! String, "Zeus")
+                                                    if rows.count == 1 { expectation1.fulfill() }
+                                                }
+                                            }
+                                            
+                                            TodoItem.truncate().execute() { result in
+                                                
+                                                TodoItem.count(TodoItem.Field.type).execute() { result in
+                                                    XCTAssertEqual(result.asRows![0]["system.count(type)"] as! Int64, 0)
+                                                    expectation2.fulfill()
                                                 }
                                             }
                                         }
@@ -192,20 +195,19 @@ class KassandraTests: XCTestCase {
         
         let expectation1 = expectation(description: "Drop the table and delete the keyspace")
         
-        try connection.connect() { result in
+        try connection.connect(with: self.useKeyspace) { result in
             XCTAssertTrue(result.success, "Connected to Cassandra")
             
-            self.connection.execute(self.useKeyspace) { result in
-                TodoItem.drop().execute() { result in
-                    self.connection.execute("DROP KEYSPACE test") { result in
-                        
-                        XCTAssertTrue(result.success)
-                        expectation1.fulfill()
-                    }
+            TodoItem.drop().execute() { result in
+                self.connection.execute("DROP KEYSPACE test") { result in
+                    
+                    XCTAssertTrue(result.success)
                     expectation1.fulfill()
                 }
+                expectation1.fulfill()
             }
         }
+
         waitForExpectations(timeout: 5, handler: { error in XCTAssertNil(error, "Timeout") })
     }
     
@@ -215,20 +217,18 @@ class KassandraTests: XCTestCase {
         
         var query: Query = Raw(query: "SELECT userID FROM todoitem WHERE completed = true allow filtering;")
         
-        try connection.connect() { result in
+        try connection.connect(with: self.useKeyspace) { result in
             XCTAssertTrue(result.success, "Connected to Cassandra")
             
-            self.connection.execute(self.useKeyspace) { result in
-                query.prepare() { result in
-                    if let id = result.asPrepared {
+            query.prepare() { result in
+                if let id = result.asPrepared {
+                    
+                    query.preparedID = id
+                    
+                    query.execute() { result in
                         
-                        query.preparedID = id
-                        
-                        query.execute() { result in
-                            
-                            XCTAssertEqual(result.asRows?.count, 0)
-                            if result.success { expectation1.fulfill() }
-                        }
+                        XCTAssertEqual(result.asRows?.count, 0)
+                        if result.success { expectation1.fulfill() }
                     }
                 }
             }
@@ -244,10 +244,9 @@ class KassandraTests: XCTestCase {
         let insert3 = TodoItem.insert([.type: "todo", .userID: NSUUID(),.title: "Excercise", .pos: 13, .completed: true])
         let insert4 = TodoItem.insert([.type: "todo", .userID: NSUUID(),.title: "Sprint Plannning", .pos: 12, .completed: false])
         
-        try connection.connect() { result in
+        try connection.connect(with: self.useKeyspace) { result in
             XCTAssertTrue(result.success, "Connected to Cassandra")
             
-            self.connection.execute(self.useKeyspace) { result in
                 insert1.execute() { result in
                     [insert1,insert2,insert3,insert4].execute(with: .logged, consis: .any) { result in
                         TodoItem.select().execute() { result in
@@ -257,7 +256,6 @@ class KassandraTests: XCTestCase {
                         }
                     }
                 }
-            }
         }
         waitForExpectations(timeout: 5, handler: { error in XCTAssertNil(error, "Timeout") })
     }
@@ -266,24 +264,18 @@ class KassandraTests: XCTestCase {
         
         let expectation1 = expectation(description: "Execute a prepared query")
 
-        try connection.connect() { result in
+        try connection.connect(with: self.useKeyspace) { result in
             XCTAssertTrue(result.success, "Connected to Cassandra")
             
-            self.connection.execute(self.useKeyspace) { result in
-                do {
-                    try Student.create(ifNotExists: true) { result in
-                        
-                        let s = Student(id: UUID(), name: "Chia", school: "UC")
+            Student.create(ifNotExists: true) { result in
+                
+                let s = Student(id: UUID(), name: "Chia", school: "UC")
 
-                        s.save { _ in
-                            
-                            s.delete { result in
-                                expectation1.fulfill()
-                            }
-                        }
+                s.save { _ in
+                    
+                    s.delete { result in
+                        expectation1.fulfill()
                     }
-                } catch {
-                    XCTFail()
                 }
             }
         }
