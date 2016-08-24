@@ -126,7 +126,14 @@ public func ||(rhs: Predicate, lhs: Predicate) -> Predicate {
     return Predicate(.or(rhs, lhs))
 }
 
-infix operator > {associativity left precedence 100}
+/**
+precedencegroup ComparisonPrecedence {
+    associativity: left
+    higherThan: LogicalConjunctionPrecendence
+}
+
+infix operator > : ComparisonPrecedence
+*/
 public func > (lhs: String, rhs: [Convertible]) -> Predicate {
     return Predicate(.inOp(lhs, rhs))
 }

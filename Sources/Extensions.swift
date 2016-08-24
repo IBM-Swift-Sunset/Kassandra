@@ -267,12 +267,7 @@ extension Data {
         mutating get {
             let data = UnsafeMutablePointer<UInt8>.allocate(capacity: 16)
             subdata(with: 16).copyBytes(to: data, count: 16)
-            #if os(Linux)
-                return NSUUID(UUIDBytes: data)
-            #else
                 return NSUUID(uuidBytes: data)
-            #endif
-            
         }
     }
     
@@ -363,6 +358,7 @@ extension Data {
             let columnCount = self.decodeInt
             var globalKeySpace: String? = nil
             var globalTableName: String? = nil
+            
             var pagingState = Data()
 
             if flags & 0x0001 == 0x0001 {
@@ -373,6 +369,9 @@ extension Data {
             if flags & 0x0002 == 0x0002 {
                 pagingState = self.subdata(with: self.decodeInt)
             }
+
+            // To remove warning
+            let _ = pagingState
 
             return flags & 0x0004 == 0x0004 ? Metadata(flags: flags) :
                 Metadata(flags: flags, count: columnCount, keyspace: globalKeySpace, table: globalTableName, rowMetadata: nil)

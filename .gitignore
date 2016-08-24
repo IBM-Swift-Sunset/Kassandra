@@ -17,6 +17,8 @@ DerivedData/
 !default.perspectivev3
 xcuserdata/
 
+.vscode/
+
 ## Other
 *.moved-aside
 *.xcuserstate
