@@ -34,14 +34,13 @@ A Swift Cassandra driver
     )
     ```
 
-3. Setup XCode to build library (Optional)
+3. Create XCode project to build library (Optional)
 
-    Navigate to your XCode project build settings then in both the `SSLService` and `Kassandra` targets add:
-
-    - `/usr/local/opt/openssl/include` to its Header Search Paths
-    - `/usr/local/opt/openssl/lib` to its Library Search Paths
-
-    Note: If interested in the test cases, `KassandraTestCases` target will also need `/usr/local/opt/openssl/lib` added to its Library Search Paths
+    ```
+    $ swift package generate-xcodeproj \
+            -Xswiftc -I/usr/local/opt/openssl/include \
+            -Xlinker -L/usr/local/opt/openssl/lib
+    ```
 
 4. In Sources/main.swift, import the Kassandra module.
 
