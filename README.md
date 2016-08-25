@@ -55,7 +55,7 @@ A Swift Cassandra driver
 	```
 	- Linux
 	```
-	$ swift build -Xcc -fblocks -Xcc -I/usr/local/opt/openssl/include -Xlinker -L/usr/local/opt/openssl/lib
+	$ swift build -Xcc -I/usr/local/opt/openssl/include -Xlinker -L/usr/local/opt/openssl/lib
 	```
 
 ## Getting an Cassandra Docker Image from DockerHub
