@@ -213,6 +213,7 @@ class KassandraTests: XCTestCase {
                     XCTAssertTrue(result.success)
                     expectation1.fulfill()
                 }
+                expectation1.fulfill()
             }
         }
 
