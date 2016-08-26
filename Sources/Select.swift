@@ -58,13 +58,13 @@ public struct Select: Query {
         return new
     }
     
-    public func limit(to newLimit: Int) -> Select {
+    public func limit(to newLimit: Int?) -> Select {
         var new = self
         new.limited(to: newLimit)
         return new
     }
     
-    public func filter(by conditions: Predicate) -> Select {
+    public func filter(by conditions: Predicate?) -> Select {
         var new = self
         new.filtered(by: conditions)
         return new
@@ -84,11 +84,11 @@ public struct Select: Query {
         having = clause
     }
     
-    private mutating func limited(to newLimit: Int) {
+    private mutating func limited(to newLimit: Int?) {
         limitResultCount = newLimit
     }
     
-    private mutating func filtered(by conditions: Predicate) {
+    private mutating func filtered(by conditions: Predicate?) {
         self.conditions = conditions
     }
     
@@ -120,7 +120,7 @@ public struct Select: Query {
         if let limit = limitResultCount {
             result += " LIMIT \(limit)"
         }
-        
+
         return (result + ";")
     }
     

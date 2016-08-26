@@ -105,14 +105,18 @@ public extension Model {
          
          - Parameters:
             - fields:           Array representing the fields to be selected
+            - predicate:        Where clause
+            - limit:            Maximum number of rows retrieved
             - onCompeletion:    Closure for Result Callback
          
          Returns the result as an optional array of the model and optional error through the given callback
      */
-    public static func fetch(_ fields: [Field] = [], onCompletion: @escaping (([Self]?, Error?)->Void)) {
+    public static func fetch(_ fields: [Field] = [], predicate: Predicate? = nil, limit: Int? = nil, onCompletion: @escaping (([Self]?, Error?)->Void)) {
         
-        Select(fields.map{ String(describing: $0) }, from: tableName).execute() {
-            result in
+        Select(fields.map{ String(describing: $0) }, from: tableName)
+            .filter(by: predicate)
+            .limit(to: limit)
+            .execute() { result in
             
             if let err = result.asError { onCompletion(nil, err)}
             if let rows = result.asRows {
