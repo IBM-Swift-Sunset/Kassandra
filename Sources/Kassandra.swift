@@ -43,10 +43,11 @@ public class Kassandra {
          Returns a QueryResult Enum through the callback
      
      */
-    public init(host: String = "localhost", port: Int32 = 9042) {
+    public init(host: String = "localhost", port: Int32 = 9042, cqlVersion: String = config.cqlVersion) {
 
         config.setHostAndPort(host: host, port: port)
-
+        config.setCQLVersion(cqlVersion: cqlVersion)
+        
         socket = nil
         
         buffer = Data()
@@ -64,7 +65,7 @@ public class Kassandra {
          Returns a Result through the given callback
      
      */
-    public func connect(with keyspace: String? = nil, oncompletion: @escaping (Result) -> Void) throws {
+    public func connect(with keyspace: String? = nil, options: [String:String] = ["CQL_VERSION":config.cqlVersion], oncompletion: @escaping (Result) -> Void) throws {
         
         if socket == nil {
             socket = try! Socket.create(family: .inet6, type: .stream, proto: .tcp)
@@ -89,7 +90,7 @@ public class Kassandra {
                     }
                 }
             
-            try Request.startup(options: [:]).write(id: id, writer: sock)
+            try Request.startup(options: options).write(id: id, writer: sock)
             
             config.connection = self
 

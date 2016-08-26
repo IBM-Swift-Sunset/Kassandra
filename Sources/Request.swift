@@ -127,7 +127,6 @@ public enum Request {
             
 
         case .startup(var options)           :
-            options["CQL_VERSION"] = "3.2.0"
             
             body.append(UInt16(options.count).data)
             
