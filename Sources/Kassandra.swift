@@ -65,7 +65,7 @@ public class Kassandra {
          Returns a Result through the given callback
      
      */
-    public func connect(with keyspace: String? = nil, options: [String:String] = [:], oncompletion: @escaping (Result) -> Void) throws {
+    public func connect(with keyspace: String? = nil, options: [String:String] = ["CQL_VERSION":config.cqlVersion], oncompletion: @escaping (Result) -> Void) throws {
         
         if socket == nil {
             socket = try! Socket.create(family: .inet6, type: .stream, proto: .tcp)
