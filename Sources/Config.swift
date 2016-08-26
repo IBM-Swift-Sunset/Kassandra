@@ -23,6 +23,8 @@ internal final class Config {
     internal var host: String = "localhost"
     
     internal var port: Int32 = 9042
+    
+    internal var cqlVersion: String = "3.2.0"
 
     internal let _version: Byte = 0x03
 
@@ -68,6 +70,12 @@ internal final class Config {
     public func setHostAndPort(host: String, port: Int32){
         self.host = host
         self.port = port
+    }
+    
+    // Method to set cassandra's CQL version
+    //
+    public func setCQLVersion(cqlVersion: String) {
+        self.cqlVersion = cqlVersion
     }
 
     internal static var sharedInstance = Config()
