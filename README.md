@@ -1,14 +1,109 @@
 # Kassandra
 
+A pure Swift client library for [Apache Cassandra (3.4+)](http://cassandra.apache.org/) and [ScyllaDB](http://www.scylladb.com/) using Cassandra's binary protocol, CQL 3.2.
+
 [![Build Status](https://travis-ci.org/IBM-Swift/Kassandra.svg?branch=master)](https://travis-ci.org/IBM-Swift/Kassandra)
 ![](https://img.shields.io/badge/Swift-3.0-orange.svg?style=flat)
-![](https://img.shields.io/badge/Snapshot-8/23-blue.svg?style=flat)
+![](https://img.shields.io/badge/Snapshot-8/25-blue.svg?style=flat)
 
-**Cassandra** adapter for **Swift 3.0**.
+## Installation
 
-> Requires swift-DEVELOPMENT-SNAPSHOT-2016-08-23-a
+```swift
+import PackageDescription
 
-## Installation ##
+let package = Package(
+    	dependencies: [
+		.Package(url: "https://github.com/IBM-Swift/Kassandra.git", majorVersion: 0, minor: 1)
+    	]
+    )
+```
+
+## Basic usage
+
+### Prepare your queries
+
+You must first connect to the database before you can execute SQL statements. You can specify the keyspace to use in the connect statement.
+
+```swift
+let kassandra = Kassandra()
+try kassandra.connect(with: "mykeyspace") { error in 
+    kassandra.execute("SELECT * FROM bread;")
+
+}
+```
+
+## Create a Model
+
+In order to persist objects, they must conform to the `Model` protocol.
+
+```swift
+struct Post {
+    var id: UUID?
+    let user: String
+    let body: String
+    let timestamp: Date
+}
+```
+
+The model specifies the table name to use, the primary key that is used, and the fieldTypes.
+
+```swift
+extension Post: Model {
+    enum Field: String {
+        case id = "id"
+        case user = "user"
+        case body  = "message"
+        case timestamp = "timestamp"
+    }
+    
+    static let tableName = "Posts"
+    
+    static var primaryKey: Field {
+        return Field.id
+    }
+    
+    static var fieldTypes: [Field: DataType] {
+        return [
+            .id         : .uuid,
+            .user       : .text,
+            .body       : .text,
+            .timestamp  : .timestamp
+        ]
+    }
+    
+    var key: UUID? {
+        get {
+            return self.id
+        }
+        set {
+            self.id = newValue
+        }
+    }
+    
+    init(row: Row) {
+        self.id         = row["id"] as? UUID
+        self.user       = row["user"] as! String
+        self.body       = row["body"] as! String
+        self.timestamp  = row["timestamp"] as! Date
+    }
+}
+```
+
+### Save an object
+
+Persisting an object with Kassandra is easy, and only requires the save method.
+
+```swift
+
+let post = Post(id: UUID(), user: user, body: message, timestamp: Date())
+
+post.save()
+
+```
+
+---
+
+## Detailed Installation 
 
 1. Install OpenSSL:
 
@@ -56,19 +151,6 @@
 	```
 	$ swift build -Xcc -I/usr/local/opt/openssl/include -Xlinker -L/usr/local/opt/openssl/lib
 	```
-
-## Getting an Cassandra Docker Image from DockerHub
-
-1. Download [Docker Toolbox](https://www.docker.com/products/docker-toolbox)
-
-2. Go pull [Cassandra from DockerHub](https://hub.docker.com/r/library/cassandra/) with:
-
-  `docker pull cassandra`
-
-3. Run the Cassandra container with:
-
-  `docker run --name some-cassandra -d cassandra:tag`
-
 
 ## License
 
