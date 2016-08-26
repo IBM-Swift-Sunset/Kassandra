@@ -1,7 +1,6 @@
 # Kassandra
-A Swift Cassandra driver
 
-[![Build Status](https://travis-ci.com/IBM-Swift/Kassandra.svg?token=NtWCrCZmgqfHWpaxg7qx&branch=data-types)](https://travis-ci.com/IBM-Swift/Kassandra)
+[![Build Status](https://travis-ci.org/IBM-Swift/Kassandra.svg?branch=master)](https://travis-ci.org/IBM-Swift/Kassandra)
 ![](https://img.shields.io/badge/Swift-3.0-orange.svg?style=flat)
 ![](https://img.shields.io/badge/Snapshot-8/23-blue.svg?style=flat)
 
