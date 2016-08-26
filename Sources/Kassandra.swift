@@ -90,7 +90,7 @@ public class Kassandra {
                     }
                 }
             
-            try Request.startup(options: [:]).write(id: id, writer: sock)
+            try Request.startup(options: options).write(id: id, writer: sock)
             
             config.connection = self
 
