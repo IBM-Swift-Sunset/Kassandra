@@ -36,6 +36,8 @@ internal final class Config {
 
     internal var _compression: CompressionType = .none
 
+    internal var auth: Authenticator? = nil
+
     // Vesioning number of Cassandra
     //
     public var version: Int {
@@ -78,6 +80,11 @@ internal final class Config {
         self.cqlVersion = cqlVersion
     }
 
+    // Method to set cassandra's Authenticator
+    //
+    public func setAuth(_ auth: Authenticator?) {
+        self.auth = auth
+    }
     internal static var sharedInstance = Config()
     
     private init(){}

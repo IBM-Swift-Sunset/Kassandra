@@ -65,7 +65,9 @@ public class Kassandra {
          Returns a Result through the given callback
      
      */
-    public func connect(with keyspace: String? = nil, options: [String:String] = ["CQL_VERSION":config.cqlVersion], oncompletion: @escaping (Result) -> Void) throws {
+    public func connect(with keyspace: String? = nil, using auth: Authenticator? = nil,
+                        options: [String: String] = ["CQL_VERSION":config.cqlVersion],
+                        oncompletion: @escaping (Result) -> Void) throws {
         
         if socket == nil {
             socket = try! Socket.create(family: .inet6, type: .stream, proto: .tcp)
@@ -77,6 +79,8 @@ public class Kassandra {
         }
 
         do {
+            config.setAuth(auth)
+
             try sock.connect(to: config.host, port: config.port)
             
             let id = UInt16.random
@@ -102,6 +106,20 @@ public class Kassandra {
         read()
 
     }
+
+    /**
+        Authenticate your cassandra instance using the given Authenticator
+     
+         - Parameters
+             - auth          : Authenticator used to connect to db
+             - onCompletion  : Callback function for on completion
+    
+        Result will either be an authSuccess on success or an authChallenge
+    */
+    public func authenticate(with auth: Authenticator, oncompletion: @escaping ((Result) -> Void)) {
+        executeHandler(.authResponse(with: auth), oncompletion: oncompletion)
+    }
+
     /**
         Executes a Create Index Query
      
@@ -116,7 +134,18 @@ public class Kassandra {
     public func create(in table: String, on field: String, oncompletion: @escaping ((Result) -> Void)) {
         self.execute("CREATE INDEX ON \(table)(\(field))", oncompletion: oncompletion)
     }
+
     /**
+        Executes a Create Keyspace Query
+        
+         - Parameters
+            - keyspace      : Name of the keyspace to create
+            - strategy      : Type of Replication Strategy to Use
+            - isDurable     : Optional parameter for `Durable_Writes,` defaults to true
+            - ifNotExists   : Optional parameter to add "IF NOT EXISTS"
+            - onCompletion  : Callback function for on completion
+         
+         Returns a Result Enum through the given callback
      */
     public func create(keyspace: String, with strategy: ReplicationStrategy, isDurable: Bool = true, ifNotExists: Bool = false, oncompletion: @escaping ((Result) -> Void)) {
         self.execute("CREATE KEYSPACE \(ifNotExists ? "IF NOT EXISTS" : "") \(keyspace) WITH \(strategy) AND DURABLE_WRITES = \(isDurable);", oncompletion: oncompletion)
@@ -164,7 +193,7 @@ public class Kassandra {
         executeHandler(.query(using: query), oncompletion: oncompletion)
     }
 
-    private func executeHandler(_ request: Request, oncompletion: @escaping ((Result) -> Void)) {
+    internal func executeHandler(_ request: Request, oncompletion: @escaping ((Result) -> Void)) {
         guard let sock = socket else {
             oncompletion(Result.error(ErrorType.GenericError("Socket Not Connected")))
             return
@@ -307,12 +336,21 @@ extension Kassandra {
         
         }
     }
+
     private func handle(id: UInt16, flags: Byte, _ response: Result) throws {
         switch response {
-        case .event(let event)              : delegate?.didReceiveEvent(event: event)
-        case .authenticate(_)               : try Request.authResponse(token: 1).write(id: 1, writer: socket as! SocketWriter)
-        case .authChallenge(let token)      : try Request.authResponse(token: token).write(id: 1, writer: socket as! SocketWriter)
-        default                             : map[id]?(response)
+        case .event(let event)       : delegate?.didReceiveEvent(event: event)
+        case .authenticate(_)        :
+            
+            guard let auth = config.auth, let onCompletion = map[id] else {
+                map[id]?(response)
+                return
+            }
+
+            self.executeHandler(.authResponse(with: auth), oncompletion: onCompletion)
+
+        case .authChallenge(_)      : break
+        default                     : map[id]?(response)
         }
     }
 }

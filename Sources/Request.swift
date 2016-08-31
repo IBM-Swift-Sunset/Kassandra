@@ -91,7 +91,7 @@ public enum Request {
     //
     //
     // Returns a AuthSucces or AuthChallenge Response
-    case authResponse(token: Int)
+    case authResponse(with: Authenticator)
 
 
     public var opcode: Byte {
@@ -111,11 +111,11 @@ public enum Request {
         var body = Data()
         
         switch self {
-        case .options                        : break
-        case .query(let query)               : body.append(query.build().longStringData) ; body.append(query.packParameters())
-        case .prepare(let query)             : body.append(query.build().longStringData)
-        case .authResponse(let token)        : body.append(token.data)
-        case .execute(let query)   :
+        case .options                       : break
+        case .query(let query)              : body.append(query.build().longStringData) ; body.append(query.packParameters())
+        case .prepare(let query)            : body.append(query.build().longStringData)
+        case .authResponse(let auth)        : body.append(auth.initialResponse().count.data) ; body.append(auth.initialResponse())
+        case .execute(let query)            :
             
             if let id = query.preparedID {
                 body.append(UInt16(id.count).data)
@@ -126,7 +126,7 @@ public enum Request {
             }
             
 
-        case .startup(var options)           :
+        case .startup(let options)           :
             
             body.append(UInt16(options.count).data)
             
