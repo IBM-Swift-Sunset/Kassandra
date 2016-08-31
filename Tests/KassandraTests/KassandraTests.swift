@@ -51,7 +51,7 @@ class KassandraTests: XCTestCase {
     override func setUp() {
         super.setUp()
         // Put setup code here. This method is called before the invocation of each test method in the class.
-        connection = Kassandra()//host: "ec2-54-224-86-166.compute-1.amazonaws.com")
+        connection = Kassandra()
         t = TodoItem()
     }
     
