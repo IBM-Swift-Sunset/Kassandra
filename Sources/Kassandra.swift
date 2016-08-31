@@ -193,7 +193,7 @@ public class Kassandra {
         executeHandler(.query(using: query), oncompletion: oncompletion)
     }
 
-    internal func executeHandler(_ request: Request, oncompletion: @escaping ((Result) -> Void)) {
+    private func executeHandler(_ request: Request, oncompletion: @escaping ((Result) -> Void)) {
         guard let sock = socket else {
             oncompletion(Result.error(ErrorType.GenericError("Socket Not Connected")))
             return
@@ -347,7 +347,7 @@ extension Kassandra {
                 return
             }
 
-            self.executeHandler(.authResponse(with: auth), oncompletion: onCompletion)
+            self.authenticate(with: auth, oncompletion: onCompletion)
 
         case .authChallenge(_)      : break
         default                     : map[id]?(response)
