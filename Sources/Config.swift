@@ -38,6 +38,18 @@ internal final class Config {
 
     internal var auth: Authenticator? = nil
 
+    // Conenction Options
+    //
+    public var options: [String: String] {
+        var opts = [String: String]()
+        opts["CQL_VERSION"]  = cqlVersion
+
+        if compression != .none {
+            opts["COMPRESSION"] = compression.rawValue
+        }
+        return opts
+    }
+
     // Vesioning number of Cassandra
     //
     public var version: Int {
@@ -52,7 +64,7 @@ internal final class Config {
         }
         set {
             _compression = newValue
-            flags = flags | 0x01
+            newValue != .none ? flags = flags | 0x01 : ()
         }
     }
     
