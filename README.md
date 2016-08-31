@@ -152,7 +152,7 @@ post.save()
 	$ swift build -Xcc -I/usr/local/opt/openssl/include -Xlinker -L/usr/local/opt/openssl/lib
 	```
 
-## License
+## License 
 
 Copyright 2016 IBM
 
