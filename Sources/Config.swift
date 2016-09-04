@@ -38,7 +38,7 @@ internal final class Config {
 
     internal var auth: Authenticator? = nil
 
-    // Conenction Options
+    // Connection Options
     //
     public var options: [String: String] {
         var opts = [String: String]()
@@ -50,7 +50,7 @@ internal final class Config {
         return opts
     }
 
-    // Vesioning number of Cassandra
+    // Versioning number of Cassandra
     //
     public var version: Int {
         return Int(_version)
