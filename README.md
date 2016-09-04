@@ -4,7 +4,7 @@ A pure Swift client library for [Apache Cassandra (3.4+)](http://cassandra.apach
 
 [![Build Status](https://travis-ci.org/IBM-Swift/Kassandra.svg?branch=master)](https://travis-ci.org/IBM-Swift/Kassandra)
 ![](https://img.shields.io/badge/Swift-3.0-orange.svg?style=flat)
-![](https://img.shields.io/badge/Snapshot-8/25-blue.svg?style=flat)
+![](https://img.shields.io/badge/Snapshot-9/03-blue.svg?style=flat)
 
 ## Installation
 
@@ -152,7 +152,7 @@ post.save()
 	$ swift build -Xcc -I/usr/local/opt/openssl/include -Xlinker -L/usr/local/opt/openssl/lib
 	```
 
-## License
+## License 
 
 Copyright 2016 IBM
 

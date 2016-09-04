@@ -37,35 +37,47 @@ public class Kassandra {
          Initializes a Kassandra Instance
          
          - Parameters
-            - host: String denoting the server host - defaults to localhost
-            - port: Int32 denoting the server port  - defaults to 9042
-         
+            - host:             String denoting the server host - defaults to localhost
+            - port:             Int32 denoting the server port  - defaults to 9042
+            - authentication:   Username/Password tuple denoting user to connect with
+            - cqlVersion:       String representation of vql version to use (supported: >3.0.0)
+            - connect:          Whether to automatically connect or not
+
          Returns a QueryResult Enum through the callback
      
      */
-    public init(host: String = "localhost", port: Int32 = 9042, cqlVersion: String = config.cqlVersion) {
+    public init(host: String = "localhost", port: Int32 = 9042, using authentication: (username: String, password: String)? = nil, cqlVersion: String = config.cqlVersion) {
 
         config.setHostAndPort(host: host, port: port)
         config.setCQLVersion(cqlVersion: cqlVersion)
         
+        if let auth = authentication {
+            config.setAuth(PlainText(username: auth.username, password: auth.password))
+        }
+
         socket = nil
         
         buffer = Data()
 
         readQueue = DispatchQueue(label: "read queue", attributes: DispatchQueue.Attributes.concurrent)
         writeQueue = DispatchQueue(label: "write queue", attributes: DispatchQueue.Attributes.concurrent)
+
     }
  
     /**
          Connects to a Kassandra Server
          
          - Parameters
-            - onCompletion: Callback function for on completion
+            - keyspace      : Optional keyspace to automatically conenct to
+            - compression   : Compression Type to use
+            - onCompletion  : Callback function for on completion
          
          Returns a Result through the given callback
      
      */
-    public func connect(with keyspace: String? = nil, options: [String:String] = ["CQL_VERSION":config.cqlVersion], oncompletion: @escaping (Result) -> Void) throws {
+    public func connect(with keyspace: String? = nil,
+                        compression: CompressionType = .none,
+                        oncompletion: @escaping (Result) -> Void) throws {
         
         if socket == nil {
             socket = try! Socket.create(family: .inet6, type: .stream, proto: .tcp)
@@ -77,6 +89,8 @@ public class Kassandra {
         }
 
         do {
+            config.compression = compression
+
             try sock.connect(to: config.host, port: config.port)
             
             let id = UInt16.random
@@ -90,7 +104,7 @@ public class Kassandra {
                     }
                 }
             
-            try Request.startup(options: options).write(id: id, writer: sock)
+            try Request.startup(options: config.options).write(id: id, writer: sock)
             
             config.connection = self
 
@@ -102,6 +116,27 @@ public class Kassandra {
         read()
 
     }
+
+    /**
+        Authenticate your cassandra instance using a username/password
+            
+            ** Works with Cassandra PasswordAuthenticator
+     
+         - Parameters
+             - username      : Username for Cassandra Database
+             - password      : Password for Cassandra Database
+             - onCompletion  : Callback function for on completion
+    
+        Result will either be an authSuccess on success or an authChallenge
+    */
+    public func authenticate(username: String, password: String, oncompletion: @escaping ((Result) -> Void)) {
+        authenticate(with: PlainText(username: username, password: password), oncompletion: oncompletion)
+    }
+
+    internal func authenticate(with auth: Authenticator, oncompletion: @escaping ((Result) -> Void)) {
+        executeHandler(.authResponse(with: auth), oncompletion: oncompletion)
+    }
+
     /**
         Executes a Create Index Query
      
@@ -116,7 +151,18 @@ public class Kassandra {
     public func create(in table: String, on field: String, oncompletion: @escaping ((Result) -> Void)) {
         self.execute("CREATE INDEX ON \(table)(\(field))", oncompletion: oncompletion)
     }
+
     /**
+        Executes a Create Keyspace Query
+        
+         - Parameters
+            - keyspace      : Name of the keyspace to create
+            - strategy      : Type of Replication Strategy to Use
+            - isDurable     : Optional parameter for `Durable_Writes,` defaults to true
+            - ifNotExists   : Optional parameter to add "IF NOT EXISTS"
+            - onCompletion  : Callback function for on completion
+         
+         Returns a Result Enum through the given callback
      */
     public func create(keyspace: String, with strategy: ReplicationStrategy, isDurable: Bool = true, ifNotExists: Bool = false, oncompletion: @escaping ((Result) -> Void)) {
         self.execute("CREATE KEYSPACE \(ifNotExists ? "IF NOT EXISTS" : "") \(keyspace) WITH \(strategy) AND DURABLE_WRITES = \(isDurable);", oncompletion: oncompletion)
@@ -204,9 +250,7 @@ extension Kassandra {
         
         let SSLConfig = SSLService.Configuration(withCACertificateDirectory: nil, usingCertificateFile: certPath, withKeyFile: keyPath)
         
-        config.SSLConfig = SSLConfig
-        
-        socket?.delegate = try SSLService(usingConfiguration: SSLConfig)
+        try setSSL(SSLConfig)
     }
     
     /**
@@ -223,9 +267,7 @@ extension Kassandra {
         
         let SSLConfig = SSLService.Configuration(withChainFilePath: ChainFilePath, usingSelfSignedCerts: usingSelfSignedCert)
         
-        config.SSLConfig = SSLConfig
-        
-        socket?.delegate = try SSLService(usingConfiguration: SSLConfig)
+        try setSSL(SSLConfig)
     }
     
     /**
@@ -244,6 +286,11 @@ extension Kassandra {
                                                  usingCertificateFile: CertificateFile,
                                                  withKeyFile: KeyFile,
                                                  usingSelfSignedCerts: selfSignedCerts)
+        try setSSL(SSLConfig)
+    }
+    
+    private func setSSL(_ SSLConfig: SSLService.Configuration) throws {
+
         config.SSLConfig = SSLConfig
         
         socket?.delegate = try SSLService(usingConfiguration: SSLConfig)
@@ -303,16 +350,25 @@ extension Kassandra {
 
             buffer = buffer.subdata(in: Range(9 + bodyLength..<buffer.count))
 
-            do { try handle(id: streamID, flags: flags, Result(opcode: opcode, body: body)) } catch {}
+            handle(id: streamID, flags: flags, Result(opcode: opcode, body: body))
         
         }
     }
-    private func handle(id: UInt16, flags: Byte, _ response: Result) throws {
+
+    private func handle(id: UInt16, flags: Byte, _ response: Result) {
         switch response {
-        case .event(let event)              : delegate?.didReceiveEvent(event: event)
-        case .authenticate(_)               : try Request.authResponse(token: 1).write(id: 1, writer: socket as! SocketWriter)
-        case .authChallenge(let token)      : try Request.authResponse(token: token).write(id: 1, writer: socket as! SocketWriter)
-        default                             : map[id]?(response)
+        case .event(let event)       : delegate?.didReceiveEvent(event: event)
+        case .authenticate(_)        :
+            
+            guard let auth = config.auth, let onCompletion = map[id] else {
+                map[id]?(response)
+                return
+            }
+
+            self.authenticate(with: auth, oncompletion: onCompletion)
+
+        case .authChallenge(_)      : break
+        default                     : map[id]?(response)
         }
     }
 }
