@@ -19,6 +19,6 @@ import PackageDescription
 let package = Package(
     name: "Kassandra",
     dependencies: [   
-	.Package(url: "https://github.com/IBM-Swift/BlueSSLService.git", majorVersion: 0, minor: 11),
+	.Package(url: "https://github.com/IBM-Swift/BlueSSLService.git", majorVersion: 0, minor: 10),
     ]
 )
