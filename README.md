@@ -13,7 +13,7 @@ import PackageDescription
 
 let package = Package(
     	dependencies: [
-		.Package(url: "https://github.com/IBM-Swift/Kassandra.git", majorVersion: 0, minor: 2)
+		.Package(url: "https://github.com/IBM-Swift/Kassandra.git", majorVersion: 1)
     	]
     )
 ```
@@ -123,7 +123,7 @@ post.save()
 
     let package = Package(
     	dependencies: [
-		.Package(url: "https://github.com/IBM-Swift/Kassandra.git", majorVersion: 0, minor: 1)
+		.Package(url: "https://github.com/IBM-Swift/Kassandra.git", majorVersion: 1)
     	]
     )
     ```

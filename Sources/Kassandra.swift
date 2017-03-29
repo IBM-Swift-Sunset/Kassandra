@@ -381,7 +381,9 @@ extension Kassandra {
 
             let r = Request.query(using: request)
             
-            try r.write(id: 0, writer: socket as! SocketWriter)
+            if let s = socket {
+                try r.write(id: 0, writer: s)
+            }
 
         } catch {
             return false
