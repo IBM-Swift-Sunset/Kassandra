@@ -1,5 +1,5 @@
 /**
- Copyright IBM Corporation 2016
+ Copyright IBM Corporation 2017
  
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -381,7 +381,9 @@ extension Kassandra {
 
             let r = Request.query(using: request)
             
-            try r.write(id: 0, writer: socket as! SocketWriter)
+            if let s = socket {
+                try r.write(id: 0, writer: s)
+            }
 
         } catch {
             return false

@@ -13,7 +13,7 @@ import PackageDescription
 
 let package = Package(
     	dependencies: [
-		.Package(url: "https://github.com/IBM-Swift/Kassandra.git", majorVersion: 0, minor: 2)
+		.Package(url: "https://github.com/IBM-Swift/Kassandra.git", majorVersion: 1)
     	]
     )
 ```
@@ -123,7 +123,7 @@ post.save()
 
     let package = Package(
     	dependencies: [
-		.Package(url: "https://github.com/IBM-Swift/Kassandra.git", majorVersion: 0, minor: 1)
+		.Package(url: "https://github.com/IBM-Swift/Kassandra.git", majorVersion: 1)
     	]
     )
     ```
@@ -154,7 +154,7 @@ post.save()
 
 ## License 
 
-Copyright 2016 IBM
+Copyright 2017 IBM
 
 Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with the License. You may obtain a copy of the License at
 
